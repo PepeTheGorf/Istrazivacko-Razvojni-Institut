@@ -1,0 +1,69 @@
+version: "3.3" # Defines the Docker Compose file format version
+
+services:
+  # Service Discovery: Keeps track of all microservices
+  eureka-server:
+    build: # Instructions for building a custom image from a local directory
+      context: ./EurekaService # The directory containing the build files
+      dockerfile: Dockerfile  # The specific file used to build the image
+    image: eureka-server:latest # The name and tag given to the resulting image
+    ports: # Maps host machine ports to container ports (HOST:CONTAINER)
+      - "8761:8761"
+    healthcheck: # A test to check if the container is running correctly
+      # test: The actual command executed to verify the container's health
+      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
+      interval: 20s # How often to run the check
+      timeout: 10s # How long to wait for a response
+      retries: 5 # Number of failures before marking as unhealthy
+
+  gateway-api:
+    build:
+      context: ./GatewayService
+      dockerfile: Dockerfile
+    image: gateway-api:latest
+    environment:
+      EUREKA_URL: http://eureka-server:8761/eureka/
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+    ports:
+      - "9003:9000"
+
+
+  project-realization-service:
+    build:
+      context: ./ProjectRealizationService
+      dockerfile: Dockerfile
+    image: graph-service:latest
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+    environment:
+      EUREKA_URL: http://eureka-server:8761/eureka/
+      SPRING_NEO4J_URI: bolt://neo4j:7687
+      SPRING_NEO4J_AUTHENTICATION_USERNAME: neo4j
+      SPRING_NEO4J_AUTHENTICATION_PASSWORD: password
+    ports:
+      - "9060:8080"
+
+  neo4j:
+    image: neo4j:5
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      NEO4J_AUTH: neo4j/password
+    volumes: # Mounts persistent storage or local folders into the container
+      - neo4j_data:/data
+    healthcheck:
+      test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "password", "RETURN 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+
+volumes:
+  neo4j_data: {}
+
+
