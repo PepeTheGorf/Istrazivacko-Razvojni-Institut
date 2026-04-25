@@ -8,7 +8,7 @@ spring:
       username: neo4j
       password: password
   application:
-    name: graph-database-service
+    name: project-realization-service
 
 eureka:
   client:
