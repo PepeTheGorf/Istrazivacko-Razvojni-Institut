@@ -17,8 +17,14 @@ spring:
           lower-case-service-id: true
       routes:
         - id: ProjectRealizationService
-          uri: lb://project-realization-service
+          uri: lb://graph-database-service
           predicates:
             - Path=/project-realization-service/**
+          filters:
+            - StripPrefix=1
+        - id: PromptVectorService
+          uri: lb://prompt-vector-service
+          predicates:
+            - Path=/prompt-vector-service/**
           filters:
             - StripPrefix=1

@@ -1,0 +1,17 @@
+server:
+  port: 8080 # Unutar kontejnera je 8080, Docker ga mapira na 9061
+
+spring:
+  application:
+    name: prompt-vector-service
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+  instance:
+    prefer-ip-address: true
+
+milvus:
+  host: ${MILVUS_HOST:localhost}
+  port: ${MILVUS_PORT:19530}
