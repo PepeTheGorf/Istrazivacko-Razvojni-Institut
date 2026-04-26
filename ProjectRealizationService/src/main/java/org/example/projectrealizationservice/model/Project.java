@@ -6,7 +6,7 @@ import org.springframework.data.neo4j.core.schema.Id;
 import org.springframework.data.neo4j.core.schema.Node;
 import org.springframework.data.neo4j.core.schema.Relationship;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -18,8 +18,8 @@ public class Project {
     private Long id;
     private String name;
     private String description;
-    private LocalDateTime startDate;
-    private LocalDateTime endDate;
+    private OffsetDateTime startDate;
+    private OffsetDateTime endDate;
 
     @Relationship(value = "HAS_TASK", direction = Relationship.Direction.OUTGOING)
     private Set<ProjectTask> tasks = new HashSet<>();

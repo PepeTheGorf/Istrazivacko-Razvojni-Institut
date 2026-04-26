@@ -2,23 +2,20 @@ package org.example.projectrealizationservice.model;
 
 import lombok.Getter;
 import lombok.Setter;
-import org.springframework.data.neo4j.core.schema.GeneratedValue;
-import org.springframework.data.neo4j.core.schema.Id;
-import org.springframework.data.neo4j.core.schema.RelationshipProperties;
-import org.springframework.data.neo4j.core.schema.TargetNode;
+import org.springframework.data.neo4j.core.schema.*;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 @RelationshipProperties
 @Getter
 @Setter
 public class ProjectTask {
-    @Id
+    @RelationshipId
     @GeneratedValue
     private Long id;
-    private LocalDateTime startDate;
-    private LocalDateTime endDate;
-    
+    private OffsetDateTime startDate;
+    private OffsetDateTime endDate;
+
     @TargetNode
     private Task task;
 }

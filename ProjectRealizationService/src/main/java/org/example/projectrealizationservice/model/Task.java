@@ -6,8 +6,9 @@ import org.springframework.data.neo4j.core.schema.Id;
 import org.springframework.data.neo4j.core.schema.Node;
 import org.springframework.data.neo4j.core.schema.Relationship;
 
-import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 @Node
@@ -22,15 +23,19 @@ public class Task {
     @Relationship(type = "SUBTASK_OF", direction = Relationship.Direction.OUTGOING)
     private Task parentTask;
     
+    @Relationship(type = "SUBTASK_OF", direction = Relationship.Direction.INCOMING)
+    private List<Task> subTasks = new ArrayList<>();
+
     @Relationship(type = "USES_WORKFLOW", direction = Relationship.Direction.OUTGOING)
     private Workflow workflow;
-    
+
     @Relationship(type = "IN_PHASE", direction = Relationship.Direction.OUTGOING)
     private Phase phase;
-    
+
     @Relationship(type = "HAS_ACCEPTANCE_CRITERIA", direction = Relationship.Direction.OUTGOING)
     private Set<AcceptanceCriteria> acceptanceCriteria = new HashSet<>();
-    
+
     @Relationship(type = "HAS_TECHNICAL_RESOURCE", direction = Relationship.Direction.OUTGOING)
     private Set<TechnicalResource> technicalResources = new HashSet<>();
+    
 }
