@@ -1,0 +1,8 @@
+fastapi==0.115.8
+uvicorn[standard]==0.34.0
+pymilvus==2.5.6
+sentence-transformers==3.3.1
+numpy==1.26.4
+pydantic==2.10.6
+py-eureka-client==0.11.12
+python-multipart==0.0.20
