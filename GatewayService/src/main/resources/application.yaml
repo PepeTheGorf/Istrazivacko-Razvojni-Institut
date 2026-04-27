@@ -22,3 +22,9 @@ spring:
             - Path=/project-realization-service/**
           filters:
             - StripPrefix=1
+        - id: doucument-management-service
+          uri: lb://doucument-management-service
+          predicates:
+            - Path=/doucument-management-service/**
+          filters:
+            - StripPrefix=1
