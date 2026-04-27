@@ -16,6 +16,9 @@ public class DataSeederService {
     @Autowired
     private MilvusServiceClient milvusClient;
 
+    @Autowired
+    private EmbeddingService embeddingService;
+
     private final Random random = new Random();
 
     public void seedData() {
@@ -37,12 +40,17 @@ public class DataSeederService {
 
         for (int i = 0; i < 210; i++) {
             ids.add((long) i + 1);
-            templateNames.add(names[random.nextInt(names.length)] + " - Verzija " + (i + 1));
-            categoryList.add(categories[random.nextInt(categories.length)]);
+            String templateName = names[random.nextInt(names.length)] + " - Verzija " + (i + 1);
+            String category = categories[random.nextInt(categories.length)];
+            templateNames.add(templateName);
+            categoryList.add(category);
             ratings.add(1.0f + random.nextFloat() * 4.0f);
             versions.add(random.nextInt(5) + 1);
-            vectors.add(generateRandomVector(128));
-            summaryVectors.add(generateRandomVector(128));
+            
+            // Generate embeddings from template_name and category
+            String combinedText = templateName + " " + category;
+            vectors.add(embeddingService.generateEmbedding(combinedText));
+            summaryVectors.add(embeddingService.generateEmbedding(category));
         }
 
         List<InsertParam.Field> fields = new ArrayList<>();
@@ -75,8 +83,11 @@ public class DataSeederService {
             ids.add((long) i + 1000);
             ratings.add(random.nextInt(5) + 1);
             regens.add(random.nextInt(10));
-            sectionList.add(sections[random.nextInt(sections.length)]);
-            vectors.add(generateRandomVector(128));
+            String section = sections[random.nextInt(sections.length)];
+            sectionList.add(section);
+            
+            // Generate embeddings from section_name
+            vectors.add(embeddingService.generateEmbedding(section));
         }
 
         List<InsertParam.Field> fields = new ArrayList<>();
@@ -93,13 +104,5 @@ public class DataSeederService {
 
         milvusClient.insert(insertParam);
         System.out.println("Ubačeno 210 feedback-ova u Milvus!");
-    }
-
-    private List<Float> generateRandomVector(int dimension) {
-        List<Float> vector = new ArrayList<>();
-        for (int i = 0; i < dimension; i++) {
-            vector.add(random.nextFloat());
-        }
-        return vector;
     }
 }

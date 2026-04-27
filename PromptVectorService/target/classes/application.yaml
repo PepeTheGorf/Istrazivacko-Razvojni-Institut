@@ -15,3 +15,8 @@ eureka:
 milvus:
   host: ${MILVUS_HOST:localhost}
   port: ${MILVUS_PORT:19530}
+
+# LangChain4j local embedding model - runs entirely on CPU, no external API needed
+logging:
+  level:
+    root: INFO

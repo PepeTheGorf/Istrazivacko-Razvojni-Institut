@@ -57,8 +57,8 @@ public class MilvusInitializationService {
             fields.add(FieldType.newBuilder().withName("category").withDataType(DataType.VarChar).withMaxLength(100).build());
             fields.add(FieldType.newBuilder().withName("avg_rating").withDataType(DataType.Float).build());
             fields.add(FieldType.newBuilder().withName("version").withDataType(DataType.Int32).build());
-            fields.add(FieldType.newBuilder().withName("prompt_vector").withDataType(DataType.FloatVector).withDimension(128).build());
-            fields.add(FieldType.newBuilder().withName("summary_vector").withDataType(DataType.FloatVector).withDimension(128).build());
+            fields.add(FieldType.newBuilder().withName("prompt_vector").withDataType(DataType.FloatVector).withDimension(384).build());
+            fields.add(FieldType.newBuilder().withName("summary_vector").withDataType(DataType.FloatVector).withDimension(384).build());
 
             CollectionSchemaParam schemaParam = CollectionSchemaParam.newBuilder()
                     .withFieldTypes(fields)
@@ -81,7 +81,7 @@ public class MilvusInitializationService {
             fields.add(FieldType.newBuilder().withName("rating").withDataType(DataType.Int32).build());
             fields.add(FieldType.newBuilder().withName("regeneration_count").withDataType(DataType.Int32).build());
             fields.add(FieldType.newBuilder().withName("section_name").withDataType(DataType.VarChar).withMaxLength(100).build());
-            fields.add(FieldType.newBuilder().withName("feedback_vector").withDataType(DataType.FloatVector).withDimension(128).build());
+            fields.add(FieldType.newBuilder().withName("feedback_vector").withDataType(DataType.FloatVector).withDimension(384).build());
 
             CollectionSchemaParam schemaParam = CollectionSchemaParam.newBuilder()
                     .withFieldTypes(fields)

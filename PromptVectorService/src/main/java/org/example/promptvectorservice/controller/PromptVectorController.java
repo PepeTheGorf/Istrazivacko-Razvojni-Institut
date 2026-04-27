@@ -13,6 +13,7 @@ import io.milvus.param.dml.*;
 //import io.milvus.param.dml.RRFRanker;
 import io.milvus.orm.iterator.SearchIterator;
 import io.milvus.response.QueryResultsWrapper;
+import org.example.promptvectorservice.service.EmbeddingService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,6 +28,9 @@ public class PromptVectorController {
 
     @Autowired
     private MilvusServiceClient milvusClient;
+
+    @Autowired
+    private EmbeddingService embeddingService;
 
     private final Random random = new Random();
     //CREATE
@@ -50,14 +54,6 @@ public class PromptVectorController {
         return queryById("ResearcherFeedbacks", id, List.of("section_name", "rating"));
     }
     //UPDATE
-    /*@PutMapping("/template/{id}")
-    public String updateTemplate(@PathVariable Long id, @RequestParam Float rating) {
-        List<InsertParam.Field> fields = new ArrayList<>();
-        fields.add(new InsertParam.Field("id", Collections.singletonList(id)));
-        fields.add(new InsertParam.Field("avg_rating", Collections.singletonList(rating)));
-        milvusClient.upsert(UpsertParam.newBuilder().withCollectionName("PromptTemplates").withFields(fields).build());
-        return "Sablon azuriran!";
-    }*/
    @PutMapping("/template/{id}")
    public String updateTemplate(@PathVariable Long id, @RequestParam Float rating) {
     R<QueryResults> queryResponse = milvusClient.query(QueryParam.newBuilder()
@@ -88,15 +84,7 @@ public class PromptVectorController {
             .build());
 
     return response.getStatus() == 0 ? "Šablon uspešno ažuriran!" : "Greška: " + response.getMessage();
-}
-    /*@PutMapping("/feedback/{id}")
-    public String updateFeedback(@PathVariable Long id, @RequestParam Integer rating) {
-        List<InsertParam.Field> fields = new ArrayList<>();
-        fields.add(new InsertParam.Field("id", Collections.singletonList(id)));
-        fields.add(new InsertParam.Field("rating", Collections.singletonList(rating)));
-        milvusClient.upsert(UpsertParam.newBuilder().withCollectionName("ResearcherFeedbacks").withFields(fields).build());
-        return "Feedback azuriran!";
-    }*/
+   }
    @PutMapping("/feedback/{id}")
    public String updateFeedback(@PathVariable Long id, @RequestParam Integer rating) {
     R<QueryResults> queryResponse = milvusClient.query(QueryParam.newBuilder()
@@ -139,12 +127,13 @@ public class PromptVectorController {
     }
     //PROSTI UPITI
     @GetMapping("/search/simple-vector")
-    public String simpleVectorSearch() {
+    public String simpleVectorSearch(@RequestParam String query) {
+        List<Float> queryVector = embeddingService.generateEmbedding(query);
         SearchParam searchParam = SearchParam.newBuilder()
                 .withCollectionName("PromptTemplates")
                 .withMetricType(MetricType.L2)
                 .withTopK(3)
-                .withFloatVectors(Collections.singletonList(generateRandomVector(128)))
+                .withFloatVectors(Collections.singletonList(queryVector))
                 .withVectorFieldName("prompt_vector")
                 .build();
         return milvusClient.search(searchParam).getData().toString();
@@ -158,15 +147,16 @@ public class PromptVectorController {
                 .build());
         return "Broj losih rezultata: " + response.getData().toString();
     }
-
+    //SLOZENI UPITI
     //vektorska pretraga + 2 filtera (kategorija i ocjena)
     @GetMapping("/search/complex-filter")
-    public String complexSearchWithFilters() {
+    public String complexSearchWithFilters(@RequestParam String query) {
+        List<Float> queryVector = embeddingService.generateEmbedding(query);
         SearchParam searchParam = SearchParam.newBuilder()
                 .withCollectionName("PromptTemplates")
                 .withMetricType(MetricType.L2)
                 .withTopK(5)
-                .withFloatVectors(Collections.singletonList(generateRandomVector(128)))
+                .withFloatVectors(Collections.singletonList(queryVector))
                 .withVectorFieldName("prompt_vector")
                 .withExpr("category == 'Tehnologija' && avg_rating > 4.0")
                 .build();
@@ -174,12 +164,13 @@ public class PromptVectorController {
     }
     //vektorska pretraga + filtriranje uz koristenje iteratora
     @GetMapping("/search/complex-iterator")
-    public List<String> complexSearchIterator() {
+    public List<String> complexSearchIterator(@RequestParam String query) {
         List<String> results = new ArrayList<>();
+        List<Float> queryVector = embeddingService.generateEmbedding(query);
         SearchIteratorParam iteratorParam = SearchIteratorParam.newBuilder()
                 .withCollectionName("ResearcherFeedbacks")
                 .withVectorFieldName("feedback_vector")
-                .withFloatVectors(Collections.singletonList(generateRandomVector(128)))
+                .withFloatVectors(Collections.singletonList(queryVector))
                 .withBatchSize(10L)
                 .withExpr("rating < 3")
                 .withMetricType(MetricType.L2)
@@ -230,14 +221,19 @@ public class PromptVectorController {
     }*/
  private void insertData(String coll, String f1, List<String> v1, String f2, List<String> v2, String vecF) {
     long newId = System.currentTimeMillis() + random.nextInt(1000);
+    
+    String combinedText = v1.get(0) + " " + v2.get(0);
+    List<Float> embedding = embeddingService.generateEmbedding(combinedText);
+    List<Float> summaryEmbedding = embeddingService.generateEmbedding(v2.get(0));
+    
     List<InsertParam.Field> fields = new ArrayList<>();
     fields.add(new InsertParam.Field("id", List.of(newId)));
     fields.add(new InsertParam.Field(f1, v1));
     fields.add(new InsertParam.Field(f2, v2));
     fields.add(new InsertParam.Field("avg_rating", List.of(0.0f))); 
     fields.add(new InsertParam.Field("version", List.of(1)));        
-    fields.add(new InsertParam.Field(vecF, List.of(generateRandomVector(128))));
-    fields.add(new InsertParam.Field("summary_vector", List.of(generateRandomVector(128)))); 
+    fields.add(new InsertParam.Field(vecF, List.of(embedding)));
+    fields.add(new InsertParam.Field("summary_vector", List.of(summaryEmbedding))); 
 
     milvusClient.insert(InsertParam.newBuilder()
             .withCollectionName(coll)
@@ -247,11 +243,14 @@ public class PromptVectorController {
 
     private void insertFeedbackData(Integer rating, String section) {
         long newId = System.currentTimeMillis() + random.nextInt(1000);
+
+        List<Float> embedding = embeddingService.generateEmbedding(section);
+        
         List<InsertParam.Field> fields = new ArrayList<>();
         fields.add(new InsertParam.Field("id", List.of(newId)));
         fields.add(new InsertParam.Field("rating", Collections.singletonList(rating)));
         fields.add(new InsertParam.Field("section_name", Collections.singletonList(section)));
-        fields.add(new InsertParam.Field("feedback_vector", Collections.singletonList(generateRandomVector(128))));
+        fields.add(new InsertParam.Field("feedback_vector", Collections.singletonList(embedding)));
         fields.add(new InsertParam.Field("regeneration_count", Collections.singletonList(0)));
         milvusClient.insert(InsertParam.newBuilder().withCollectionName("ResearcherFeedbacks").withFields(fields).build());
     }
@@ -261,11 +260,5 @@ public class PromptVectorController {
                 .withCollectionName(coll).withExpr("id == " + id).withOutFields(outFields).build());
         if (response.getData() == null) return "Nije pronađeno.";
         return response.getData().toString();
-    }
-
-    private List<Float> generateRandomVector(int dimension) {
-        List<Float> vector = new ArrayList<>();
-        for (int i = 0; i < dimension; i++) vector.add(random.nextFloat());
-        return vector;
     }
 }
