@@ -52,12 +52,13 @@ public class MilvusInitializationService {
     private void createPromptTemplatesCollection() {
         if (!collectionExists(TEMPLATE_COLLECTION)) {
             List<FieldType> fields = new ArrayList<>();
-            fields.add(FieldType.newBuilder().withName("id").withDataType(DataType.Int64).withPrimaryKey(true).withAutoID(true).build());
+            fields.add(FieldType.newBuilder().withName("id").withDataType(DataType.Int64).withPrimaryKey(true).withAutoID(false).build());
             fields.add(FieldType.newBuilder().withName("template_name").withDataType(DataType.VarChar).withMaxLength(255).build());
             fields.add(FieldType.newBuilder().withName("category").withDataType(DataType.VarChar).withMaxLength(100).build());
             fields.add(FieldType.newBuilder().withName("avg_rating").withDataType(DataType.Float).build());
             fields.add(FieldType.newBuilder().withName("version").withDataType(DataType.Int32).build());
             fields.add(FieldType.newBuilder().withName("prompt_vector").withDataType(DataType.FloatVector).withDimension(128).build());
+            fields.add(FieldType.newBuilder().withName("summary_vector").withDataType(DataType.FloatVector).withDimension(128).build());
 
             CollectionSchemaParam schemaParam = CollectionSchemaParam.newBuilder()
                     .withFieldTypes(fields)
@@ -69,13 +70,14 @@ public class MilvusInitializationService {
                     .build());
             
             createIndex(TEMPLATE_COLLECTION, "prompt_vector");
+            createIndex(TEMPLATE_COLLECTION, "summary_vector");
         }
     }
 
     private void createResearcherFeedbackCollection() {
         if (!collectionExists(FEEDBACK_COLLECTION)) {
             List<FieldType> fields = new ArrayList<>();
-            fields.add(FieldType.newBuilder().withName("id").withDataType(DataType.Int64).withPrimaryKey(true).withAutoID(true).build());
+            fields.add(FieldType.newBuilder().withName("id").withDataType(DataType.Int64).withPrimaryKey(true).withAutoID(false).build());
             fields.add(FieldType.newBuilder().withName("rating").withDataType(DataType.Int32).build());
             fields.add(FieldType.newBuilder().withName("regeneration_count").withDataType(DataType.Int32).build());
             fields.add(FieldType.newBuilder().withName("section_name").withDataType(DataType.VarChar).withMaxLength(100).build());
