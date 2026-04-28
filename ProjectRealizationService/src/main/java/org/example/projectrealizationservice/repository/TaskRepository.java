@@ -58,4 +58,11 @@ public interface TaskRepository extends Neo4jRepository<Task, String> {
             DETACH DELETE t
             """)
     void detachDeleteById(String taskId);
+
+    @Query("""
+            MATCH (t:Task)-[:SUBTASK_OF]->(p:Task)
+            WHERE elementId(p) = $parentTaskId
+            RETURN t
+            """)
+    List<Task> findSubtasksByParentTaskId(String parentTaskId);
 }
