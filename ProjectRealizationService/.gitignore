@@ -19,6 +19,8 @@ target/
 *.iml
 *.ipr
 
+.idea/compiler.xml
+
 # OS files
 .DS_Store
 Thumbs.db

@@ -9,6 +9,10 @@ spring:
       password: password
   application:
     name: project-realization-service
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.neo4j.Neo4jReactiveDataAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.neo4j.Neo4jReactiveRepositoriesAutoConfiguration
 
 eureka:
   client:
