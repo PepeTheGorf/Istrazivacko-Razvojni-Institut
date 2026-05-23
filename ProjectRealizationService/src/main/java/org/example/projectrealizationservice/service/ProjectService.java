@@ -11,9 +11,7 @@ public interface ProjectService {
     void deleteProject(String projectId);
 
     void updateProject(String projectId, ProjectDTO project);
-
-    ProjectDTO getProjectById(String projectId);
-
+    
     ProjectDTO getProjectByName(String name);
 
     List<ProjectDTO> findAll();

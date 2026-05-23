@@ -56,13 +56,7 @@ public class ProjectServiceImpl implements ProjectService {
         existingProject.setEndDate(project.getEndDate());
         projectRepository.save(existingProject);
     }
-
-    @Override
-    public ProjectDTO getProjectById(String projectId) {
-        return ProjectDTO.toDTO(projectRepository.findById(projectId)
-                .orElseThrow(() -> new RuntimeException("Project with that id does not exist!")));
-    }
-
+    
     @Override
     public List<ProjectDTO> findAll() {
         return projectRepository.findAll().stream()

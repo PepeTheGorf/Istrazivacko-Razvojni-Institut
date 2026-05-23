@@ -1,11 +1,14 @@
 package org.example.projectrealizationservice.service.impl;
 
 import lombok.RequiredArgsConstructor;
+import org.example.projectrealizationservice.dto.TechnicalResourceDTO;
 import org.example.projectrealizationservice.dto.creation.TechnicalResourceCreationDTO;
 import org.example.projectrealizationservice.model.TechnicalResource;
 import org.example.projectrealizationservice.repository.TechnicalResourceRepository;
 import org.example.projectrealizationservice.service.TechnicalResourceService;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -26,13 +29,18 @@ public class TechnicalResourceServiceImpl implements TechnicalResourceService {
     }
 
     @Override
-    public TechnicalResourceCreationDTO getTechnicalResourceById(String technicalResourceId) {
-        TechnicalResource technicalResource = technicalResourceRepository.findById(technicalResourceId)
-                .orElseThrow(() -> new RuntimeException("Technical resource with that id does not exist!"));
-        return TechnicalResourceCreationDTO.builder()
-                .name(technicalResource.getName())
-                .description(technicalResource.getDescription())
-                .build();
+    public List<TechnicalResourceDTO> getAllTechnicalResources() {
+        return technicalResourceRepository.findAll()
+                .stream()
+                .map(TechnicalResourceDTO::toDto)
+                .toList();
+    }
+    
+    @Override
+    public TechnicalResourceDTO getTechnicalResourceByName(String name) {
+        return technicalResourceRepository.findByName(name)
+                .map(TechnicalResourceDTO::toDto)
+                .orElseThrow(() -> new RuntimeException("Technical resource with that name does not exist!"));
     }
 
     @Override

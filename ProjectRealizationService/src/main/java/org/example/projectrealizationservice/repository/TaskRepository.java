@@ -52,6 +52,13 @@ public interface TaskRepository extends Neo4jRepository<Task, String> {
             String phaseId,
             long minCompleted
     );
+    
+    @Query("""
+            MATCH (p:Project)-[:HAS_TASK]->(t:Task)
+            WHERE elementId(p) = $projectId
+            RETURN t
+            """)
+    List<Task> findAllByProject(String projectId);
 
     @Query("""
             MATCH (t:Task) WHERE elementId(t) = $taskId
