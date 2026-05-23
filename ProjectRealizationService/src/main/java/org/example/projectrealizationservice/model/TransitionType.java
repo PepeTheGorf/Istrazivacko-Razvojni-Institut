@@ -1,8 +1,18 @@
 package org.example.projectrealizationservice.model;
 
-public enum TransitionType {
-    ASSIGNEE,
-    ACCEPTANCE_CRITERIA_MET,
-    HAS_ROLE,
-    SUB_TASKS_COMPLETED
+import lombok.*;
+import org.springframework.data.neo4j.core.schema.Id;
+import org.springframework.data.neo4j.core.schema.Node;
+
+@Node("TransitionType")
+@Getter
+@Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class TransitionType {
+    @Id
+    private String id;
+    
+    private String name;
 }

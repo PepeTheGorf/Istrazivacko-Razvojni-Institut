@@ -23,4 +23,6 @@ public class TechnicalResource {
 
     private String name;
     private String description;
+    
+    private Long administratorId;
 }

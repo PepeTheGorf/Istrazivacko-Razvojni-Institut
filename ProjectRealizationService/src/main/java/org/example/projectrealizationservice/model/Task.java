@@ -43,7 +43,7 @@ public class Task {
 
     @Relationship(type = "HAS_TECHNICAL_RESOURCE", direction = Relationship.Direction.OUTGOING)
     @Builder.Default
-    private Set<TechnicalResource> technicalResources = new HashSet<>();
+    private Set<ResourceAssignment> technicalResources = new HashSet<>();
 
     @Relationship(type = "ASSIGNED_TO", direction = Relationship.Direction.OUTGOING)
     @Builder.Default
