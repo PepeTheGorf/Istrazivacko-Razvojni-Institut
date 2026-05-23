@@ -1,32 +1,36 @@
 package org.example.projectrealizationservice.model;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.springframework.data.neo4j.core.schema.GeneratedValue;
 import org.springframework.data.neo4j.core.schema.Id;
 import org.springframework.data.neo4j.core.schema.Node;
 import org.springframework.data.neo4j.core.schema.Relationship;
 
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
-@Node
+@Node("Task")
 @Getter
 @Setter
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class Task {
+
     @Id
     @GeneratedValue
     private String id;
+
     private String name;
     private String description;
 
     @Relationship(type = "SUBTASK_OF", direction = Relationship.Direction.OUTGOING)
     private Task parentTask;
-    
+
     @Relationship(type = "USES_WORKFLOW", direction = Relationship.Direction.OUTGOING)
     private Workflow workflow;
 
@@ -34,9 +38,18 @@ public class Task {
     private Phase phase;
 
     @Relationship(type = "HAS_ACCEPTANCE_CRITERIA", direction = Relationship.Direction.OUTGOING)
-    private Set<AcceptanceCriteria> acceptanceCriteria;
+    @Builder.Default
+    private Set<AcceptanceCriteria> acceptanceCriteria = new HashSet<>();
 
     @Relationship(type = "HAS_TECHNICAL_RESOURCE", direction = Relationship.Direction.OUTGOING)
-    private Set<TechnicalResource> technicalResources;
+    @Builder.Default
+    private Set<TechnicalResource> technicalResources = new HashSet<>();
 
+    @Relationship(type = "ASSIGNED_TO", direction = Relationship.Direction.OUTGOING)
+    @Builder.Default
+    private Set<TaskAssignment> assignments = new HashSet<>();
+
+    @Relationship(type = "HAS_PROBLEM", direction = Relationship.Direction.OUTGOING)
+    @Builder.Default
+    private Set<ProblemReport> problems = new HashSet<>();
 }

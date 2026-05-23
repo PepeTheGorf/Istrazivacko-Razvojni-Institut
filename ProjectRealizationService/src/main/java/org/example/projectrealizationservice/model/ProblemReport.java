@@ -9,18 +9,27 @@ import org.springframework.data.neo4j.core.schema.GeneratedValue;
 import org.springframework.data.neo4j.core.schema.Id;
 import org.springframework.data.neo4j.core.schema.Node;
 
-@Node("Phase")
+import java.time.OffsetDateTime;
+
+@Node("ProblemReport")
 @Getter
 @Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Phase {
+public class ProblemReport {
 
     @Id
     @GeneratedValue
     private String id;
 
-    private String name;
-    private int order;
+    private String reporterId;
+    private String description;
+    private ProblemType problemType;
+
+    @Builder.Default
+    private ProblemStatus status = ProblemStatus.OPEN;
+
+    @Builder.Default
+    private OffsetDateTime reportedAt = OffsetDateTime.now();
 }

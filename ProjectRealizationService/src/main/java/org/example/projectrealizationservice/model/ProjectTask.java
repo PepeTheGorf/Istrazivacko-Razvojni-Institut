@@ -1,7 +1,9 @@
 package org.example.projectrealizationservice.model;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.springframework.data.neo4j.core.schema.GeneratedValue;
 import org.springframework.data.neo4j.core.schema.RelationshipId;
@@ -14,10 +16,14 @@ import java.time.OffsetDateTime;
 @Getter
 @Setter
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class ProjectTask {
+
     @RelationshipId
     @GeneratedValue
     private String id;
+
     private OffsetDateTime startDate;
     private OffsetDateTime endDate;
 
