@@ -11,13 +11,25 @@ spring:
     name: gateway-api
   cloud:
     gateway:
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins:
+              - "http://localhost:5173"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowedHeaders: "*"
       discovery:
         locator:
           enabled: true
           lower-case-service-id: true
       routes:
         - id: ProjectRealizationService
-          uri: lb://graph-database-service
+          uri: lb://project-realization-service
           predicates:
             - Path=/project-realization-service/**
           filters:
