@@ -5,22 +5,23 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.springframework.data.neo4j.core.schema.GeneratedValue;
-import org.springframework.data.neo4j.core.schema.Id;
-import org.springframework.data.neo4j.core.schema.Node;
+import org.springframework.data.neo4j.core.schema.*;
 
-@Node("Phase")
+import java.time.OffsetDateTime;
+
+@Node("TaskAssignment")
 @Getter
 @Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Phase {
-
+public class TaskAssignment {
     @Id
     @GeneratedValue
     private String id;
 
-    private String name;
-    private int order;
+    private Long assigneeId;
+    private OffsetDateTime assignedAt;
+    
+    //todo: add role of assignee in task assignment
 }

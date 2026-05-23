@@ -18,10 +18,5 @@ public class TaskCreationDTO {
     private String description;
     private OffsetDateTime endDate;
 
-    // These are fetched from DB
-    private String workflow;
     private String projectId;
-    private String parentTaskId;
-    private List<AcceptanceCriteriaCreationDTO> acceptanceCriteria;
-    private List<TechnicalResourceDTO> assignedResources;
 }

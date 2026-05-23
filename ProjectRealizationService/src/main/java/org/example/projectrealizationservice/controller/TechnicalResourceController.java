@@ -22,10 +22,19 @@ public class TechnicalResourceController {
         }
     }
 
-    @GetMapping("/{technicalResourceId}")
-    public ResponseEntity<?> getTechnicalResourceById(@PathVariable String technicalResourceId) {
+    @GetMapping("/all")
+    public ResponseEntity<?> getAllTechnicalResources() {
         try {
-            return ResponseEntity.ok(technicalResourceService.getTechnicalResourceById(technicalResourceId));
+            return ResponseEntity.ok(technicalResourceService.getAllTechnicalResources());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @GetMapping("/{technicalResourceName}")
+    public ResponseEntity<?> getTechnicalResourceById(@PathVariable String technicalResourceName) {
+        try {
+            return ResponseEntity.ok(technicalResourceService.getTechnicalResourceByName(technicalResourceName));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }

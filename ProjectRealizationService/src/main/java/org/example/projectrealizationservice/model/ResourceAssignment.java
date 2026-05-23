@@ -1,16 +1,10 @@
 package org.example.projectrealizationservice.model;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.springframework.data.neo4j.core.schema.GeneratedValue;
 import org.springframework.data.neo4j.core.schema.RelationshipId;
 import org.springframework.data.neo4j.core.schema.RelationshipProperties;
 import org.springframework.data.neo4j.core.schema.TargetNode;
-
-import java.time.OffsetDateTime;
 
 @RelationshipProperties
 @Getter
@@ -18,15 +12,12 @@ import java.time.OffsetDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ProjectTask {
-
+public class ResourceAssignment {
     @RelationshipId
     @GeneratedValue
     private String id;
-
-    private OffsetDateTime startDate;
-    private OffsetDateTime endDate;
-
+    private Integer quantity;
+    
     @TargetNode
-    private Task task;
+    private TechnicalResource technicalResource;
 }

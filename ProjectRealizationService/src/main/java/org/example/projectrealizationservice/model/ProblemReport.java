@@ -9,20 +9,27 @@ import org.springframework.data.neo4j.core.schema.GeneratedValue;
 import org.springframework.data.neo4j.core.schema.Id;
 import org.springframework.data.neo4j.core.schema.Node;
 
-@Node("TechnicalResource")
+import java.time.OffsetDateTime;
+
+@Node("ProblemReport")
 @Getter
 @Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class TechnicalResource {
+public class ProblemReport {
 
     @Id
     @GeneratedValue
     private String id;
 
-    private String name;
+    private Long reporterId;
     private String description;
-    
-    private Long administratorId;
+    private ProblemType problemType;
+
+    @Builder.Default
+    private ProblemStatus status = ProblemStatus.OPEN;
+
+    @Builder.Default
+    private OffsetDateTime reportedAt = OffsetDateTime.now();
 }

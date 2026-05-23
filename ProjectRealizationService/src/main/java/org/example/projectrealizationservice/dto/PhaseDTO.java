@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.example.projectrealizationservice.model.Phase;
 
 @Data
 @Builder
@@ -12,5 +13,13 @@ import lombok.NoArgsConstructor;
 public class PhaseDTO {
     private String id;
     private String name;
-    private String description;
+    private Integer order;
+    
+    public static PhaseDTO toDTO(Phase phase) {
+        return PhaseDTO.builder()
+                .id(phase.getId())
+                .name(phase.getName())
+                .order(phase.getOrder())
+                .build();
+    }
 }
