@@ -71,6 +71,12 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Override
+    public ProjectDTO getProjectById(String projectId) {
+        return ProjectDTO.toDTO(projectRepository.findById(projectId)
+                .orElseThrow(() -> new RuntimeException("Project with that id does not exist!")));
+    }
+
+    @Override
     public List<ProjectDTO> findProjectsByWorkflowWithMinTaskCount(String workflowName, long minTaskCount) {
         return projectRepository.findProjectsByWorkflowWithMinTaskCount(workflowName, minTaskCount)
                 .stream()

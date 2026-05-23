@@ -85,10 +85,14 @@ public class TaskServiceImpl implements TaskService {
     public List<ProjectTaskDTO> getTasksByProjectId(String projectId) {
         return taskRepository.findAllByProject(projectId).stream()
                 .map(task -> {
-                    List<TechnicalResourceDTO> technicalResources = task.getTechnicalResources().stream()
+                    List<TechnicalResourceDTO> technicalResources = task.getTechnicalResources() == null
+                            ? List.of()
+                            : task.getTechnicalResources().stream()
                             .map(tech -> TechnicalResourceDTO.toDto(tech.getTechnicalResource()))
                             .toList();
-                    List<AcceptanceCriteriaDTO> acceptanceCriteria = task.getAcceptanceCriteria().stream()
+                    List<AcceptanceCriteriaDTO> acceptanceCriteria = task.getAcceptanceCriteria() == null
+                            ? List.of()
+                            : task.getAcceptanceCriteria().stream()
                             .map(AcceptanceCriteriaDTO::toDto)
                             .toList();
                     WorkflowDTO workflow = WorkflowDTO.toDTO(
@@ -112,10 +116,14 @@ public class TaskServiceImpl implements TaskService {
     public ProjectTaskDTO getTaskById(String taskId) {
         return taskRepository.findById(taskId)
                 .map(task -> {
-                    List<TechnicalResourceDTO> technicalResources = task.getTechnicalResources().stream()
+                    List<TechnicalResourceDTO> technicalResources = task.getTechnicalResources() == null
+                            ? List.of()
+                            : task.getTechnicalResources().stream()
                             .map(tech -> TechnicalResourceDTO.toDto(tech.getTechnicalResource()))
                             .toList();
-                    List<AcceptanceCriteriaDTO> acceptanceCriteria = task.getAcceptanceCriteria().stream()
+                    List<AcceptanceCriteriaDTO> acceptanceCriteria = task.getAcceptanceCriteria() == null
+                            ? List.of()
+                            : task.getAcceptanceCriteria().stream()
                             .map(AcceptanceCriteriaDTO::toDto)
                             .toList();
                     WorkflowDTO workflow = WorkflowDTO.toDTO(

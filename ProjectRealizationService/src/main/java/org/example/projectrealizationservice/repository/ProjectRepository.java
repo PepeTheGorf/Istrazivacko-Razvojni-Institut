@@ -51,13 +51,5 @@ public interface ProjectRepository extends Neo4jRepository<Project, String> {
             OffsetDateTime startDate,
             OffsetDateTime endDate
     );
-
-    @Query("""
-        MATCH (p:Project)-[:HAS_TASK]->(t:Task)
-        WHERE elementId(t) = $taskId
-        WITH p, count(*) AS linkCount
-        WHERE linkCount > 0
-        RETURN elementId(p)
-        """)
-    Optional<String> findProjectIdByTaskId(String taskId);
+    
 }

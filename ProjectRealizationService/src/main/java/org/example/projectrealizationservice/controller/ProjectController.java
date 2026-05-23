@@ -7,7 +7,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.OffsetDateTime;
 import java.util.List;
 
 @RestController
@@ -29,8 +28,8 @@ public class ProjectController {
     }
 
     @GetMapping("/{projectId}")
-    public ProjectDTO getProjectById(@PathVariable String projectName) {
-        return projectService.getProjectByName(projectName);
+    public ProjectDTO getProjectById(@PathVariable String projectId) {
+        return projectService.getProjectById(projectId);
     }
     
     @PutMapping("/{projectId}")

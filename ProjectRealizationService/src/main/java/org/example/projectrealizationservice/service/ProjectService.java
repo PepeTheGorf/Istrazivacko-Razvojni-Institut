@@ -14,6 +14,8 @@ public interface ProjectService {
     
     ProjectDTO getProjectByName(String name);
 
+    ProjectDTO getProjectById(String projectId);
+
     List<ProjectDTO> findAll();
 
     List<ProjectDTO> findProjectsByWorkflowWithMinTaskCount(String workflowName, long minTaskCount);
