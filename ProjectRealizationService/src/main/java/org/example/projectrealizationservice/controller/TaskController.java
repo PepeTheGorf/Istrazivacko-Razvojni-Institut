@@ -30,39 +30,7 @@ public class TaskController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
-
-    @PutMapping("/next-phase/{taskId}")
-    public ResponseEntity<?> moveTaskToNextPhase(@PathVariable String taskId) {
-        try {
-            taskService.moveTaskToNextPhase(taskId);
-            return ResponseEntity.ok().build();
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
-    }
-
-    @PutMapping("/acceptance-criteria/{taskId}/{criteriaId}")
-    public ResponseEntity<?> completeAcceptanceCriteria(@PathVariable String taskId, @PathVariable String criteriaId) {
-        try {
-            taskService.completeAcceptanceCriteria(taskId, criteriaId);
-            return ResponseEntity.ok().build();
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
-    }
-
-    @GetMapping("/analytics/acceptance-criteria-completion")
-    public ResponseEntity<?> findTasksWithUncompletedAcceptanceCriteria(
-            @RequestParam String projectId,
-            @RequestParam String phaseId,
-            @RequestParam long minCompletedCriteria) {
-        try {
-            return ResponseEntity.ok(taskService.analyzeAcceptanceCriteriaCompletion(projectId, phaseId, minCompletedCriteria));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
-    }
-
+    
     @GetMapping("/{taskId}")
     public ResponseEntity<?> getTaskById(@PathVariable String taskId) {
         try {

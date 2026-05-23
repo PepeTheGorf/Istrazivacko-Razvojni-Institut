@@ -4,8 +4,10 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.example.projectrealizationservice.model.Task;
 
 import java.time.OffsetDateTime;
+import java.util.Set;
 
 @Data
 @Builder
@@ -20,4 +22,6 @@ public class TaskDTO {
     private String phase;
 
     private WorkflowDTO workflow;
+    private Set<TechnicalResourceDTO> assignedResources;
+    private Set<AcceptanceCriteriaDTO> acceptanceCriteria;
 }

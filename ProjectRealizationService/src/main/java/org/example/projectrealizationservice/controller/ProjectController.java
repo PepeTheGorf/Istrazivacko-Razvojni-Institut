@@ -23,51 +23,14 @@ public class ProjectController {
         projectService.createProject(project);
     }
     
-    @GetMapping("/analytics/workflow-final-phase")
-    public ResponseEntity<?> findProjectsByWorkflowWithMinTaskCount(
-            @RequestParam String workflowName,
-            @RequestParam long minTaskCount) {
-        try {
-            return ResponseEntity.ok(projectService.findProjectsByWorkflowWithMinTaskCount(workflowName, minTaskCount));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
-    }
-
-    @GetMapping("/analytics/delayed-tasks")
-    public ResponseEntity<?> findProjectsWithDelayedTasks(
-            @RequestParam String currentDate) {
-        try {
-            return ResponseEntity.ok(projectService.findProjectsWithDelayedTasks(OffsetDateTime.parse(currentDate)));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
-    }
-
-    @GetMapping("/analytics/resource-workload")
-    public ResponseEntity<?> findProjectsWithHighTechnicalResourceWorkload(
-            @RequestParam String startDate,
-            @RequestParam String endDate) {
-        try {
-            return ResponseEntity.ok(
-                    projectService.findProjectsWithHighTechnicalResourceWorkload(
-                            OffsetDateTime.parse(startDate),
-                            OffsetDateTime.parse(endDate)
-                    )
-            );
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
-    }
-
     @GetMapping("/all")
     public List<ProjectDTO> getAllProjects() {
         return projectService.findAll();
     }
 
     @GetMapping("/{projectId}")
-    public ProjectDTO getProjectById(@PathVariable String projectId) {
-        return projectService.getProjectById(projectId);
+    public ProjectDTO getProjectById(@PathVariable String projectName) {
+        return projectService.getProjectByName(projectName);
     }
     
     @PutMapping("/{projectId}")

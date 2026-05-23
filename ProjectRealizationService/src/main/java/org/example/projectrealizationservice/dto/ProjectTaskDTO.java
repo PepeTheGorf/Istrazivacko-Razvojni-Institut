@@ -17,8 +17,9 @@ public class ProjectTaskDTO {
     private String description;
     private String phaseName;
 
-    private List<String> technicalResourceNames;
-    private List<String> acceptanceCriteriaNames;
+    private WorkflowDTO workflow;
+    private List<TechnicalResourceDTO> technicalResources;
+    private List<AcceptanceCriteriaDTO> acceptanceCriteria;
 
     private List<ProjectTaskDTO> subTasks;
 }

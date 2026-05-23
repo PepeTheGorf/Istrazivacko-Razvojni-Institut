@@ -30,16 +30,7 @@ public class WorkflowController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
-
-    @GetMapping("/{workflowId}")
-    public ResponseEntity<?> getWorkflowById(@PathVariable String workflowId) {
-        try {
-            return ResponseEntity.ok(workflowService.getWorkflowById(workflowId));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
-    }
-
+    
     @PutMapping("/{workflowId}")
     public ResponseEntity<?> updateWorkflow(@PathVariable String workflowId, @RequestBody WorkflowCreationDTO workflow) {
         try {
