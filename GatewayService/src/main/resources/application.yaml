@@ -34,6 +34,18 @@ spring:
             - Path=/project-realization-service/**
           filters:
             - StripPrefix=1
+        - id: ProjectRealizationAnalyticsService
+          uri: lb://project-realization-analytics-service
+          predicates:
+            - Path=/project-realization-analytics-service/**
+          filters:
+            - StripPrefix=1
+        - id: StakeholderService
+          uri: lb://stakeholder-service
+          predicates:
+            - Path=/stakeholder-service/**
+          filters:
+            - StripPrefix=1
         - id: PromptVectorService
           uri: lb://prompt-vector-service
           predicates:
