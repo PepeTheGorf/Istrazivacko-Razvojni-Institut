@@ -24,7 +24,7 @@ public class TransitionCondition {
 
     private String description;
     private TransitionType type;
-
+    
     @Relationship(type = "FROM_PHASE", direction = Relationship.Direction.OUTGOING)
     private Phase fromPhase;
 

@@ -4,7 +4,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.example.projectrealizationservice.model.ProblemReport;
 import org.example.projectrealizationservice.model.Workflow;
 
 import java.util.List;
@@ -17,6 +16,7 @@ public class WorkflowDTO {
     private String id;
     private String name;
     private String description;
+    private Long creatorId;
     private List<PhaseDTO> phases;
 
     public static WorkflowDTO toDTO(Workflow workflow) {
@@ -27,7 +27,10 @@ public class WorkflowDTO {
                 .id(workflow.getId())
                 .name(workflow.getName())
                 .description(workflow.getDescription())
-                .phases(workflow.getPhases() != null ? workflow.getPhases().stream().map(PhaseDTO::toDTO).toList() : null)
+                .creatorId(workflow.getCreatorId())
+                .phases(workflow.getPhases() != null
+                        ? workflow.getPhases().stream().map(PhaseDTO::toDTO).toList()
+                        : null)
                 .build();
     }
 }

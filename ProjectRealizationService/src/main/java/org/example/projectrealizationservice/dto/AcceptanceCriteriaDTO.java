@@ -15,13 +15,15 @@ public class AcceptanceCriteriaDTO {
     private String name;
     private String description;
     private boolean completed;
-    
+    private Long creatorId;
+
     public static AcceptanceCriteriaDTO toDto(AcceptanceCriteria acceptanceCriteria) {
         return AcceptanceCriteriaDTO.builder()
                 .id(acceptanceCriteria.getId())
                 .name(acceptanceCriteria.getName())
                 .description(acceptanceCriteria.getDescription())
                 .completed(acceptanceCriteria.isCompleted())
+                .creatorId(acceptanceCriteria.getCreatorId())
                 .build();
     }
 }

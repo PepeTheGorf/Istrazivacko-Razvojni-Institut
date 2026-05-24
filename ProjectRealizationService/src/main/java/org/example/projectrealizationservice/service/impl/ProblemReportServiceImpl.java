@@ -19,7 +19,8 @@ public class ProblemReportServiceImpl implements ProblemReportService {
     @Override
     public void createProblemReport(ProblemReportCreationDTO problemReport) {
         ProblemReport toSave = ProblemReport.builder()
-                .reporterId(problemReport.getReporterId())
+                .creatorId(problemReport.getCreatorId())
+                .reviewedById(problemReport.getReviewedById())
                 .description(problemReport.getDescription())
                 .problemType(problemReport.getProblemType())
                 .status(problemReport.getStatus())
@@ -32,7 +33,12 @@ public class ProblemReportServiceImpl implements ProblemReportService {
         ProblemReport existing = problemReportRepository.findById(problemReportId)
                 .orElseThrow(() -> new RuntimeException("ProblemReport with that id does not exist!"));
 
-        existing.setReporterId(problemReport.getReporterId());
+        if (problemReport.getCreatorId() != null) {
+            existing.setCreatorId(problemReport.getCreatorId());
+        }
+        if (problemReport.getReviewedById() != null) {
+            existing.setReviewedById(problemReport.getReviewedById());
+        }
         existing.setDescription(problemReport.getDescription());
         existing.setProblemType(problemReport.getProblemType());
         if (problemReport.getStatus() != null) {

@@ -5,6 +5,7 @@ import org.example.projectrealizationservice.dto.ProjectDTO;
 import org.example.projectrealizationservice.service.ProjectService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,9 +18,14 @@ public class ProjectController {
     private final ProjectService projectService;
 
     @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    public void createProject(@RequestBody ProjectDTO project) {
-        projectService.createProject(project);
+    @PreAuthorize("hasRole('MANAGER')")
+    public ResponseEntity<?> createProject(@RequestBody ProjectDTO project) {
+        try {
+            projectService.createProject(project);
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
     
     @GetMapping("/all")
@@ -33,6 +39,7 @@ public class ProjectController {
     }
     
     @PutMapping("/{projectId}")
+    @PreAuthorize("hasRole('MANAGER')")
     public ResponseEntity<?> updateProject(@PathVariable String projectId, @RequestBody ProjectDTO project) {
         try {
             projectService.updateProject(projectId, project);
@@ -43,6 +50,7 @@ public class ProjectController {
     }
 
     @DeleteMapping("/{projectId}")
+    @PreAuthorize("hasRole('MANAGER')")
     public ResponseEntity<?> deleteProject(@PathVariable String projectId) {
         try {
             projectService.deleteProject(projectId);

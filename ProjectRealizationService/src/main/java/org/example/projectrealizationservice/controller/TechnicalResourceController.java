@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.example.projectrealizationservice.dto.creation.TechnicalResourceCreationDTO;
 import org.example.projectrealizationservice.service.TechnicalResourceService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -13,6 +14,7 @@ public class TechnicalResourceController {
     private final TechnicalResourceService technicalResourceService;
 
     @PostMapping
+    @PreAuthorize("hasRole('ADMINISTRATOR')")
     public ResponseEntity<?> createTechnicalResource(@RequestBody TechnicalResourceCreationDTO technicalResourceCreationDTO) {
         try {
             technicalResourceService.createTechnicalResource(technicalResourceCreationDTO);
@@ -41,6 +43,7 @@ public class TechnicalResourceController {
     }
 
     @PutMapping("/{technicalResourceId}")
+    @PreAuthorize("hasRole('ADMINISTRATOR')")
     public ResponseEntity<?> updateTechnicalResource(@PathVariable String technicalResourceId,
                                                      @RequestBody TechnicalResourceCreationDTO technicalResourceCreationDTO) {
         try {
@@ -52,6 +55,7 @@ public class TechnicalResourceController {
     }
 
     @DeleteMapping("/{technicalResourceId}")
+    @PreAuthorize("hasRole('ADMINISTRATOR')")
     public ResponseEntity<?> deleteTechnicalResource(@PathVariable String technicalResourceId) {
         try {
             technicalResourceService.deleteTechnicalResource(technicalResourceId);

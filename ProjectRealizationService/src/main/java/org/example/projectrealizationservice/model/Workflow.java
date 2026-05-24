@@ -28,6 +28,8 @@ public class Workflow {
     private String name;
     private String description;
 
+    private Long creatorId;
+
     @Relationship(type = "HAS_PHASE", direction = Relationship.Direction.OUTGOING)
     @Builder.Default
     private Set<Phase> phases = new HashSet<>();

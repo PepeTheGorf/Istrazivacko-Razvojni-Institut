@@ -24,4 +24,7 @@ public class AcceptanceCriteria {
     private String name;
     private String description;
     private boolean completed;
+
+    /** Menadžer koji je definisao uslov realizacije zadatka. */
+    private Long creatorId;
 }

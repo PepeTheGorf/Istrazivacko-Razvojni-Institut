@@ -1,23 +1,24 @@
 package org.example.projectrealizationservice.service.impl;
 
 import lombok.RequiredArgsConstructor;
-import org.example.projectrealizationservice.dto.AcceptanceCriteriaDTO;
 import org.example.projectrealizationservice.dto.ProjectTaskDTO;
-import org.example.projectrealizationservice.dto.TechnicalResourceDTO;
-import org.example.projectrealizationservice.dto.WorkflowDTO;
 import org.example.projectrealizationservice.dto.creation.TaskCreationDTO;
-import org.example.projectrealizationservice.model.*;
-import org.example.projectrealizationservice.repository.*;
+import org.example.projectrealizationservice.model.AcceptanceCriteria;
+import org.example.projectrealizationservice.model.Phase;
+import org.example.projectrealizationservice.model.Project;
+import org.example.projectrealizationservice.model.Task;
+import org.example.projectrealizationservice.repository.AcceptanceCriteriaRepository;
+import org.example.projectrealizationservice.repository.ProjectRepository;
+import org.example.projectrealizationservice.repository.TaskRepository;
+import org.example.projectrealizationservice.repository.TechnicalResourceRepository;
+import org.example.projectrealizationservice.repository.WorkflowRepository;
+import org.example.projectrealizationservice.security.SecurityUtils;
 import org.example.projectrealizationservice.service.TaskService;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -33,9 +34,15 @@ public class TaskServiceImpl implements TaskService {
         Project project = projectRepository.findById(taskCreation.getProjectId())
                 .orElseThrow(() -> new RuntimeException("Project with that id does not exist!"));
         
+        Long creatorId = taskCreation.getCreatorId() != null
+                ? taskCreation.getCreatorId()
+                : SecurityUtils.getCurrentUserId();
+
         Task task = Task.builder()
                 .name(taskCreation.getName())
                 .description(taskCreation.getDescription())
+                .creatorId(creatorId)
+                .phaseChangeDate(OffsetDateTime.now())
                 .parentTask(null)
                 .workflow(null)
                 .technicalResources(new HashSet<>())
@@ -55,9 +62,15 @@ public class TaskServiceImpl implements TaskService {
     public void updateTask(String taskId, TaskCreationDTO taskCreation) {
         Task existing = taskRepository.findById(taskId)
                 .orElseThrow(() -> new RuntimeException("Task with that id does not exist!"));
-
+        if(existing.getCreatorId() != null && !existing.getCreatorId().equals(SecurityUtils.getCurrentUserId())) {
+            throw new RuntimeException("Only the creator of the task can update it!");
+        }
+        
         existing.setName(taskCreation.getName());
         existing.setDescription(taskCreation.getDescription());
+        if (taskCreation.getCreatorId() != null) {
+            existing.setCreatorId(taskCreation.getCreatorId());
+        }
         if (taskCreation.getEndDate() != null) {
             taskRepository.createOrUpdateTaskDates(taskCreation.getProjectId(), taskId, taskCreation.getEndDate());
         }
@@ -66,14 +79,28 @@ public class TaskServiceImpl implements TaskService {
 
     @Override
     public void deleteTask(String taskId) {
-            Task existing = taskRepository.findById(taskId)
-                    .orElseThrow(() -> new RuntimeException("Task with that id does not exist!"));
-            taskRepository.delete(existing);
+        Task existing = taskRepository.findById(taskId)
+                .orElseThrow(() -> new RuntimeException("Task with that id does not exist!"));
+        if(existing.getCreatorId() != null && !existing.getCreatorId().equals(SecurityUtils.getCurrentUserId())) {
+            throw new RuntimeException("Only the creator of the task can delete it!");
+        }
+        
+        taskRepository.delete(existing);
     }
 
+    //todo: make this method accept phaseId as well and also check if transition condition exists and is fulfilled before allowing the transition
     @Override
     public void moveTaskToNextPhase(String taskId) {
-
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new RuntimeException("Task with that id does not exist!"));
+        if(task.getAssignments().stream().noneMatch(taskAssignment -> taskAssignment.getAssigneeId().equals(SecurityUtils.getCurrentUserId()))) {
+            throw new RuntimeException("Only assigned users can move the task to the next phase!");
+        }
+        Phase nextPhase = workflowRepository.findNextPhaseInWorkflow(task.getWorkflow().getId(), task.getPhase().getOrder())
+                .orElseThrow(() -> new RuntimeException("Task is already in the last phase of the workflow!"));
+        task.setPhase(nextPhase);
+        task.setPhaseChangeDate(OffsetDateTime.now());
+        taskRepository.save(task);
     }
 
     @Override
@@ -84,30 +111,7 @@ public class TaskServiceImpl implements TaskService {
     @Override
     public List<ProjectTaskDTO> getTasksByProjectId(String projectId) {
         return taskRepository.findAllByProject(projectId).stream()
-                .map(task -> {
-                    List<TechnicalResourceDTO> technicalResources = task.getTechnicalResources() == null
-                            ? List.of()
-                            : task.getTechnicalResources().stream()
-                            .map(tech -> TechnicalResourceDTO.toDto(tech.getTechnicalResource()))
-                            .toList();
-                    List<AcceptanceCriteriaDTO> acceptanceCriteria = task.getAcceptanceCriteria() == null
-                            ? List.of()
-                            : task.getAcceptanceCriteria().stream()
-                            .map(AcceptanceCriteriaDTO::toDto)
-                            .toList();
-                    WorkflowDTO workflow = WorkflowDTO.toDTO(
-                            task.getWorkflow()
-                    );
-                    
-                    return ProjectTaskDTO.builder()
-                            .id(task.getId())
-                            .name(task.getName())
-                            .description(task.getDescription())
-                            .workflow(workflow)
-                            .technicalResources(technicalResources)
-                            .acceptanceCriteria(acceptanceCriteria)
-                            .build();
-                })
+                .map(ProjectTaskDTO::fromTask)
                 .toList();
     }
 
@@ -115,30 +119,7 @@ public class TaskServiceImpl implements TaskService {
     @Override
     public ProjectTaskDTO getTaskById(String taskId) {
         return taskRepository.findById(taskId)
-                .map(task -> {
-                    List<TechnicalResourceDTO> technicalResources = task.getTechnicalResources() == null
-                            ? List.of()
-                            : task.getTechnicalResources().stream()
-                            .map(tech -> TechnicalResourceDTO.toDto(tech.getTechnicalResource()))
-                            .toList();
-                    List<AcceptanceCriteriaDTO> acceptanceCriteria = task.getAcceptanceCriteria() == null
-                            ? List.of()
-                            : task.getAcceptanceCriteria().stream()
-                            .map(AcceptanceCriteriaDTO::toDto)
-                            .toList();
-                    WorkflowDTO workflow = WorkflowDTO.toDTO(
-                            task.getWorkflow()
-                    );
-                    
-                    return ProjectTaskDTO.builder()
-                            .id(task.getId())
-                            .name(task.getName())
-                            .description(task.getDescription())
-                            .workflow(workflow)
-                            .technicalResources(technicalResources)
-                            .acceptanceCriteria(acceptanceCriteria)
-                            .build();
-                })
+                .map(ProjectTaskDTO::fromTask)
                 .orElseThrow(() -> new RuntimeException("Task with that id does not exist!"));
     }
 
