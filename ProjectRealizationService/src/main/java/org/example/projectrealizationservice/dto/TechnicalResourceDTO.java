@@ -14,15 +14,17 @@ public class TechnicalResourceDTO {
     private String id;
     private String name;
     private String description;
-    
+    private Long creatorId;
+
     public static TechnicalResourceDTO toDto(TechnicalResource technicalResource) {
-        if(technicalResource == null) {
+        if (technicalResource == null) {
             return null;
         }
         return TechnicalResourceDTO.builder()
                 .id(technicalResource.getId())
                 .name(technicalResource.getName())
                 .description(technicalResource.getDescription())
+                .creatorId(technicalResource.getCreatorId())
                 .build();
     }
 }

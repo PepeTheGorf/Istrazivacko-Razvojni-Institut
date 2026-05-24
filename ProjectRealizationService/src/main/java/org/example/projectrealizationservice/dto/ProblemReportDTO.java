@@ -16,7 +16,8 @@ import java.time.OffsetDateTime;
 @AllArgsConstructor
 public class ProblemReportDTO {
     private String id;
-    private Long reporterId;
+    private Long creatorId;
+    private Long reviewedById;
     private String description;
     private ProblemType problemType;
     private ProblemStatus status;
@@ -28,7 +29,8 @@ public class ProblemReportDTO {
         }
         return ProblemReportDTO.builder()
                 .id(problemReport.getId())
-                .reporterId(problemReport.getReporterId())
+                .creatorId(problemReport.getCreatorId())
+                .reviewedById(problemReport.getReviewedById())
                 .description(problemReport.getDescription())
                 .problemType(problemReport.getProblemType())
                 .status(problemReport.getStatus())
@@ -36,4 +38,3 @@ public class ProblemReportDTO {
                 .build();
     }
 }
-

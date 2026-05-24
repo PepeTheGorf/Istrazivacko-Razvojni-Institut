@@ -23,7 +23,10 @@ public class ProblemReport {
     @GeneratedValue
     private String id;
 
-    private Long reporterId;
+    private Long creatorId;
+
+    private Long reviewedById;
+
     private String description;
     private ProblemType problemType;
 

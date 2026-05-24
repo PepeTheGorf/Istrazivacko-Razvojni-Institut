@@ -31,7 +31,7 @@ public class Project {
     private OffsetDateTime startDate;
     private OffsetDateTime endDate;
     
-    private Long managerId;
+    private Long creatorId;
 
     @Relationship(type = "HAS_TASK", direction = Relationship.Direction.OUTGOING)
     @Builder.Default

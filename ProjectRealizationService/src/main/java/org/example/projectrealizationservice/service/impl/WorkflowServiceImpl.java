@@ -32,16 +32,20 @@ public class WorkflowServiceImpl implements WorkflowService {
             throw new RuntimeException("Workflow must contain at least two phases!");
         }
 
+        Long creatorId = workflow.getCreatorId();
+
         Set<Phase> phases = workflow.getPhases().stream()
                 .map(dto -> Phase.builder()
                         .name(dto.getName())
                         .order(dto.getOrder())
+                        .creatorId(creatorId)
                         .build())
                 .collect(Collectors.toSet());
 
         Workflow toSave = Workflow.builder()
                 .name(workflow.getName())
                 .description(workflow.getDescription())
+                .creatorId(creatorId)
                 .phases(phases)
                 .build();
 
@@ -57,15 +61,19 @@ public class WorkflowServiceImpl implements WorkflowService {
             throw new RuntimeException("Workflow must contain at least two phases!");
         }
 
+        Long creatorId = workflow.getCreatorId() != null ? workflow.getCreatorId() : existing.getCreatorId();
+
         Set<Phase> phases = workflow.getPhases().stream()
                 .map(dto -> Phase.builder()
                         .name(dto.getName())
                         .order(dto.getOrder())
+                        .creatorId(creatorId)
                         .build())
                 .collect(Collectors.toSet());
 
         existing.setName(workflow.getName());
         existing.setDescription(workflow.getDescription());
+        existing.setCreatorId(creatorId);
         existing.setPhases(phases);
 
         workflowRepository.save(existing);

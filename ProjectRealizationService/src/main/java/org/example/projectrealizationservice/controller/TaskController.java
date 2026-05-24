@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.example.projectrealizationservice.dto.creation.TaskCreationDTO;
 import org.example.projectrealizationservice.service.TaskService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -13,6 +14,7 @@ public class TaskController {
     private final TaskService taskService;
 
     @PostMapping
+    @PreAuthorize("hasRole('MANAGER')")
     public ResponseEntity<?> createTask(@RequestBody TaskCreationDTO taskCreationDTO) {
         try {
             taskService.createTask(taskCreationDTO);
@@ -41,6 +43,7 @@ public class TaskController {
     }
 
     @PutMapping("/{taskId}")
+    @PreAuthorize("hasRole('MANAGER')")
     public ResponseEntity<?> updateTask(@PathVariable String taskId, @RequestBody TaskCreationDTO taskCreationDTO) {
         try {
             taskService.updateTask(taskId, taskCreationDTO);
@@ -51,6 +54,7 @@ public class TaskController {
     }
 
     @DeleteMapping("/{taskId}")
+    @PreAuthorize("hasRole('MANAGER')")
     public ResponseEntity<?> deleteTask(@PathVariable String taskId) {
         try {
             taskService.deleteTask(taskId);

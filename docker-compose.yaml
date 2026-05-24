@@ -30,11 +30,53 @@ services:
       - "9003:9000"
 
 
+  influxdb:
+    image: influxdb:2.7
+    container_name: influxdb
+    ports:
+      - "8086:8086" 
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: ${INFLUXDB_ADMIN_USER:-admin}
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUXDB_ADMIN_PASSWORD:-adminpassword}
+      DOCKER_INFLUXDB_INIT_ORG: ${INFLUXDB_ORG:-nais}
+      DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUXDB_BUCKET:-project-analytics}
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUXDB_TOKEN:-dev-analytics-token-change-me}
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+    healthcheck:
+      test: ["CMD", "influx", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  project-realization-analytics-service:
+    build:
+      context: ./ProjectRealizationAnalyticsService
+      dockerfile: Dockerfile
+    image: project-realization-analytics-service:latest
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      influxdb:
+        condition: service_healthy
+    environment:
+      EUREKA_URL: http://eureka-server:8761/eureka/
+      INFLUX_URL: http://influxdb:8086
+      INFLUX_TOKEN: ${INFLUXDB_TOKEN:-dev-analytics-token-change-me}
+      INFLUX_ORG: ${INFLUXDB_ORG:-nais}
+      INFLUX_BUCKET: ${INFLUXDB_BUCKET:-project-analytics}
+      INFLUX_SEED_ENABLED: ${INFLUX_SEED_ENABLED:-true}
+      INFLUX_SEED_MIN_RECORDS: ${INFLUX_SEED_MIN_RECORDS:-5000}
+      SERVER_PORT: 8080
+    ports:
+      - "9063:8080"
+
   project-realization-service:
     build:
       context: ./ProjectRealizationService
       dockerfile: Dockerfile
-    image: graph-service:latest
+    image: project-realization-service:latest
     depends_on:
       eureka-server:
         condition: service_healthy
@@ -45,8 +87,28 @@ services:
       SPRING_NEO4J_URI: bolt://neo4j:7687
       SPRING_NEO4J_AUTHENTICATION_USERNAME: neo4j
       SPRING_NEO4J_AUTHENTICATION_PASSWORD: password
+      JWT_SECRET: c3Rha2Vob2xkZXJzZXJ2aWNland0c2VjcmV0a2V5Zm9ydGgyNTZiaXRzMTIzNDU2Nzg5MA==
     ports:
       - "9060:8080"
+
+  stakeholder-service:
+    build:
+      context: ./StakeholderService
+      dockerfile: Dockerfile
+    image: stakeholder-service:latest
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      stakeholder-postgres:
+        condition: service_healthy
+    environment:
+      EUREKA_URL: http://eureka-server:8761/eureka/
+      SPRING_DATASOURCE_URL: jdbc:postgresql://stakeholder-postgres:5432/stakeholders
+      SPRING_DATASOURCE_USERNAME: stakeholder
+      SPRING_DATASOURCE_PASSWORD: stakeholder
+      JWT_SECRET: c3Rha2Vob2xkZXJzZXJ2aWNland0c2VjcmV0a2V5Zm9ydGgyNTZiaXRzMTIzNDU2Nzg5MA==
+    ports:
+      - "9062:8082"
 
   prompt-vector-service:
     build:
@@ -89,7 +151,7 @@ services:
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin
     ports:
-      - "9001:9001"
+      # - "9001:9001"  # MinIO console UI (not required for local dev)
       - "9000:9000"
     volumes:
       - ./VectorDatabaseService/volumes/minio:/minio_data
@@ -119,15 +181,15 @@ services:
       - etcd
       - minio
 
-  attu:
-    image: zilliz/attu:v2.4
-    container_name: attu
-    environment:
-      MILVUS_URL: standalone:19530
-    ports:
-      - "8090:3000"
-    depends_on:
-      - standalone
+  # attu:  # Milvus UI — optional, disabled for lighter local stack
+  #   image: zilliz/attu:v2.4
+  #   container_name: attu
+  #   environment:
+  #     MILVUS_URL: standalone:19530
+  #   ports:
+  #     - "8090:3000"
+  #   depends_on:
+  #     - standalone
 
   doucument-management-service:
     build:
@@ -149,7 +211,7 @@ services:
   neo4j:
     image: neo4j:5
     ports:
-      - "7474:7474"
+      # - "7474:7474"  # Neo4j Browser UI (not required for services)
       - "7687:7687"
     environment:
       NEO4J_AUTH: neo4j/password
@@ -161,7 +223,25 @@ services:
       timeout: 10s
       retries: 5
 
+  stakeholder-postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: stakeholders
+      POSTGRES_USER: stakeholder
+      POSTGRES_PASSWORD: stakeholder
+    ports:
+      - "5432:5432"
+    volumes:
+      - stakeholder_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stakeholder -d stakeholders"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
   neo4j_data: {}
+  stakeholder_pg_data: {}
+  influxdb_data: {}
 
 

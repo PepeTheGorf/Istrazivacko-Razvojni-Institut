@@ -24,6 +24,7 @@ public class TechnicalResourceServiceImpl implements TechnicalResourceService {
         TechnicalResource technicalResourceToSave = TechnicalResource.builder()
                 .name(technicalResource.getName())
                 .description(technicalResource.getDescription())
+                .creatorId(technicalResource.getCreatorId())
                 .build();
         technicalResourceRepository.save(technicalResourceToSave);
     }
