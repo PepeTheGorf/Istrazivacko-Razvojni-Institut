@@ -18,6 +18,8 @@ public class ProjectDTO {
     private String description;
     private OffsetDateTime startDate;
     private OffsetDateTime endDate;
+    private Long managerId;
+    private Long creatorId;
 
     public static ProjectDTO toDTO(Project project) {
         return ProjectDTO.builder()
@@ -26,6 +28,8 @@ public class ProjectDTO {
                 .description(project.getDescription())
                 .startDate(project.getStartDate())
                 .endDate(project.getEndDate())
+                .managerId(project.getManagerId())
+                .creatorId(project.getCreatorId())
                 .build();
     }
 }

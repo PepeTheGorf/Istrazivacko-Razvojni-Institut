@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.example.projectrealizationservice.dto.creation.TechnicalResourceCreationDTO;
 import org.example.projectrealizationservice.service.TechnicalResourceService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -13,6 +14,7 @@ public class TechnicalResourceController {
     private final TechnicalResourceService technicalResourceService;
 
     @PostMapping
+    @PreAuthorize("hasRole('ADMINISTRATOR')")
     public ResponseEntity<?> createTechnicalResource(@RequestBody TechnicalResourceCreationDTO technicalResourceCreationDTO) {
         try {
             technicalResourceService.createTechnicalResource(technicalResourceCreationDTO);
@@ -22,16 +24,26 @@ public class TechnicalResourceController {
         }
     }
 
-    @GetMapping("/{technicalResourceId}")
-    public ResponseEntity<?> getTechnicalResourceById(@PathVariable String technicalResourceId) {
+    @GetMapping("/all")
+    public ResponseEntity<?> getAllTechnicalResources() {
         try {
-            return ResponseEntity.ok(technicalResourceService.getTechnicalResourceById(technicalResourceId));
+            return ResponseEntity.ok(technicalResourceService.getAllTechnicalResources());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @GetMapping("/{technicalResourceName}")
+    public ResponseEntity<?> getTechnicalResourceById(@PathVariable String technicalResourceName) {
+        try {
+            return ResponseEntity.ok(technicalResourceService.getTechnicalResourceByName(technicalResourceName));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 
     @PutMapping("/{technicalResourceId}")
+    @PreAuthorize("hasRole('ADMINISTRATOR')")
     public ResponseEntity<?> updateTechnicalResource(@PathVariable String technicalResourceId,
                                                      @RequestBody TechnicalResourceCreationDTO technicalResourceCreationDTO) {
         try {
@@ -43,6 +55,7 @@ public class TechnicalResourceController {
     }
 
     @DeleteMapping("/{technicalResourceId}")
+    @PreAuthorize("hasRole('ADMINISTRATOR')")
     public ResponseEntity<?> deleteTechnicalResource(@PathVariable String technicalResourceId) {
         try {
             technicalResourceService.deleteTechnicalResource(technicalResourceId);

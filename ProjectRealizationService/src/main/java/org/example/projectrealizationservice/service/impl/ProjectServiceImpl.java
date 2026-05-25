@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.example.projectrealizationservice.dto.ProjectDTO;
 import org.example.projectrealizationservice.model.Project;
 import org.example.projectrealizationservice.repository.ProjectRepository;
+import org.example.projectrealizationservice.security.SecurityUtils;
 import org.example.projectrealizationservice.service.ProjectService;
 import org.springframework.stereotype.Service;
 
@@ -29,6 +30,7 @@ public class ProjectServiceImpl implements ProjectService {
                 .description(project.getDescription())
                 .startDate(project.getStartDate())
                 .endDate(project.getEndDate())
+                .creatorId(project.getCreatorId() != null ? project.getCreatorId() : project.getManagerId())
                 .build();
         projectRepository.save(projectToSave);
     }
@@ -36,9 +38,9 @@ public class ProjectServiceImpl implements ProjectService {
     @Override
     public void deleteProject(String projectId) {
         Project project = projectRepository.findById(projectId)
-                .orElse(null);
-        if (project == null) {
-            throw new RuntimeException("Project with that id does not exist!");
+                .orElseThrow(() -> new RuntimeException("Project with that id does not exist!"));
+        if(project.getCreatorId() != null && !project.getCreatorId().equals(SecurityUtils.getCurrentUserId())) {
+            throw new RuntimeException("Only the creator of the project can delete it!");
         }
         projectRepository.delete(project);
     }
@@ -46,23 +48,18 @@ public class ProjectServiceImpl implements ProjectService {
     @Override
     public void updateProject(String projectId, ProjectDTO project) {
         Project existingProject = projectRepository.findById(projectId)
-                .orElse(null);
-        if (existingProject == null) {
-            throw new RuntimeException("Project with that id does not exist!");
+                .orElseThrow(() -> new RuntimeException("Project with that id does not exist!"));
+        if(existingProject.getCreatorId() != null && !existingProject.getCreatorId().equals(SecurityUtils.getCurrentUserId())) {
+            throw new RuntimeException("Cannot change creator of the project!");
         }
+        
         existingProject.setName(project.getName());
         existingProject.setDescription(project.getDescription());
         existingProject.setStartDate(project.getStartDate());
         existingProject.setEndDate(project.getEndDate());
         projectRepository.save(existingProject);
     }
-
-    @Override
-    public ProjectDTO getProjectById(String projectId) {
-        return ProjectDTO.toDTO(projectRepository.findById(projectId)
-                .orElseThrow(() -> new RuntimeException("Project with that id does not exist!")));
-    }
-
+    
     @Override
     public List<ProjectDTO> findAll() {
         return projectRepository.findAll().stream()
@@ -74,6 +71,12 @@ public class ProjectServiceImpl implements ProjectService {
     public ProjectDTO getProjectByName(String name) {
         return ProjectDTO.toDTO(projectRepository.findByName(name)
                 .orElseThrow(() -> new RuntimeException("Project with that name does not exist!")));
+    }
+
+    @Override
+    public ProjectDTO getProjectById(String projectId) {
+        return ProjectDTO.toDTO(projectRepository.findById(projectId)
+                .orElseThrow(() -> new RuntimeException("Project with that id does not exist!")));
     }
 
     @Override

@@ -11,10 +11,10 @@ public interface ProjectService {
     void deleteProject(String projectId);
 
     void updateProject(String projectId, ProjectDTO project);
+    
+    ProjectDTO getProjectByName(String name);
 
     ProjectDTO getProjectById(String projectId);
-
-    ProjectDTO getProjectByName(String name);
 
     List<ProjectDTO> findAll();
 

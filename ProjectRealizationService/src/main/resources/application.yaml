@@ -3,10 +3,10 @@ server:
 
 spring:
   neo4j:
-    uri: bolt://localhost:7687
+    uri: ${SPRING_NEO4J_URI:bolt://localhost:7687}
     authentication:
-      username: neo4j
-      password: password
+      username: ${SPRING_NEO4J_AUTHENTICATION_USERNAME:neo4j}
+      password: ${SPRING_NEO4J_AUTHENTICATION_PASSWORD:password}
   application:
     name: project-realization-service
   autoconfigure:
@@ -17,11 +17,14 @@ spring:
 eureka:
   client:
     service-url:
-      defaultZone: http://eureka-server:8761/eureka/
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
       healthcheck:
         enabled: true
   instance:
     prefer-ip-address: true
+    
+jwt:
+  secret: ${JWT_SECRET:c3Rha2Vob2xkZXJzZXJ2aWNland0c2VjcmV0a2V5Zm9ydGgyNTZiaXRzMTIzNDU2Nzg5MA==}
 
 
 

@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.example.projectrealizationservice.dto.creation.WorkflowCreationDTO;
 import org.example.projectrealizationservice.service.WorkflowService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -13,6 +14,7 @@ public class WorkflowController {
     private final WorkflowService workflowService;
 
     @PostMapping
+    @PreAuthorize("hasRole('ADMINISTRATOR')")
     public ResponseEntity<?> createWorkflow(@RequestBody WorkflowCreationDTO workflow) {
         try {
             workflowService.createWorkflow(workflow);
@@ -30,17 +32,9 @@ public class WorkflowController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
-
-    @GetMapping("/{workflowId}")
-    public ResponseEntity<?> getWorkflowById(@PathVariable String workflowId) {
-        try {
-            return ResponseEntity.ok(workflowService.getWorkflowById(workflowId));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
-    }
-
+    
     @PutMapping("/{workflowId}")
+    @PreAuthorize("hasRole('ADMINISTRATOR')")
     public ResponseEntity<?> updateWorkflow(@PathVariable String workflowId, @RequestBody WorkflowCreationDTO workflow) {
         try {
             workflowService.updateWorkflow(workflowId, workflow);
@@ -51,6 +45,7 @@ public class WorkflowController {
     }
 
     @DeleteMapping("/{workflowId}")
+    @PreAuthorize("hasRole('ADMINISTRATOR')")
     public ResponseEntity<?> deleteWorkflow(@PathVariable String workflowId) {
         try {
             workflowService.deleteWorkflow(workflowId);
