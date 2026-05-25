@@ -7,9 +7,13 @@ import io.milvus.param.dml.*;
 import io.milvus.param.dml.ranker.RRFRanker;
 import io.milvus.orm.iterator.SearchIterator;
 import io.milvus.response.QueryResultsWrapper;
+
+import org.example.promptvectorservice.model.ResearcherFeedback;
 import org.example.promptvectorservice.service.EmbeddingService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+
+import org.example.promptvectorservice.model.PromptTemplate;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -47,6 +51,54 @@ public class PromptVectorController {
         return "Šablon kreiran sa ID: " + id;
     }
 
+    //READ - ujedno i prosti upit po ID-u
+    @GetMapping("/template/{id}")
+    public PromptTemplate getTemplateById(@PathVariable Long id) {
+        R<QueryResults> response = milvusClient.query(QueryParam.newBuilder()
+                .withCollectionName("PromptTemplates")
+                .withExpr("id == " + id)
+                .withOutFields(List.of("id", "category", "prompt_text", "short_summary", "avg_rating", "version"))
+                .build());
+
+        QueryResultsWrapper wrapper = new QueryResultsWrapper(response.getData());
+        List<QueryResultsWrapper.RowRecord> records = wrapper.getRowRecords();
+
+        if (records.isEmpty()) return null;
+
+        QueryResultsWrapper.RowRecord row = records.get(0);
+        return PromptTemplate.builder()
+                .id((Long) row.get("id"))
+                .category(row.get("category").toString())
+                .prompt_text(row.get("prompt_text").toString())
+                .short_summary(row.get("short_summary").toString())
+                .avg_rating((Float) row.get("avg_rating"))
+                .version((Integer) row.get("version"))
+                .build();
+    }
+
+    //UPDATE
+    @PutMapping("/template/{id}")
+    public String updateTemplate(@PathVariable Long id, @RequestParam String newText, @RequestParam Float newRating) {
+        List<Float> newVector = embeddingService.generateEmbedding(newText);
+
+        List<InsertParam.Field> fields = new ArrayList<>();
+        fields.add(new InsertParam.Field("id", List.of(id)));
+        fields.add(new InsertParam.Field("prompt_text", List.of(newText)));
+        fields.add(new InsertParam.Field("avg_rating", List.of(newRating)));
+        fields.add(new InsertParam.Field("prompt_vector", List.of(newVector)));
+
+        fields.add(new InsertParam.Field("category", List.of("Updated"))); 
+        fields.add(new InsertParam.Field("version", List.of(1)));
+        fields.add(new InsertParam.Field("short_summary", List.of("Updated summary")));
+        fields.add(new InsertParam.Field("summary_vector", List.of(newVector))); 
+
+        milvusClient.upsert(UpsertParam.newBuilder()
+                .withCollectionName("PromptTemplates")
+                .withFields(fields)
+                .build());
+
+        return "Šablon sa ID " + id + " je ažuriran!";
+    }
     @DeleteMapping("/template/{id}")
     public String deleteTemplate(@PathVariable Long id) {
         milvusClient.delete(DeleteParam.newBuilder()
@@ -72,6 +124,49 @@ public class PromptVectorController {
         milvusClient.insert(InsertParam.newBuilder().withCollectionName("ResearcherFeedbacks").withFields(fields).build());
         return "Feedback dodat! ID: " + id;
     }
+    @GetMapping("/feedback/{id}")
+    public ResearcherFeedback getFeedbackById(@PathVariable Long id) {
+        R<QueryResults> response = milvusClient.query(QueryParam.newBuilder()
+                .withCollectionName("ResearcherFeedbacks")
+                .withExpr("id == " + id)
+                .withOutFields(List.of("id", "rating", "regeneration_count", "research_field", "feedback_comment"))
+                .build());
+
+        QueryResultsWrapper wrapper = new QueryResultsWrapper(response.getData());
+        List<QueryResultsWrapper.RowRecord> records = wrapper.getRowRecords();
+
+        if (records.isEmpty()) return null;
+
+        QueryResultsWrapper.RowRecord row = records.get(0);
+        return ResearcherFeedback.builder()
+                .id((Long) row.get("id"))
+                .rating((Integer) row.get("rating"))
+                .regeneration_count((Integer) row.get("regeneration_count"))
+                .research_field(row.get("research_field").toString())
+                .feedback_comment(row.get("feedback_comment").toString())
+                .build();
+    }
+
+    //UPDATE
+    @PutMapping("/feedback/{id}")
+    public String updateFeedbackRating(@PathVariable Long id, @RequestParam Integer newRating) {
+        
+        List<InsertParam.Field> fields = new ArrayList<>();
+        fields.add(new InsertParam.Field("id", List.of(id)));
+        fields.add(new InsertParam.Field("rating", List.of(newRating)));
+        
+        fields.add(new InsertParam.Field("regeneration_count", List.of(0)));
+        fields.add(new InsertParam.Field("research_field", List.of("Updated")));
+        fields.add(new InsertParam.Field("feedback_comment", List.of("Rating updated")));
+        fields.add(new InsertParam.Field("feedback_vector", List.of(embeddingService.generateEmbedding("Rating updated"))));
+
+        milvusClient.upsert(UpsertParam.newBuilder()
+                .withCollectionName("ResearcherFeedbacks")
+                .withFields(fields)
+                .build());
+
+        return "Feedback ID " + id + " ocenjen novom ocenom: " + newRating;
+    }
 
     @DeleteMapping("/feedback/{id}")
     public String deleteFeedback(@PathVariable Long id) {
@@ -80,7 +175,7 @@ public class PromptVectorController {
     }
 
     //PROSTI UPIT: Dobavljanje po ID-u
-    @GetMapping("/template/{id}")
+    /*@GetMapping("/template/{id}")
     public String getTemplate(@PathVariable Long id) {
         R<QueryResults> response = milvusClient.query(QueryParam.newBuilder()
                 .withCollectionName("PromptTemplates")
@@ -88,7 +183,7 @@ public class PromptVectorController {
                 .withOutFields(List.of("prompt_text", "category", "avg_rating"))
                 .build());
         return response.getData().toString();
-    }
+    }*/
 
     //PROSTI UPIT: Brojanje loših feedback-ova (Filter + Count)
     @GetMapping("/feedback/count-low-rating")
@@ -134,7 +229,6 @@ public List<String> searchWithIterator(@RequestParam String query) {
                 .withExpr("regeneration_count >= 0")
                 .withMetricType(MetricType.L2)
                 .withTopK(50)
-                // OVO JE FALILO: Moramo reći Milvusu da nam vrati i tekst komentara
                 .withOutFields(Collections.singletonList("feedback_comment"))
                 .build();
 
@@ -156,7 +250,6 @@ public List<String> searchWithIterator(@RequestParam String query) {
             if (batch == null || batch.isEmpty()) break;
             
             for (QueryResultsWrapper.RowRecord record : batch) {
-                // Sada će polje postojati u rezultatu
                 Object comment = record.get("feedback_comment");
                 results.add(comment != null ? comment.toString() : "Komentar je prazan");
             }
