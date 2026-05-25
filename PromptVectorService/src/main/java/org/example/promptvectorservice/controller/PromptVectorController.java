@@ -1,16 +1,10 @@
 package org.example.promptvectorservice.controller;
 
 import io.milvus.client.MilvusServiceClient;
-import io.milvus.grpc.MutationResult;
-//import io.milvus.grpc.MutationResult;
 import io.milvus.grpc.QueryResults;
-//import io.milvus.grpc.SearchResults;
 import io.milvus.param.*;
 import io.milvus.param.dml.*;
-//import io.milvus.v2.service.vector.request.ranker.RRFRanker;
-//import io.milvus.param.dml.rank.RRFRanker; 
-//import io.milvus.param.dml.rank.WeightedRanker;
-//import io.milvus.param.dml.RRFRanker;
+import io.milvus.param.dml.ranker.RRFRanker;
 import io.milvus.orm.iterator.SearchIterator;
 import io.milvus.response.QueryResultsWrapper;
 import org.example.promptvectorservice.service.EmbeddingService;
@@ -20,7 +14,6 @@ import org.springframework.web.bind.annotation.*;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Random;
 
 @RestController
 @RequestMapping("/api/vector")
@@ -32,233 +25,178 @@ public class PromptVectorController {
     @Autowired
     private EmbeddingService embeddingService;
 
-    private final Random random = new Random();
-    //CREATE
+    //CRUD OPERACIJE - PROMPT TEMPLATES
+
     @PostMapping("/template")
-    public String createTemplate(@RequestParam String name, @RequestParam String category) {
-        insertData("PromptTemplates", "template_name", List.of(name), "category", List.of(category), "prompt_vector");
-        return "Sablon kreiran!";
+    public String createTemplate(@RequestParam String text, @RequestParam String category) {
+        long id = System.currentTimeMillis();
+        List<Float> pVec = embeddingService.generateEmbedding(text);
+        List<Float> sVec = embeddingService.generateEmbedding(category);
+
+        List<InsertParam.Field> fields = new ArrayList<>();
+        fields.add(new InsertParam.Field("id", List.of(id)));
+        fields.add(new InsertParam.Field("category", List.of(category)));
+        fields.add(new InsertParam.Field("prompt_text", List.of(text)));
+        fields.add(new InsertParam.Field("short_summary", List.of(category + " analysis")));
+        fields.add(new InsertParam.Field("avg_rating", List.of(5.0f)));
+        fields.add(new InsertParam.Field("version", List.of(1)));
+        fields.add(new InsertParam.Field("prompt_vector", List.of(pVec)));
+        fields.add(new InsertParam.Field("summary_vector", List.of(sVec)));
+
+        milvusClient.insert(InsertParam.newBuilder().withCollectionName("PromptTemplates").withFields(fields).build());
+        return "Šablon kreiran sa ID: " + id;
     }
-    @PostMapping("/feedback")
-    public String createFeedback(@RequestParam Integer rating, @RequestParam String section) {
-        insertFeedbackData(rating, section);
-        return "Feedback kreiran!";
-    }
-    //READ
-    @GetMapping("/template/{id}")
-    public String getTemplate(@PathVariable Long id) {
-        return queryById("PromptTemplates", id, List.of("template_name", "category", "avg_rating"));
-    }
-    @GetMapping("/feedback/{id}")
-    public String getFeedback(@PathVariable Long id) {
-        return queryById("ResearcherFeedbacks", id, List.of("section_name", "rating"));
-    }
-    //UPDATE
-   @PutMapping("/template/{id}")
-   public String updateTemplate(@PathVariable Long id, @RequestParam Float rating) {
-    R<QueryResults> queryResponse = milvusClient.query(QueryParam.newBuilder()
-            .withCollectionName("PromptTemplates")
-            .withExpr("id == " + id)
-            .withOutFields(List.of("template_name", "category", "version", "prompt_vector", "summary_vector"))
-            .build());
 
-    QueryResultsWrapper wrapper = new QueryResultsWrapper(queryResponse.getData());
-    List<QueryResultsWrapper.RowRecord> records = wrapper.getRowRecords();
-
-    if (records.isEmpty()) return "Greška: Šablon sa ID " + id + " nije pronađen.";
-
-    QueryResultsWrapper.RowRecord existing = records.get(0);
-
-    List<InsertParam.Field> fields = new ArrayList<>();
-    fields.add(new InsertParam.Field("id", List.of(id)));
-    fields.add(new InsertParam.Field("avg_rating", List.of(rating)));
-    fields.add(new InsertParam.Field("template_name", List.of(existing.get("template_name"))));
-    fields.add(new InsertParam.Field("category", List.of(existing.get("category"))));
-    fields.add(new InsertParam.Field("version", List.of(existing.get("version"))));
-    fields.add(new InsertParam.Field("prompt_vector", List.of(existing.get("prompt_vector"))));
-    fields.add(new InsertParam.Field("summary_vector", List.of(existing.get("summary_vector"))));
-
-    R<MutationResult> response = milvusClient.upsert(UpsertParam.newBuilder()
-            .withCollectionName("PromptTemplates")
-            .withFields(fields)
-            .build());
-
-    return response.getStatus() == 0 ? "Šablon uspešno ažuriran!" : "Greška: " + response.getMessage();
-   }
-   @PutMapping("/feedback/{id}")
-   public String updateFeedback(@PathVariable Long id, @RequestParam Integer rating) {
-    R<QueryResults> queryResponse = milvusClient.query(QueryParam.newBuilder()
-            .withCollectionName("ResearcherFeedbacks")
-            .withExpr("id == " + id)
-            .withOutFields(List.of("section_name", "regeneration_count", "feedback_vector"))
-            .build());
-
-    QueryResultsWrapper wrapper = new QueryResultsWrapper(queryResponse.getData());
-    List<QueryResultsWrapper.RowRecord> records = wrapper.getRowRecords();
-
-    if (records.isEmpty()) return "Greška: Feedback nije pronađen.";
-
-    QueryResultsWrapper.RowRecord existing = records.get(0);
-
-    List<InsertParam.Field> fields = new ArrayList<>();
-    fields.add(new InsertParam.Field("id", List.of(id)));
-    fields.add(new InsertParam.Field("rating", List.of(rating)));
-    fields.add(new InsertParam.Field("section_name", List.of(existing.get("section_name"))));
-    fields.add(new InsertParam.Field("regeneration_count", List.of(existing.get("regeneration_count"))));
-    fields.add(new InsertParam.Field("feedback_vector", List.of(existing.get("feedback_vector"))));
-
-    R<MutationResult> response = milvusClient.upsert(UpsertParam.newBuilder()
-            .withCollectionName("ResearcherFeedbacks")
-            .withFields(fields)
-            .build());
-
-    return response.getStatus() == 0 ? "Feedback uspešno ažuriran!" : "Greška: " + response.getMessage();
-}
-    //DELETE
     @DeleteMapping("/template/{id}")
     public String deleteTemplate(@PathVariable Long id) {
-        milvusClient.delete(DeleteParam.newBuilder().withCollectionName("PromptTemplates").withExpr("id == " + id).build());
-        return "Sablon obrisan!";
+        milvusClient.delete(DeleteParam.newBuilder()
+                .withCollectionName("PromptTemplates")
+                .withExpr("id == " + id).build());
+        return "Šablon obrisan!";
     }
+ 
+    //CRUD: RESEARCHER FEEDBACKS
+    @PostMapping("/feedback")
+    public String createFeedback(@RequestParam String comment, @RequestParam String field, @RequestParam Integer rating) {
+        long id = System.currentTimeMillis();
+        List<Float> vector = embeddingService.generateEmbedding(comment);
+
+        List<InsertParam.Field> fields = new ArrayList<>();
+        fields.add(new InsertParam.Field("id", List.of(id)));
+        fields.add(new InsertParam.Field("rating", List.of(rating)));
+        fields.add(new InsertParam.Field("regeneration_count", List.of(0)));
+        fields.add(new InsertParam.Field("research_field", List.of(field)));
+        fields.add(new InsertParam.Field("feedback_comment", List.of(comment)));
+        fields.add(new InsertParam.Field("feedback_vector", List.of(vector)));
+
+        milvusClient.insert(InsertParam.newBuilder().withCollectionName("ResearcherFeedbacks").withFields(fields).build());
+        return "Feedback dodat! ID: " + id;
+    }
+
     @DeleteMapping("/feedback/{id}")
     public String deleteFeedback(@PathVariable Long id) {
         milvusClient.delete(DeleteParam.newBuilder().withCollectionName("ResearcherFeedbacks").withExpr("id == " + id).build());
         return "Feedback obrisan!";
     }
-    //PROSTI UPITI
-    @GetMapping("/search/simple-vector")
-    public String simpleVectorSearch(@RequestParam String query) {
-        List<Float> queryVector = embeddingService.generateEmbedding(query);
-        SearchParam searchParam = SearchParam.newBuilder()
+
+    //PROSTI UPIT: Dobavljanje po ID-u
+    @GetMapping("/template/{id}")
+    public String getTemplate(@PathVariable Long id) {
+        R<QueryResults> response = milvusClient.query(QueryParam.newBuilder()
                 .withCollectionName("PromptTemplates")
-                .withMetricType(MetricType.L2)
-                .withTopK(3)
-                .withFloatVectors(Collections.singletonList(queryVector))
-                .withVectorFieldName("prompt_vector")
-                .build();
-        return milvusClient.search(searchParam).getData().toString();
+                .withExpr("id == " + id)
+                .withOutFields(List.of("prompt_text", "category", "avg_rating"))
+                .build());
+        return response.getData().toString();
     }
-    @GetMapping("/feedback/count-bad")
-    public String countBadFeedbacks(@RequestParam String section) {
+
+    //PROSTI UPIT: Brojanje loših feedback-ova (Filter + Count)
+    @GetMapping("/feedback/count-low-rating")
+    public String countLowRatings(@RequestParam String field) {
         R<QueryResults> response = milvusClient.query(QueryParam.newBuilder()
                 .withCollectionName("ResearcherFeedbacks")
-                .withExpr("section_name == '" + section + "' && rating < 3")
+                .withExpr("research_field == '" + field + "' && rating < 3")
                 .withOutFields(Collections.singletonList("count(*)"))
                 .build());
-        return "Broj losih rezultata: " + response.getData().toString();
+        return "Broj loših rezultata u oblasti " + field + ": " + response.getData().toString();
     }
-    //SLOZENI UPITI
-    //vektorska pretraga + 2 filtera (kategorija i ocjena)
+
+    //SLOŽENI UPIT: Vektorska pretraga + 2 filtera
     @GetMapping("/search/complex-filter")
-    public String complexSearchWithFilters(@RequestParam String query) {
+    public String complexSearch(@RequestParam String query, @RequestParam String category) {
         List<Float> queryVector = embeddingService.generateEmbedding(query);
+        
         SearchParam searchParam = SearchParam.newBuilder()
                 .withCollectionName("PromptTemplates")
                 .withMetricType(MetricType.L2)
                 .withTopK(5)
                 .withFloatVectors(Collections.singletonList(queryVector))
                 .withVectorFieldName("prompt_vector")
-                .withExpr("category == 'Tehnologija' && avg_rating > 4.0")
+                .withExpr("category == '" + category + "' && avg_rating > 3.5")
+                .withOutFields(List.of("prompt_text", "avg_rating"))
                 .build();
+
         return milvusClient.search(searchParam).getData().toString();
     }
-    //vektorska pretraga + filtriranje uz koristenje iteratora
-    @GetMapping("/search/complex-iterator")
-    public List<String> complexSearchIterator(@RequestParam String query) {
-        List<String> results = new ArrayList<>();
+
+    //SLOŽENI UPIT: Vektorska pretraga uz Iterator
+  @GetMapping("/search/iterator")
+public List<String> searchWithIterator(@RequestParam String query) {
+    List<String> results = new ArrayList<>();
+    try {
         List<Float> queryVector = embeddingService.generateEmbedding(query);
+
         SearchIteratorParam iteratorParam = SearchIteratorParam.newBuilder()
                 .withCollectionName("ResearcherFeedbacks")
                 .withVectorFieldName("feedback_vector")
                 .withFloatVectors(Collections.singletonList(queryVector))
                 .withBatchSize(10L)
-                .withExpr("rating < 3")
+                .withExpr("regeneration_count >= 0")
                 .withMetricType(MetricType.L2)
                 .withTopK(50)
+                // OVO JE FALILO: Moramo reći Milvusu da nam vrati i tekst komentara
+                .withOutFields(Collections.singletonList("feedback_comment"))
                 .build();
 
         R<SearchIterator> response = milvusClient.searchIterator(iteratorParam);
-        SearchIterator iterator = response.getData();
 
-        int batchCount = 0;
-        while (batchCount < 2) {
+        if (response.getStatus() != 0) {
+            results.add("Milvus greška: " + response.getMessage());
+            return results;
+        }
+
+        SearchIterator iterator = response.getData();
+        if (iterator == null) {
+            results.add("Greška: Iterator je null");
+            return results;
+        }
+
+        for (int i = 0; i < 2; i++) {
             List<QueryResultsWrapper.RowRecord> batch = iterator.next();
             if (batch == null || batch.isEmpty()) break;
-            results.add("Batch " + batchCount + " size: " + batch.size());
-            batchCount++;
+            
+            for (QueryResultsWrapper.RowRecord record : batch) {
+                // Sada će polje postojati u rezultatu
+                Object comment = record.get("feedback_comment");
+                results.add(comment != null ? comment.toString() : "Komentar je prazan");
+            }
         }
-        return results;
-    }
 
-    // Složeni 3: Vektorska pretraga uz korišćenje HIBRIDNE PRETRAGE (AnnSearch + Ranker)
-    /*@GetMapping("/search/hybrid")
-    public String hybridSearch() {
-        AnnSearchParam annSearchParam = AnnSearchParam.newBuilder()
+    } catch (Exception e) {
+        results.add("Sistemska greška: " + e.getMessage());
+        e.printStackTrace();
+    }
+    return results;
+}
+
+    //SLOŽENI UPIT: HIBRIDNA PRETRAGA (Multi-Vector + Ranker)
+    @GetMapping("/search/hybrid")
+    public String hybridSearch(@RequestParam String query) {
+        List<Float> queryVector = embeddingService.generateEmbedding(query);
+
+        AnnSearchParam req1 = AnnSearchParam.newBuilder()
                 .withVectorFieldName("prompt_vector")
-                .withFloatVectors(Collections.singletonList(generateRandomVector(128)))
+                .withFloatVectors(Collections.singletonList(queryVector))
                 .withMetricType(MetricType.L2)
-                .withTopK(5)
-                .withExpr("version > 1") 
+                .withTopK(10)
+                .build();
+
+        AnnSearchParam req2 = AnnSearchParam.newBuilder()
+                .withVectorFieldName("summary_vector")
+                .withFloatVectors(Collections.singletonList(queryVector))
+                .withMetricType(MetricType.L2)
+                .withTopK(10)
                 .build();
 
         HybridSearchParam hybridSearchParam = HybridSearchParam.newBuilder()
                 .withCollectionName("PromptTemplates")
-                .addSearchRequest(annSearchParam)
+                .addSearchRequest(req1)
+                .addSearchRequest(req2)
                 .withRanker(RRFRanker.newBuilder().withK(60).build())
                 .withTopK(5)
+                .withOutFields(List.of("prompt_text", "short_summary"))
                 .build();
 
         return milvusClient.hybridSearch(hybridSearchParam).getData().toString();
-    }*/
-
-    //POMOCNE METODE
-    /*private void insertData(String coll, String f1, List<String> v1, String f2, List<String> v2, String vecF) {
-        List<InsertParam.Field> fields = new ArrayList<>();
-        fields.add(new InsertParam.Field(f1, v1));
-        fields.add(new InsertParam.Field(f2, v2));
-        fields.add(new InsertParam.Field(vecF, Collections.singletonList(generateRandomVector(128))));
-        milvusClient.insert(InsertParam.newBuilder().withCollectionName(coll).withFields(fields).build());
-    }*/
- private void insertData(String coll, String f1, List<String> v1, String f2, List<String> v2, String vecF) {
-    long newId = System.currentTimeMillis() + random.nextInt(1000);
-    
-    String combinedText = v1.get(0) + " " + v2.get(0);
-    List<Float> embedding = embeddingService.generateEmbedding(combinedText);
-    List<Float> summaryEmbedding = embeddingService.generateEmbedding(v2.get(0));
-    
-    List<InsertParam.Field> fields = new ArrayList<>();
-    fields.add(new InsertParam.Field("id", List.of(newId)));
-    fields.add(new InsertParam.Field(f1, v1));
-    fields.add(new InsertParam.Field(f2, v2));
-    fields.add(new InsertParam.Field("avg_rating", List.of(0.0f))); 
-    fields.add(new InsertParam.Field("version", List.of(1)));        
-    fields.add(new InsertParam.Field(vecF, List.of(embedding)));
-    fields.add(new InsertParam.Field("summary_vector", List.of(summaryEmbedding))); 
-
-    milvusClient.insert(InsertParam.newBuilder()
-            .withCollectionName(coll)
-            .withFields(fields)
-            .build());
-}
-
-    private void insertFeedbackData(Integer rating, String section) {
-        long newId = System.currentTimeMillis() + random.nextInt(1000);
-
-        List<Float> embedding = embeddingService.generateEmbedding(section);
-        
-        List<InsertParam.Field> fields = new ArrayList<>();
-        fields.add(new InsertParam.Field("id", List.of(newId)));
-        fields.add(new InsertParam.Field("rating", Collections.singletonList(rating)));
-        fields.add(new InsertParam.Field("section_name", Collections.singletonList(section)));
-        fields.add(new InsertParam.Field("feedback_vector", Collections.singletonList(embedding)));
-        fields.add(new InsertParam.Field("regeneration_count", Collections.singletonList(0)));
-        milvusClient.insert(InsertParam.newBuilder().withCollectionName("ResearcherFeedbacks").withFields(fields).build());
-    }
-
-    private String queryById(String coll, Long id, List<String> outFields) {
-        R<QueryResults> response = milvusClient.query(QueryParam.newBuilder()
-                .withCollectionName(coll).withExpr("id == " + id).withOutFields(outFields).build());
-        if (response.getData() == null) return "Nije pronađeno.";
-        return response.getData().toString();
     }
 }
