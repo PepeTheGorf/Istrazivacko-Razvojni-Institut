@@ -1,4 +1,4 @@
-package org.example.projectrealizationservice.model;
+package org.example.projectrealizationservice.model.neo4j;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -9,21 +9,18 @@ import org.springframework.data.neo4j.core.schema.GeneratedValue;
 import org.springframework.data.neo4j.core.schema.Id;
 import org.springframework.data.neo4j.core.schema.Node;
 
-import java.time.OffsetDateTime;
-
-@Node("TaskAssignment")
+@Node("Phase")
 @Getter
 @Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class TaskAssignment {
+public class Phase {
 
     @Id
     @GeneratedValue
     private String id;
-    
-    private Long assigneeId;
-    
-    private OffsetDateTime assignedAt;
+
+    private String name;
+    private int order;
 }

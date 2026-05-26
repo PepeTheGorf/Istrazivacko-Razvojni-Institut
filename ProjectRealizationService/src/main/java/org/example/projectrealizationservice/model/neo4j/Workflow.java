@@ -1,4 +1,4 @@
-package org.example.projectrealizationservice.model;
+package org.example.projectrealizationservice.model.neo4j;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -8,19 +8,28 @@ import lombok.Setter;
 import org.springframework.data.neo4j.core.schema.GeneratedValue;
 import org.springframework.data.neo4j.core.schema.Id;
 import org.springframework.data.neo4j.core.schema.Node;
+import org.springframework.data.neo4j.core.schema.Relationship;
 
-@Node("Phase")
+import java.util.HashSet;
+import java.util.Set;
+
+@Node("Workflow")
 @Getter
 @Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Phase {
+public class Workflow {
 
     @Id
     @GeneratedValue
     private String id;
 
     private String name;
-    private int order;
+    private String description;
+    private Long creatorId;
+
+    @Relationship(type = "HAS_PHASE", direction = Relationship.Direction.OUTGOING)
+    @Builder.Default
+    private Set<Phase> phases = new HashSet<>();
 }

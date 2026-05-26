@@ -6,7 +6,7 @@ import org.example.projectrealizationservice.dto.creation.ProblemReportCreationD
 import java.util.List;
 
 public interface ProblemReportService {
-    void createProblemReport(ProblemReportCreationDTO problemReport);
+    void createProblemReport(String taskId, ProblemReportCreationDTO problemReport);
     void updateProblemReport(String problemReportId, ProblemReportCreationDTO problemReport);
     void deleteProblemReport(String problemReportId);
 

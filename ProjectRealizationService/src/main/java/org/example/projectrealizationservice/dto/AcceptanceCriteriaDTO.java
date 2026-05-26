@@ -4,7 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.example.projectrealizationservice.model.AcceptanceCriteria;
+import org.example.projectrealizationservice.model.sql.AcceptanceCriteria;
 
 @Data
 @Builder
@@ -19,7 +19,7 @@ public class AcceptanceCriteriaDTO {
 
     public static AcceptanceCriteriaDTO toDto(AcceptanceCriteria acceptanceCriteria) {
         return AcceptanceCriteriaDTO.builder()
-                .id(acceptanceCriteria.getId())
+                .id(String.valueOf(acceptanceCriteria.getId()))
                 .name(acceptanceCriteria.getName())
                 .description(acceptanceCriteria.getDescription())
                 .completed(acceptanceCriteria.isCompleted())

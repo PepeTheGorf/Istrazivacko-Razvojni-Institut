@@ -4,7 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.example.projectrealizationservice.model.Project;
+import org.example.projectrealizationservice.model.sql.Project;
 
 import java.time.OffsetDateTime;
 
@@ -23,12 +23,12 @@ public class ProjectDTO {
 
     public static ProjectDTO toDTO(Project project) {
         return ProjectDTO.builder()
-                .id(project.getId())
+                .id(String.valueOf(project.getId()))
                 .name(project.getName())
                 .description(project.getDescription())
                 .startDate(project.getStartDate())
                 .endDate(project.getEndDate())
-                .managerId(project.getManagerId())
+                .managerId(project.getCreatorId())
                 .creatorId(project.getCreatorId())
                 .build();
     }
