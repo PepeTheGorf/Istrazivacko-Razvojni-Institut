@@ -2,11 +2,12 @@ import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { getStoredAuth } from '../auth/authStorage'
+import { getHomePathForRole } from '../auth/roleNavigation'
 import { Button } from '../components/ui/Button'
 import { TextInput } from '../components/ui/TextInput'
 
 export function LoginPage() {
-  const { login, logout } = useAuth()
+  const { login } = useAuth()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -21,11 +22,8 @@ export function LoginPage() {
     try {
       await login({ email, password })
       const stored = getStoredAuth()
-      if (stored?.user.role === 'MANAGER') {
-        navigate('/projects', { replace: true })
-      } else {
-        logout()
-        setError('Trenutno je podržan pristup samo za menadžere.')
+      if (stored?.user.role) {
+        navigate(getHomePathForRole(stored.user.role), { replace: true })
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Prijava nije uspela')

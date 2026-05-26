@@ -3,8 +3,12 @@ import { AuthProvider } from './auth/AuthContext'
 import { GuestRoute } from './components/auth/GuestRoute'
 import { ProtectedRoute } from './components/auth/ProtectedRoute'
 import { LoginPage } from './pages/LoginPage'
-import { ProjectsPage } from './pages/ProjectsPage'
 import { RegisterPage } from './pages/RegisterPage'
+import { ProjectFormPage } from './pages/projects/ProjectFormPage'
+import { ProjectsPage } from './pages/projects/ProjectsPage'
+import { WorkflowCreateWizardPage } from './pages/workflowCreate/WorkflowCreateWizardPage'
+import { WorkflowEditWizardPage } from './pages/workflows/WorkflowEditWizardPage'
+import { WorkflowsPage } from './pages/workflows/WorkflowsPage'
 
 function App() {
   return (
@@ -15,8 +19,19 @@ function App() {
           <Route path="/register" element={<RegisterPage />} />
         </Route>
 
-        <Route element={<ProtectedRoute allowedRoles={['MANAGER']} />}>
+        <Route element={<ProtectedRoute allowedRoles={['MANAGER', 'TEAM_MEMBER']} />}>
           <Route path="/projects" element={<ProjectsPage />} />
+        </Route>
+
+        <Route element={<ProtectedRoute allowedRoles={['MANAGER']} />}>
+          <Route path="/projects/new" element={<ProjectFormPage />} />
+          <Route path="/projects/:projectId/edit" element={<ProjectFormPage />} />
+        </Route>
+
+        <Route element={<ProtectedRoute allowedRoles={['ADMINISTRATOR']} />}>
+          <Route path="/workflows" element={<WorkflowsPage />} />
+          <Route path="/workflows/new" element={<WorkflowCreateWizardPage />} />
+          <Route path="/workflows/:workflowId/edit" element={<WorkflowEditWizardPage />} />
         </Route>
 
         <Route path="/" element={<Navigate to="/login" replace />} />

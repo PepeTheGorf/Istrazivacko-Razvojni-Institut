@@ -1,6 +1,10 @@
 import { NavLink } from 'react-router-dom'
 import { cn } from '../../lib/cn'
-import { MANAGER_SIDEBAR_SECTIONS } from './sidebarConfig'
+import {
+  ADMINISTRATOR_SIDEBAR_SECTIONS,
+  MANAGER_SIDEBAR_SECTIONS,
+} from './sidebarConfig'
+import { useAuth } from '../../auth/AuthContext'
 
 interface SidebarProps {
   open: boolean
@@ -18,6 +22,11 @@ function navLinkClass(isActive: boolean) {
 }
 
 export function Sidebar({ open, onClose }: SidebarProps) {
+  const { user } = useAuth()
+  const sections = user?.role === 'ADMINISTRATOR'
+    ? ADMINISTRATOR_SIDEBAR_SECTIONS
+    : MANAGER_SIDEBAR_SECTIONS
+
   return (
     <>
       {open && (
@@ -37,7 +46,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         )}
       >
         <nav className="flex flex-col">
-          {MANAGER_SIDEBAR_SECTIONS.map((section, index) => (
+          {sections.map((section, index) => (
             <section
               key={section.title}
               className={cn('flex flex-col', index > 0 && 'border-t border-hairline')}
@@ -49,15 +58,27 @@ export function Sidebar({ open, onClose }: SidebarProps) {
               {section.items.length > 0 ? (
                 <ul className="m-0 flex list-none flex-col p-0">
                   {section.items.map((item) => (
-                    <li key={item.to}>
-                      <NavLink
-                        to={item.to}
-                        end={item.end}
-                        className={({ isActive }) => navLinkClass(isActive)}
-                        onClick={onClose}
-                      >
-                        {item.label}
-                      </NavLink>
+                    <li key={item.to ?? item.label}>
+                      {item.disabled || !item.to ? (
+                        <span
+                          className={cn(
+                            navLinkClass(false),
+                            'cursor-not-allowed opacity-50',
+                          )}
+                          aria-disabled="true"
+                        >
+                          {item.label}
+                        </span>
+                      ) : (
+                        <NavLink
+                          to={item.to}
+                          end={item.end}
+                          className={({ isActive }) => navLinkClass(isActive)}
+                          onClick={onClose}
+                        >
+                          {item.label}
+                        </NavLink>
+                      )}
                     </li>
                   ))}
                 </ul>
