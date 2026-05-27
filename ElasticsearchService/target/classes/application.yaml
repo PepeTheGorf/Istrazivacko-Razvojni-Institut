@@ -1,0 +1,18 @@
+spring:
+  application:
+    name: elasticsearch-service
+  elasticsearch:
+    rest:
+      uris: http://elasticsearch:9200
+
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+  instance:
+    prefer-ip-address: true
