@@ -6,11 +6,13 @@ import org.example.projectrealizationservice.dto.ProjectTaskDTO;
 import org.example.projectrealizationservice.dto.TechnicalResourceDTO;
 import org.example.projectrealizationservice.dto.WorkflowDTO;
 import org.example.projectrealizationservice.model.neo4j.Task;
+import org.example.projectrealizationservice.model.sql.ProjectTask;
 import org.example.projectrealizationservice.model.sql.TaskAssignment;
 import org.example.projectrealizationservice.model.sql.TaskResourceAssignment;
 import org.example.projectrealizationservice.model.sql.TechnicalResource;
 import org.example.projectrealizationservice.repository.neo4j.TaskRepository;
 import org.example.projectrealizationservice.repository.sql.AcceptanceCriteriaRepository;
+import org.example.projectrealizationservice.repository.sql.ProjectTaskRepository;
 import org.example.projectrealizationservice.repository.sql.TaskAssignmentRepository;
 import org.example.projectrealizationservice.repository.sql.TaskResourceAssignmentRepository;
 import org.example.projectrealizationservice.repository.sql.TechnicalResourceRepository;
@@ -30,6 +32,7 @@ public class TaskViewMapper {
     private final TaskResourceAssignmentRepository taskResourceAssignmentRepository;
     private final TechnicalResourceRepository technicalResourceRepository;
     private final TaskRepository taskRepository;
+    private final ProjectTaskRepository projectTaskRepository;
 
     public ProjectTaskDTO toProjectTaskDto(Task task) {
         List<TaskAssignment> assignments = taskAssignmentRepository.findByTaskId(task.getId());
@@ -61,11 +64,15 @@ public class TaskViewMapper {
                 .map(this::toProjectTaskDto)
                 .toList();
 
+        ProjectTask projectTask = projectTaskRepository.findByTaskId(task.getId()).orElse(null);
+
         return ProjectTaskDTO.builder()
                 .id(task.getId())
                 .name(task.getName())
                 .description(task.getDescription())
                 .phaseName(task.getPhase() != null ? task.getPhase().getName() : null)
+                .startDate(projectTask != null ? projectTask.getStartDate() : null)
+                .endDate(projectTask != null ? projectTask.getEndDate() : null)
                 .creatorId(task.getCreatorId())
                 .assigneeId(assigneeId)
                 .workflow(WorkflowDTO.toDTO(task.getWorkflow()))

@@ -59,7 +59,7 @@ public class TaskServiceImpl implements TaskService {
     }
 
     @Override
-    @Transactional(transactionManager = "neo4jTransactionManager")
+    @Transactional(transactionManager = "transactionManager")
     public void updateTask(String taskId, TaskCreationDTO taskCreation) {
         Task existing = findAccessibleTaskOrThrow(taskId);
         ResourceAuthorization.assertCurrentUserIsOwner(existing.getCreatorId());
@@ -77,7 +77,7 @@ public class TaskServiceImpl implements TaskService {
     }
 
     @Override
-    @Transactional
+    @Transactional(transactionManager = "transactionManager")
     public void deleteTask(String taskId) {
         Task existing = findAccessibleTaskOrThrow(taskId);
         ResourceAuthorization.assertCurrentUserIsOwner(existing.getCreatorId());

@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 
 @Data
@@ -16,6 +17,8 @@ public class ProjectTaskDTO {
     private String name;
     private String description;
     private String phaseName;
+    private OffsetDateTime startDate;
+    private OffsetDateTime endDate;
     private Long creatorId;
     private Long assigneeId;
 
