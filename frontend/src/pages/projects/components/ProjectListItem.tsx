@@ -10,17 +10,21 @@ interface ProjectListItemProps {
 
 export function ProjectListItem({ project, canManage, onDelete }: ProjectListItemProps) {
   const editPath = project.id ? `/projects/${project.id}/edit` : '/projects'
+  const detailsPath = project.id ? `/projects/${project.id}` : '/projects'
 
   return (
-    <article className="grid grid-cols-1 items-start gap-4 border-b border-hairline px-5 py-4 last:border-b-0 lg:grid-cols-[minmax(0,1.1fr)_auto] lg:gap-5">
-      <div className="min-w-0">
-        <h2 className="m-0 text-xl leading-snug font-semibold text-ink md:text-2xl">
+    <article className="grid grid-cols-1 items-start gap-4 px-5 py-5 transition-colors group-hover:bg-surface-2 lg:grid-cols-[minmax(0,1.1fr)_auto] lg:gap-5">
+      <Link
+        to={detailsPath}
+        className="min-w-0 rounded-md border border-transparent p-1"
+      >
+        <h2 className="m-0 text-xl leading-snug font-semibold text-ink transition-colors group-hover:text-primary-hover md:text-2xl">
           {project.name}
         </h2>
         <p className="m-0 mt-1.5 text-sm leading-relaxed break-words text-ink-subtle">
           {project.description?.trim() || 'Opis nije unet.'}
         </p>
-      </div>
+      </Link>
 
       {canManage ? (
         <div className="flex shrink-0 gap-2 self-center lg:justify-end">

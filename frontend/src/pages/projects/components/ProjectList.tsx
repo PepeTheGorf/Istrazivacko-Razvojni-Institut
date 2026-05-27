@@ -32,9 +32,9 @@ export function ProjectList({
 
   return (
     <section className="rounded-xl border border-hairline bg-surface-1">
-      <ul className="m-0 list-none p-0">
+      <ul className="m-0 list-none divide-y divide-hairline-strong p-0">
         {projects.map((project) => (
-          <li key={project.id ?? project.name}>
+          <li key={project.id ?? project.name} className="group">
             <ProjectListItem
               project={project}
               canManage={canManage}

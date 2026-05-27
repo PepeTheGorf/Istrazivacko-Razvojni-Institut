@@ -9,6 +9,19 @@ import type { Project } from '../../types/project'
 
 type Mode = 'create' | 'edit'
 
+function toDateInputValue(value?: string): string {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toISOString().slice(0, 10)
+}
+
+function toIsoDateOrUndefined(value: string): string | undefined {
+  if (!value) return undefined
+  const date = new Date(`${value}T00:00:00`)
+  return Number.isNaN(date.getTime()) ? undefined : date.toISOString()
+}
+
 export function ProjectFormPage() {
   const { projectId } = useParams<{ projectId: string }>()
   const navigate = useNavigate()
@@ -23,6 +36,8 @@ export function ProjectFormPage() {
 
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
 
   const loadProject = useCallback(async () => {
     if (mode !== 'edit' || !projectId) return
@@ -32,6 +47,8 @@ export function ProjectFormPage() {
       const project = await fetchProjectById(projectId)
       setName(project.name ?? '')
       setDescription(project.description ?? '')
+      setStartDate(toDateInputValue(project.startDate))
+      setEndDate(toDateInputValue(project.endDate))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Učitavanje projekta nije uspelo')
     } finally {
@@ -54,6 +71,8 @@ export function ProjectFormPage() {
       ...(mode === 'edit' ? { id: projectId } : null),
       name: name.trim(),
       description: description.trim(),
+      startDate: toIsoDateOrUndefined(startDate),
+      endDate: toIsoDateOrUndefined(endDate),
     }
 
     setSaving(true)
@@ -121,6 +140,24 @@ export function ProjectFormPage() {
                 value={description}
                 disabled={!canManage || saving}
                 onChange={(e) => setDescription(e.target.value)}
+              />
+              <TextInput
+                label="Početak realizacije"
+                name="startDate"
+                type="date"
+                className="[color-scheme:dark]"
+                value={startDate}
+                disabled={!canManage || saving}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
+              <TextInput
+                label="Rok završetka"
+                name="endDate"
+                type="date"
+                className="[color-scheme:dark]"
+                value={endDate}
+                disabled={!canManage || saving}
+                onChange={(e) => setEndDate(e.target.value)}
               />
 
               {canManage ? (
