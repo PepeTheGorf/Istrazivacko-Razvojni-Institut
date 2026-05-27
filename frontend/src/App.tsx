@@ -4,8 +4,10 @@ import { GuestRoute } from './components/auth/GuestRoute'
 import { ProtectedRoute } from './components/auth/ProtectedRoute'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
+import { ProjectDetailsPage } from './pages/projects/ProjectDetailsPage'
 import { ProjectFormPage } from './pages/projects/ProjectFormPage'
 import { ProjectsPage } from './pages/projects/ProjectsPage'
+import { TaskDetailsPage } from './pages/projects/TaskDetailsPage'
 import { WorkflowCreateWizardPage } from './pages/workflowCreate/WorkflowCreateWizardPage'
 import { WorkflowEditWizardPage } from './pages/workflows/WorkflowEditWizardPage'
 import { WorkflowsPage } from './pages/workflows/WorkflowsPage'
@@ -21,6 +23,8 @@ function App() {
 
         <Route element={<ProtectedRoute allowedRoles={['MANAGER', 'TEAM_MEMBER']} />}>
           <Route path="/projects" element={<ProjectsPage />} />
+          <Route path="/projects/:projectId" element={<ProjectDetailsPage />} />
+          <Route path="/projects/:projectId/tasks/:taskId" element={<TaskDetailsPage />} />
         </Route>
 
         <Route element={<ProtectedRoute allowedRoles={['MANAGER']} />}>
