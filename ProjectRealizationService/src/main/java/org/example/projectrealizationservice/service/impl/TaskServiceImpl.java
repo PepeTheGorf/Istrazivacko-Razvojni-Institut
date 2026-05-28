@@ -2,6 +2,7 @@ package org.example.projectrealizationservice.service.impl;
 
 import lombok.RequiredArgsConstructor;
 import org.example.projectrealizationservice.dto.ProjectTaskDTO;
+import org.example.projectrealizationservice.dto.TaskSummaryDTO;
 import org.example.projectrealizationservice.dto.creation.TaskCreationDTO;
 import org.example.projectrealizationservice.mapper.TaskViewMapper;
 import org.example.projectrealizationservice.model.neo4j.Task;
@@ -16,6 +17,9 @@ import org.example.projectrealizationservice.repository.sql.TaskResourceAssignme
 import org.example.projectrealizationservice.security.ResourceAuthorization;
 import org.example.projectrealizationservice.security.SecurityUtils;
 import org.example.projectrealizationservice.service.TaskService;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,6 +38,8 @@ public class TaskServiceImpl implements TaskService {
     private final TaskAssignmentRepository taskAssignmentRepository;
     private final TaskResourceAssignmentRepository taskResourceAssignmentRepository;
     private final TaskViewMapper taskViewMapper;
+    
+    private CacheManager cacheManager;
 
     @Override
     @Transactional(transactionManager = "neo4jTransactionManager")
@@ -74,6 +80,7 @@ public class TaskServiceImpl implements TaskService {
                 projectTaskRepository.save(projectTask);
             });
         }
+        Objects.requireNonNull(cacheManager.getCache("tasks-summary")).evict(existing.getProjectId());
     }
 
     @Override
@@ -88,14 +95,17 @@ public class TaskServiceImpl implements TaskService {
         projectTaskRepository.findByTaskId(taskId)
                 .ifPresent(projectTaskRepository::delete);
         taskRepository.delete(existing);
+
+        Objects.requireNonNull(cacheManager.getCache("tasks-summary")).evict(existing.getProjectId());
     }
 
     @Override
-    public List<ProjectTaskDTO> getTasksByProjectId(String projectId) {
+    @Cacheable(value = "tasks-summary", key = "#projectId", condition = "#projectId != null")
+    public List<TaskSummaryDTO> getTasksByProjectId(String projectId) {
         Project project = findAccessibleProjectOrThrow(projectId);
         return taskRepository.findByProjectId(project.getId()).stream()
                 .filter(task -> task.getParentTask() == null)
-                .map(taskViewMapper::toProjectTaskDto)
+                .map(taskViewMapper::toTaskSummaryDto)
                 .toList();
     }
 

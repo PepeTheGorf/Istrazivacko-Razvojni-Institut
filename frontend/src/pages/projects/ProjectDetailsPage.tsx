@@ -7,7 +7,7 @@ import { useAuth } from '../../auth/AuthContext'
 import { AppShell } from '../../components/layout/AppShell'
 import { Button } from '../../components/ui/Button'
 import type { Project } from '../../types/project'
-import type { ProjectTask } from '../../types/task'
+import type { TaskSummary } from '../../types/task'
 import type { Workflow } from '../../types/workflow'
 import { CreateTaskDialog } from './components/CreateTaskDialog'
 import { type TaskFormValues } from './components/TaskForm'
@@ -20,7 +20,7 @@ function toIsoDateTimeOrUndefined(value: string): string | undefined {
   return Number.isNaN(date.getTime()) ? undefined : date.toISOString()
 }
 
-function flattenTasks(tasks: ProjectTask[]): ProjectTask[] {
+function flattenTasks(tasks: TaskSummary[]): TaskSummary[] {
   return tasks.flatMap((task) => [task, ...(task.subTasks ? flattenTasks(task.subTasks) : [])])
 }
 
@@ -31,7 +31,7 @@ export function ProjectDetailsPage() {
   const canManage = user?.role === 'MANAGER'
 
   const [project, setProject] = useState<Project | null>(null)
-  const [tasks, setTasks] = useState<ProjectTask[]>([])
+  const [tasks, setTasks] = useState<TaskSummary[]>([])
   const [workflows, setWorkflows] = useState<Workflow[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)

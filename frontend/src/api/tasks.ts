@@ -3,11 +3,12 @@ import type {
   AcceptanceCriteriaPayload,
   AcceptanceCriterion,
   ProjectTask,
+  TaskSummary,
   TaskCreationPayload,
 } from '../types/task'
 
-export function fetchTasksByProject(projectId: string): Promise<ProjectTask[]> {
-  return apiFetch<ProjectTask[]>(`/tasks/project/${projectId}`)
+export function fetchTasksByProject(projectId: string): Promise<TaskSummary[]> {
+  return apiFetch<TaskSummary[]>(`/tasks/project/${projectId}`)
 }
 
 export function fetchTaskById(taskId: string): Promise<ProjectTask> {

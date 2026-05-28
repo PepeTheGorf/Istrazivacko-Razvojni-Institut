@@ -15,7 +15,7 @@ public interface TaskRepository extends Neo4jRepository<Task, String> {
 
     @Query("""
         MATCH (subtask:Task)-[:SUBTASK_OF]->(parent:Task)
-        WHERE parent.id = $parentTaskId
+        WHERE elementId(parent) = $parentTaskId
         RETURN subtask
         """)
     List<Task> findSubtasksByParentTaskId(String parentTaskId);

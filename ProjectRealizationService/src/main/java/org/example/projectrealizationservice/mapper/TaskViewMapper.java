@@ -1,10 +1,7 @@
 package org.example.projectrealizationservice.mapper;
 
 import lombok.RequiredArgsConstructor;
-import org.example.projectrealizationservice.dto.AcceptanceCriteriaDTO;
-import org.example.projectrealizationservice.dto.ProjectTaskDTO;
-import org.example.projectrealizationservice.dto.TechnicalResourceDTO;
-import org.example.projectrealizationservice.dto.WorkflowDTO;
+import org.example.projectrealizationservice.dto.*;
 import org.example.projectrealizationservice.model.neo4j.Task;
 import org.example.projectrealizationservice.model.sql.ProjectTask;
 import org.example.projectrealizationservice.model.sql.TaskAssignment;
@@ -80,6 +77,32 @@ public class TaskViewMapper {
                 .acceptanceCriteria(acceptanceCriteriaRepository.findByTaskId(task.getId()).stream()
                         .map(AcceptanceCriteriaDTO::toDto)
                         .toList())
+                .subTasks(subTasks)
+                .build();
+    }
+
+    public TaskSummaryDTO toTaskSummaryDto(Task task) {
+        List<TaskAssignment> assignments = taskAssignmentRepository.findByTaskId(task.getId());
+        
+        //todo: fix this later maybe by calling stakeholders api?
+        List<Long> assigneeId = assignments.stream()
+                .map(TaskAssignment::getAssigneeId).toList();
+
+        List<TaskSummaryDTO> subTasks = taskRepository.findSubtasksByParentTaskId(task.getId()).stream()
+                .map(this::toTaskSummaryDto)
+                .toList();
+
+        
+        //Move this data into task I think
+        ProjectTask projectTask = projectTaskRepository.findByTaskId(task.getId()).orElse(null);
+
+        return TaskSummaryDTO.builder()
+                .id(task.getId())
+                .name(task.getName())
+                .description(task.getDescription())
+                .phaseName(task.getPhase() != null ? task.getPhase().getName() : null)
+                .endDate(projectTask != null ? projectTask.getEndDate() : null)
+                .assigneeNames(List.of())
                 .subTasks(subTasks)
                 .build();
     }
