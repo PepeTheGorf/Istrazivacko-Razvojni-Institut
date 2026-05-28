@@ -7,6 +7,17 @@ spring:
     authentication:
       username: ${SPRING_NEO4J_AUTHENTICATION_USERNAME:neo4j}
       password: ${SPRING_NEO4J_AUTHENTICATION_PASSWORD:password}
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5433/project_realization}
+    username: ${SPRING_DATASOURCE_USERNAME:project_realization}
+    password: ${SPRING_DATASOURCE_PASSWORD:project_realization}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
   application:
     name: project-realization-service
   autoconfigure:

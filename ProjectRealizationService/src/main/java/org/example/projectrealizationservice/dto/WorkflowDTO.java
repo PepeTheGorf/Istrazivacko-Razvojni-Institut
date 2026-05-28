@@ -4,7 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.example.projectrealizationservice.model.Workflow;
+import org.example.projectrealizationservice.model.neo4j.Workflow;
 
 import java.util.List;
 

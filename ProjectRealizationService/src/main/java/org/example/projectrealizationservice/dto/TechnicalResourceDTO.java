@@ -4,7 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.example.projectrealizationservice.model.TechnicalResource;
+import org.example.projectrealizationservice.model.sql.TechnicalResource;
 
 @Data
 @Builder
@@ -21,7 +21,7 @@ public class TechnicalResourceDTO {
             return null;
         }
         return TechnicalResourceDTO.builder()
-                .id(technicalResource.getId())
+                .id(String.valueOf(technicalResource.getId()))
                 .name(technicalResource.getName())
                 .description(technicalResource.getDescription())
                 .creatorId(technicalResource.getCreatorId())

@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
+import { getStoredAuth } from '../auth/authStorage'
+import { getHomePathForRole } from '../auth/roleNavigation'
 import { Button } from '../components/ui/Button'
 import { SelectField } from '../components/ui/SelectField'
 import { TextInput } from '../components/ui/TextInput'
@@ -31,8 +33,9 @@ export function RegisterPage() {
 
     try {
       await register({ name, surname, email, password, role })
-      if (role === 'MANAGER') {
-        navigate('/projects', { replace: true })
+      const stored = getStoredAuth()
+      if (stored?.user.role) {
+        navigate(getHomePathForRole(stored.user.role), { replace: true })
       } else {
         navigate('/login', { replace: true })
       }

@@ -1,18 +1,12 @@
-import { useEffect } from 'react'
 import { Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthContext'
+import { getHomePathForRole } from '../../auth/roleNavigation'
 
 export function GuestRoute() {
-  const { isAuthenticated, user, logout } = useAuth()
+  const { isAuthenticated, user } = useAuth()
 
-  useEffect(() => {
-    if (isAuthenticated && user?.role !== 'MANAGER') {
-      logout()
-    }
-  }, [isAuthenticated, user, logout])
-
-  if (isAuthenticated && user?.role === 'MANAGER') {
-    return <Navigate to="/projects" replace />
+  if (isAuthenticated && user) {
+    return <Navigate to={getHomePathForRole(user.role)} replace />
   }
 
   return <Outlet />

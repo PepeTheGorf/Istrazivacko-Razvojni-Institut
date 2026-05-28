@@ -54,4 +54,13 @@ public class WorkflowController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
+
+    @GetMapping
+    public ResponseEntity<?> getAllWorkflows() {
+        try {
+            return ResponseEntity.ok(workflowService.getAllWorkflows());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
 }

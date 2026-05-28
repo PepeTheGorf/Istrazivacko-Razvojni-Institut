@@ -1,11 +1,13 @@
 import type { ButtonHTMLAttributes } from 'react'
 import { cn } from '../../lib/cn'
+import { BUTTON_ICON_SIZE, BUTTON_ICONS, type ButtonIconName } from './buttonIcons'
 
-type ButtonVariant = 'primary' | 'secondary' | 'tertiary'
+type ButtonVariant = 'primary' | 'secondary' | 'tertiary' | 'delete'
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant
   fullWidth?: boolean
+  icon?: ButtonIconName
 }
 
 const variantClasses: Record<ButtonVariant, string> = {
@@ -14,13 +16,16 @@ const variantClasses: Record<ButtonVariant, string> = {
   secondary:
     'border border-hairline bg-surface-1 text-ink hover:border-hairline-strong hover:bg-surface-2',
   tertiary: 'bg-transparent text-ink-muted hover:bg-surface-1 hover:text-ink',
+  delete: 'bg-transparent text-error hover:bg-error/10 hover:text-error',
 }
 
 export function Button({
   variant = 'primary',
   fullWidth = false,
+  icon,
   className = '',
   type = 'button',
+  children,
   ...props
 }: ButtonProps) {
   return (
@@ -33,6 +38,17 @@ export function Button({
         className,
       )}
       {...props}
-    />
+    >
+      {icon && (
+        <img
+          src={BUTTON_ICONS[icon]}
+          alt=""
+          width={BUTTON_ICON_SIZE}
+          height={BUTTON_ICON_SIZE}
+          aria-hidden
+        />
+      )}
+      {children}
+    </button>
   )
 }

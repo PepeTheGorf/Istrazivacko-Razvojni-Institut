@@ -38,3 +38,30 @@
     @apply min-h-screen;
   }
 }
+
+@layer utilities {
+  .scrollbar-dark {
+    scrollbar-width: thin;
+    scrollbar-color: #34343a #141516;
+  }
+
+  .scrollbar-dark::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  .scrollbar-dark::-webkit-scrollbar-track {
+    background: #141516;
+    border-radius: 9999px;
+  }
+
+  .scrollbar-dark::-webkit-scrollbar-thumb {
+    background: #34343a;
+    border-radius: 9999px;
+    border: 2px solid #141516;
+  }
+
+  .scrollbar-dark::-webkit-scrollbar-thumb:hover {
+    background: #5e6ad2;
+  }
+}
