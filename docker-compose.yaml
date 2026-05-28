@@ -1,6 +1,19 @@
 version: "3.3" # Defines the Docker Compose file format version
 
 services:
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # Service Discovery: Keeps track of all microservices
   eureka-server:
     build: # Instructions for building a custom image from a local directory
@@ -98,6 +111,8 @@ services:
         condition: service_healthy
       project-realization-postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       EUREKA_URL: http://eureka-server:8761/eureka/
       SPRING_NEO4J_URI: bolt://neo4j:7687
@@ -107,6 +122,8 @@ services:
       SPRING_DATASOURCE_USERNAME: project_realization
       SPRING_DATASOURCE_PASSWORD: project_realization
       JWT_SECRET: c3Rha2Vob2xkZXJzZXJ2aWNland0c2VjcmV0a2V5Zm9ydGgyNTZiaXRzMTIzNDU2Nzg5MA==
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
     ports:
       - "9060:8080"
 
@@ -263,5 +280,6 @@ volumes:
   stakeholder_pg_data: {}
   project_realization_pg_data: {}
   influxdb_data: {}
+  redis_data: {}
 
 
