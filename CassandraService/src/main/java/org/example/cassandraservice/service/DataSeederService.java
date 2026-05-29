@@ -2,8 +2,8 @@ package org.example.cassandraservice.service;
 
 import com.datastax.oss.driver.api.core.CqlSession;
 import com.datastax.oss.driver.api.core.cql.PreparedStatement;
-import com.datastax.oss.driver.api.core.cql.BoundStatement;
-//import org.example.cassandraservice.model.*;
+//import com.datastax.oss.driver.api.core.cql.BoundStatement;
+import net.datafaker.Faker;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -17,156 +17,142 @@ public class DataSeederService {
     @Autowired
     private CqlSession cqlSession;
 
+    private final Faker faker = new Faker();
     private final Random random = new Random();
-    private final String[] researchFields = {"Astrophysics", "Bio-engineering", "Quantum Mechanics", "Neuroscience", "Climatology", "Cybersecurity"};
-    private final String[] statuses = {"SUCCESS", "FAILED", "TIMEOUT"};
-    private final String[] documentStatuses = {"DRAFT", "IN_REVIEW", "PUBLISHED"};
-    private final String[] actions = {"YES", "NO"};
+
+    // Liste za održavanje konzistentnosti (da se ista imena pojavljuju u različitim tabelama)
+    private final List<String> researcherNames = new ArrayList<>();
+    private final List<String> managerNames = new ArrayList<>();
+    private final List<String> promptTemplates = new ArrayList<>();
+
+    private void initializeBaseData() {
+        if (researcherNames.isEmpty()) {
+            for (int i = 0; i < 200; i++) researcherNames.add(faker.name().fullName());
+        }
+        if (managerNames.isEmpty()) {
+            for (int i = 0; i < 50; i++) managerNames.add(faker.name().fullName());
+        }
+        if (promptTemplates.isEmpty()) {
+            for (int i = 0; i < 30; i++) promptTemplates.add(faker.science().element() + " " + faker.science().tool());
+        }
+    }
 
     public void seedData() {
-        System.out.println("Starting Cassandra seeding (1000+ records total)...");
-        try {
-            seedLlmRequests(200);
-            seedFeedbacks(200);
-            seedRegenerations(200);
-            seedDocumentStatus(200);
-            seedPromptUsage(200);
-            System.out.println("Cassandra seeding completed successfully!");
-        } catch (Exception e) {
-            System.err.println("Seeding error: " + e.getMessage());
-            e.printStackTrace();
-        }
+        initializeBaseData();
+        System.out.println("Starting realistic seeding...");
+        
+        // Povećaj brojeve za pravi test performansi (npr. na 10000 ili više)
+        seedLlmRequests(5000); 
+        seedFeedbacks(2000);
+        seedRegenerations(3000);
+        seedDocumentStatus(2000);
+        seedPromptUsage(1000);
+        
+        System.out.println("Seeding completed!");
     }
 
     private void seedLlmRequests(int total) {
         String query = "INSERT INTO " + CassandraInitializationService.KEYSPACE + "." + 
                        CassandraInitializationService.TABLE_LLM_REQUESTS + 
-                       " (researcher_id, request_timestamp, request_id, document_id, request_type, token_count, response_time, status) " +
-                       "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-        
+                       " (researcher_id, request_timestamp, request_id, document_id, request_type, token_count, response_time, status) VALUES (?,?,?,?,?,?,?,?)";
         PreparedStatement prepared = cqlSession.prepare(query);
 
         for (int i = 0; i < total; i++) {
-            String researcherId = "researcher_" + (i % 50);
-            Instant timestamp = Instant.now().minusSeconds(random.nextLong(2592000L)); // Last 30 days
-            UUID requestId = UUID.randomUUID();
-            String documentId = "doc_" + (i % 100);
-            String requestType = random.nextBoolean() ? "GENERATION" : "REGENERATION";
-            int tokenCount = 100 + random.nextInt(1000);
-            float responseTime = 0.1f + random.nextFloat() * 5.0f;
-            String status = statuses[random.nextInt(statuses.length)];
+            String researcher = researcherNames.get(random.nextInt(researcherNames.size()));
+            int tokens = 50 + random.nextInt(4000);
+            
+            // Logička korelacija: Više tokena = sporiji odziv
+            float responseTime = (tokens / 800.0f) + random.nextFloat() * 2;
+            
+            // Bias: 90% šanse za SUCCESS
+            String status = (random.nextInt(100) < 90) ? "SUCCESS" : (random.nextBoolean() ? "FAILED" : "TIMEOUT");
+            if (status.equals("TIMEOUT")) responseTime = 30.0f;
 
-            BoundStatement bound = prepared.bind(
-                    researcherId, timestamp, requestId, documentId, 
-                    requestType, tokenCount, responseTime, status
-            );
-            cqlSession.execute(bound);
+            cqlSession.execute(prepared.bind(
+                researcher, Instant.now().minusSeconds(random.nextLong(1000000)), UUID.randomUUID(),
+                "doc_" + random.nextInt(500), random.nextBoolean() ? "GENERATION" : "REGENERATION",
+                tokens, responseTime, status
+            ));
         }
-        System.out.println("[LlmRequests] Seeded " + total + " records");
     }
 
     private void seedFeedbacks(int total) {
         String query = "INSERT INTO " + CassandraInitializationService.KEYSPACE + "." + 
                        CassandraInitializationService.TABLE_FEEDBACK + 
-                       " (manager_id, feedback_date, feedback_id, research_field, rating, comments, action_required) " +
-                       "VALUES (?, ?, ?, ?, ?, ?, ?)";
-        
+                       " (manager_id, feedback_date, feedback_id, research_field, rating, comments, action_required) VALUES (?,?,?,?,?,?,?)";
         PreparedStatement prepared = cqlSession.prepare(query);
 
         for (int i = 0; i < total; i++) {
-            String managerId = "manager_" + (i % 20);
-            Instant feedbackDate = Instant.now().minusSeconds(random.nextLong(2592000L));
-            UUID feedbackId = UUID.randomUUID();
-            String researchField = researchFields[random.nextInt(researchFields.length)];
             int rating = 1 + random.nextInt(5);
-            String comments = "Feedback on " + researchField + " - " + (random.nextBoolean() ? "Positive" : "Needs improvement");
-            String actionRequired = actions[random.nextInt(actions.length)];
+            String field = faker.science().element() + " " + faker.job().field(); // Npr. "Oxygen Engineering"
+            
+            // Logička korelacija: Komentar zavisi od ocene
+            String comment;
+            if (rating <= 2) comment = "Critical issue: " + faker.lorem().sentence();
+            else if (rating == 3) comment = "Average quality. " + faker.lorem().sentence();
+            else comment = "Excellent work on " + field + ". " + faker.lorem().sentence();
 
-            BoundStatement bound = prepared.bind(
-                    managerId, feedbackDate, feedbackId, researchField,
-                    rating, comments, actionRequired
-            );
-            cqlSession.execute(bound);
+            cqlSession.execute(prepared.bind(
+                managerNames.get(random.nextInt(managerNames.size())), 
+                Instant.now().minusSeconds(random.nextLong(1000000)), UUID.randomUUID(),
+                field, rating, comment, (rating < 3 ? "YES" : "NO")
+            ));
         }
-        System.out.println("[Feedbacks] Seeded " + total + " records");
     }
 
     private void seedRegenerations(int total) {
         String query = "INSERT INTO " + CassandraInitializationService.KEYSPACE + "." + 
                        CassandraInitializationService.TABLE_REGENERATIONS + 
-                       " (section_id, regeneration_time, regeneration_id, researcher_id, previous_text, new_text, confidence, reason) " +
-                       "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-        
+                       " (section_id, regeneration_time, regeneration_id, researcher_id, previous_text, new_text, confidence, reason) VALUES (?,?,?,?,?,?,?,?)";
         PreparedStatement prepared = cqlSession.prepare(query);
 
         for (int i = 0; i < total; i++) {
-            String sectionId = "section_" + (i % 150);
-            Instant regTime = Instant.now().minusSeconds(random.nextLong(2592000L));
-            UUID regenerationId = UUID.randomUUID();
-            String researcherId = "researcher_" + (i % 50);
-            String previousText = "Original text for section " + sectionId;
-            String newText = "Regenerated text for section " + sectionId + " v" + random.nextInt(10);
-            int confidence = 50 + random.nextInt(50);
-            String reason = random.nextBoolean() ? "User request" : "Quality improvement";
+            String previousText = "Draft: " + faker.lorem().paragraph(3); 
+            String newText = "Refined: " + faker.lorem().paragraph(6);    
 
-            BoundStatement bound = prepared.bind(
-                    sectionId, regTime, regenerationId, researcherId,
-                    previousText, newText, confidence, reason
-            );
-            cqlSession.execute(bound);
+            cqlSession.execute(prepared.bind(
+                "sec_" + random.nextInt(1000), 
+                Instant.now(), 
+                UUID.randomUUID(),
+                researcherNames.get(random.nextInt(researcherNames.size())), 
+                previousText, 
+                newText,
+                70 + random.nextInt(30), 
+                faker.options().option("Grammar Correction", "Expanding details", "Formal tone adjustment", "Fact checking")
+            ));
         }
-        System.out.println("[Regenerations] Seeded " + total + " records");
     }
 
     private void seedDocumentStatus(int total) {
         String query = "INSERT INTO " + CassandraInitializationService.KEYSPACE + "." + 
                        CassandraInitializationService.TABLE_DOCUMENT_STATUS + 
-                       " (document_date, document_id, status_id, current_status, owner_researcher_id, section_count, last_modified_by) " +
-                       "VALUES (?, ?, ?, ?, ?, ?, ?)";
-        
+                       " (document_date, document_id, status_id, current_status, owner_researcher_id, section_count, last_modified_by) VALUES (?,?,?,?,?,?,?)";
         PreparedStatement prepared = cqlSession.prepare(query);
 
-        for (int i = 0; i < total; i++) {
-            LocalDate docDate = LocalDate.now().minusDays(random.nextLong(60));
-            String documentId = "doc_" + (i % 100);
-            UUID statusId = UUID.randomUUID();
-            String currentStatus = documentStatuses[random.nextInt(documentStatuses.length)];
-            String ownerResearcherId = "researcher_" + (i % 50);
-            int sectionCount = 5 + random.nextInt(20);
-            String lastModifiedBy = "researcher_" + (i % 50);
+        String[] statuses = {"DRAFT", "IN_REVIEW", "PUBLISHED"};
 
-            BoundStatement bound = prepared.bind(
-                    docDate, documentId, statusId, currentStatus,
-                    ownerResearcherId, sectionCount, lastModifiedBy
-            );
-            cqlSession.execute(bound);
+        for (int i = 0; i < total; i++) {
+            String researcher = researcherNames.get(random.nextInt(researcherNames.size()));
+            cqlSession.execute(prepared.bind(
+                LocalDate.now().minusDays(random.nextInt(60)), "doc_" + random.nextInt(500), UUID.randomUUID(),
+                statuses[random.nextInt(3)], researcher, 5 + random.nextInt(25), researcher
+            ));
         }
-        System.out.println("[DocumentStatus] Seeded " + total + " records");
     }
 
     private void seedPromptUsage(int total) {
         String query = "INSERT INTO " + CassandraInitializationService.KEYSPACE + "." + 
                        CassandraInitializationService.TABLE_PROMPT_USAGE + 
-                       " (prompt_template_id, researcher_id, usage_id, usage_count, average_effectiveness, last_used_date, is_active) " +
-                       "VALUES (?, ?, ?, ?, ?, ?, ?)";
-        
+                       " (prompt_template_id, researcher_id, usage_id, usage_count, average_effectiveness, last_used_date, is_active) VALUES (?,?,?,?,?,?,?)";
         PreparedStatement prepared = cqlSession.prepare(query);
 
         for (int i = 0; i < total; i++) {
-            String promptTemplateId = "prompt_" + (i % 75);
-            String researcherId = "researcher_" + (i % 50);
-            UUID usageId = UUID.randomUUID();
-            int usageCount = 1 + random.nextInt(100);
-            float avgEffectiveness = 0.5f + random.nextFloat() * 0.5f;
-            String lastUsedDate = LocalDate.now().minusDays(random.nextLong(30)).toString();
-            boolean isActive = random.nextBoolean();
-
-            BoundStatement bound = prepared.bind(
-                    promptTemplateId, researcherId, usageId,
-                    usageCount, avgEffectiveness, lastUsedDate, isActive
-            );
-            cqlSession.execute(bound);
+            cqlSession.execute(prepared.bind(
+                promptTemplates.get(random.nextInt(promptTemplates.size())),
+                researcherNames.get(random.nextInt(researcherNames.size())), UUID.randomUUID(),
+                1 + random.nextInt(200), random.nextFloat(), 
+                LocalDate.now().minusDays(random.nextInt(30)).toString(), random.nextBoolean()
+            ));
         }
-        System.out.println("[PromptUsage] Seeded " + total + " records");
     }
 }
