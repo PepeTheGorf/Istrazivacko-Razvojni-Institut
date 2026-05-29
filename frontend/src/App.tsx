@@ -11,6 +11,8 @@ import { TaskDetailsPage } from './pages/projects/TaskDetailsPage'
 import { WorkflowCreateWizardPage } from './pages/workflowCreate/WorkflowCreateWizardPage'
 import { WorkflowEditWizardPage } from './pages/workflows/WorkflowEditWizardPage'
 import { WorkflowsPage } from './pages/workflows/WorkflowsPage'
+import { DocumentsPage } from './pages/documents/DocumentsPage'
+import { DocumentTypesPage } from './pages/documentTypes/DocumentTypesPage'
 
 function App() {
   return (
@@ -25,6 +27,7 @@ function App() {
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/projects/:projectId" element={<ProjectDetailsPage />} />
           <Route path="/projects/:projectId/tasks/:taskId" element={<TaskDetailsPage />} />
+          <Route path="/documents" element={<DocumentsPage />} />
         </Route>
 
         <Route element={<ProtectedRoute allowedRoles={['MANAGER']} />}>
@@ -34,6 +37,7 @@ function App() {
 
         <Route element={<ProtectedRoute allowedRoles={['ADMINISTRATOR']} />}>
           <Route path="/workflows" element={<WorkflowsPage />} />
+          <Route path="/document-types" element={<DocumentTypesPage />} />
           <Route path="/workflows/new" element={<WorkflowCreateWizardPage />} />
           <Route path="/workflows/:workflowId/edit" element={<WorkflowEditWizardPage />} />
         </Route>

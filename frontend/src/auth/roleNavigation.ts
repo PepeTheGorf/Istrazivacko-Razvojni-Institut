@@ -3,10 +3,11 @@ import type { Role } from '../types/auth'
 export function getHomePathForRole(role: Role): string {
   switch (role) {
     case 'ADMINISTRATOR':
-      return '/workflows'
+      return '/document-types'
     case 'MANAGER':
-    case 'TEAM_MEMBER':
       return '/projects'
+    case 'TEAM_MEMBER':
+      return '/documents'
     default:
       return '/login'
   }

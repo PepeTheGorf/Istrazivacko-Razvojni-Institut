@@ -28,6 +28,6 @@ export const ADMINISTRATOR_SIDEBAR_SECTIONS: SidebarSection[] = [
   },
   {
     title: 'Resursi',
-    items: [],
+    items: [{ to: '/document-types', label: 'Tipovi Dokumenata', end: true }],
   },
 ]
