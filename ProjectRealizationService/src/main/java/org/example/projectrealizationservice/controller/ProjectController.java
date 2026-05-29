@@ -33,6 +33,11 @@ public class ProjectController {
         return projectService.findAll();
     }
 
+    @GetMapping("/selection/all")
+    public List<ProjectDTO> getAllProjectsForSelection() {
+        return projectService.findAllForSelection();
+    }
+
     @GetMapping("/{projectId}")
     public ProjectDTO getProjectById(@PathVariable String projectId) {
         return projectService.getProjectById(projectId);
