@@ -9,18 +9,21 @@ router = APIRouter(prefix="/api/v1/search", tags=["search"])
 def search_documents(
     query: str,
     top_k: int = Query(default=10, ge=1, le=50),
-    doc_type: str | None = None,
-    author: str | None = None,
-    project_id: int | None = None,
+    doc_type_id: str | None = None,
+    author_id: str | None = None,
+    project_id: str | None = None,
+    folder_id: str | None = None,
     is_archived: bool | None = None,
 ) -> dict:
     filters = []
-    if doc_type:
-        filters.append(f'doc_type == "{doc_type}"')
-    if author:
-        filters.append(f'author == "{author}"')
-    if project_id is not None:
-        filters.append(f"project_id == {project_id}")
+    if doc_type_id:
+        filters.append(f'doc_type_id == "{doc_type_id}"')
+    if author_id:
+        filters.append(f'author_id == "{author_id}"')
+    if project_id:
+        filters.append(f'project_id == "{project_id}"')
+    if folder_id:
+        filters.append(f'folder_id == "{folder_id}"')
     if is_archived is not None:
         filters.append(f"is_archived == {'true' if is_archived else 'false'}")
     filter_expr = " && ".join(filters)
@@ -33,17 +36,20 @@ def search_documents_iterator(
     query: str,
     top_k: int = Query(default=10, ge=1, le=50),
     page_size: int = Query(default=50, ge=5, le=200),
-    doc_type: str | None = None,
-    author: str | None = None,
-    project_id: int | None = None,
+    doc_type_id: str | None = None,
+    author_id: str | None = None,
+    project_id: str | None = None,
+    folder_id: str | None = None,
 ) -> dict:
     filters = []
-    if doc_type:
-        filters.append(f'doc_type == "{doc_type}"')
-    if author:
-        filters.append(f'author == "{author}"')
-    if project_id is not None:
-        filters.append(f"project_id == {project_id}")
+    if doc_type_id:
+        filters.append(f'doc_type_id == "{doc_type_id}"')
+    if author_id:
+        filters.append(f'author_id == "{author_id}"')
+    if project_id:
+        filters.append(f'project_id == "{project_id}"')
+    if folder_id:
+        filters.append(f'folder_id == "{folder_id}"')
     filter_expr = " && ".join(filters)
     results = document_management_service.search_documents_iterator(
         query=query,

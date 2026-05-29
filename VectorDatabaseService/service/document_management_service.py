@@ -28,6 +28,33 @@ def _tokenize(text: str) -> set[str]:
     return {token for token in cleaned.split() if token}
 
 
+def _normalize_text(text: str) -> str:
+    replacements = {
+        "č": "c",
+        "ć": "c",
+        "đ": "dj",
+        "š": "s",
+        "ž": "z",
+        "Č": "c",
+        "Ć": "c",
+        "Đ": "dj",
+        "Š": "s",
+        "Ž": "z",
+    }
+    return "".join(replacements.get(ch, ch.lower()) for ch in text)
+
+
+def _document_search_tokens(row: dict) -> set[str]:
+    parts: list[str] = [
+        row.get("title", ""),
+        row.get("content", ""),
+        " ".join(row.get("tags") or []),
+    ]
+    metadata = row.get("metadata") or {}
+    parts.extend(f"{key} {value}" for key, value in metadata.items())
+    return _tokenize(_normalize_text(" ".join(parts)))
+
+
 def _cosine(left: list[float], right: list[float]) -> float:
     left_vec = np.asarray(left, dtype=np.float32)
     right_vec = np.asarray(right, dtype=np.float32)
@@ -82,7 +109,10 @@ class DocumentManagementService:
     def create_document(self, payload: DocumentCreate) -> dict:
         timestamp = payload.created_at or _now()
         updated_at = payload.updated_at or timestamp
-        embedding = embedding_service.encode_text_one(f"{payload.title}\n{payload.content}")
+        tags_text = " ".join(payload.tags or [])
+        metadata_text = " ".join(f"{k}: {v}" for k, v in (payload.metadata or {}).items())
+        embedding_text = f"{payload.title}\n{payload.content}\n{tags_text}\n{metadata_text}"
+        embedding = embedding_service.encode_text_one(embedding_text)
         record = payload.model_dump()
         record.update({"created_at": timestamp, "updated_at": updated_at, "content_embedding": embedding})
         result = document_repository.insert([record])
@@ -107,9 +137,13 @@ class DocumentManagementService:
         current = document_repository.get_by_id(document_id, include_vectors=True)
         if current is None:
             raise KeyError(f"Document {document_id} not found")
-        merged = _merge_optional(current, payload.model_dump(exclude_none=True))
-        if any(field in payload.model_dump(exclude_none=True) for field in ("title", "content")):
-            merged["content_embedding"] = embedding_service.encode_text_one(f"{merged.get('title', '')}\n{merged.get('content', '')}")
+        update_data = payload.model_dump(exclude_none=True)
+        merged = _merge_optional(current, update_data)
+        if any(field in update_data for field in ("title", "content", "tags", "metadata")):
+            tags_text = " ".join(merged.get("tags") or [])
+            metadata_text = " ".join(f"{k}: {v}" for k, v in (merged.get("metadata") or {}).items())
+            embedding_text = f"{merged.get('title', '')}\n{merged.get('content', '')}\n{tags_text}\n{metadata_text}"
+            merged["content_embedding"] = embedding_service.encode_text_one(embedding_text)
         merged["updated_at"] = payload.updated_at or _now()
         result = document_repository.upsert(merged)
         return {"upserted_count": result["upsert_count"]}
@@ -144,8 +178,7 @@ class DocumentManagementService:
         return chunk_repository.count(filter_expr=filter_expr)
 
     def search_documents(self, query: str, top_k: int = 10, filter_expr: str = "") -> list[dict]:
-        vector = embedding_service.encode_text_one(query)
-        return document_repository.search([vector], top_k=top_k, filter_expr=filter_expr)[0]
+        return self.search_documents_iterator(query=query, top_k=top_k, page_size=max(top_k * 4, 50), filter_expr=filter_expr)
 
     def search_chunks(self, query: str, top_k: int = 10, filter_expr: str = "") -> list[dict]:
         vector = embedding_service.encode_text_one(query)
@@ -153,10 +186,18 @@ class DocumentManagementService:
 
     def search_documents_iterator(self, query: str, top_k: int = 10, page_size: int = 50, filter_expr: str = "") -> list[dict]:
         query_vector = embedding_service.encode_text_one(query)
+        query_tokens = _tokenize(_normalize_text(query))
         results: list[dict] = []
         for row in _DocumentRowIterator(filter_expr=filter_expr, page_size=page_size):
-            score = _cosine(query_vector, row.get("content_embedding", embedding_service.zero_vector()))
+            semantic_score = _cosine(query_vector, row.get("content_embedding", embedding_service.zero_vector()))
+            lexical_tokens = _document_search_tokens(row)
+            overlap = len(query_tokens & lexical_tokens)
+            lexical_score = overlap / max(len(query_tokens), 1)
+            score = (0.75 * semantic_score) + (0.25 * lexical_score)
             enriched = dict(row)
+            enriched.pop("content_embedding", None)
+            enriched["semantic_score"] = round(semantic_score, 4)
+            enriched["lexical_score"] = round(lexical_score, 4)
             enriched["score"] = round(score, 4)
             results.append(enriched)
             if len(results) >= top_k:
