@@ -33,12 +33,12 @@ public class RedisConfig {
 
     @Bean
     public RedisCacheManager cacheManager(LettuceConnectionFactory redisConnectionFactory) {
-        RedisCacheConfiguration defaultConfig = defaultCacheConfig(Duration.ofMinutes(10))
-                .disableCachingNullValues();
+        RedisCacheConfiguration defaultConfig = defaultCacheConfig(Duration.ofMinutes(10)).disableCachingNullValues();
 
         return RedisCacheManager.builder(redisConnectionFactory)
                 .cacheDefaults(defaultConfig)
-                .withCacheConfiguration("orders", defaultCacheConfig(Duration.ofMinutes(5)))
+                .withCacheConfiguration("projects", defaultCacheConfig(Duration.ofMinutes(60)))
+                .withCacheConfiguration("tasks-summary", defaultCacheConfig(Duration.ofMinutes(30)))
                 .build();
     }
 
@@ -49,7 +49,6 @@ public class RedisConfig {
 
         return RedisCacheConfiguration.defaultCacheConfig()
                 .entryTtl(ttl)
-                .serializeValuesWith(SerializationPair.fromSerializer(
-                        new GenericJackson2JsonRedisSerializer(objectMapper)));
+                .serializeValuesWith(SerializationPair.fromSerializer(new GenericJackson2JsonRedisSerializer(objectMapper)));
     }
 }
