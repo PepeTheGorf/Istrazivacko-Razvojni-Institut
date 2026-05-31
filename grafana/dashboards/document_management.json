@@ -1,0 +1,64 @@
+{
+  "title": "Document Management - InfluxDB",
+  "uid": "document-management",
+  "version": 1,
+  "schemaVersion": 36,
+  "refresh": "30s",
+  "time": { "from": "now-30d", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Top Active Users (30d)",
+      "type": "table",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"document_management\")\n  |> range(start: -30d)\n  |> filter(fn: (r) => r._measurement == \"document_access\")\n  |> filter(fn: (r) => r._field == \"session_duration_sec\")\n  |> group(columns: [\"user_id\"])\n  |> count()\n  |> rename(columns: {_value: \"total_accesses\"})\n  |> sort(columns: [\"total_accesses\"], desc: true)"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Top Documents in proj_5 (7d)",
+      "type": "table",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"document_management\")\n  |> range(start: -7d)\n  |> filter(fn: (r) => r._measurement == \"document_access\")\n  |> filter(fn: (r) => r.project_id == \"proj_5\")\n  |> filter(fn: (r) => r.action_type == \"view\")\n  |> filter(fn: (r) => r._field == \"session_duration_sec\")\n  |> group(columns: [\"document_id\"])\n  |> count()\n  |> rename(columns: {_value: \"view_count\"})\n  |> sort(columns: [\"view_count\"], desc: true)\n  |> limit(n: 10)"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Hourly Document Changes (30d)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"document_management\")\n  |> range(start: -30d)\n  |> filter(fn: (r) => r._measurement == \"document_changes\")\n  |> filter(fn: (r) => r._field == \"version_number\")\n  |> map(fn: (r) => ({r with hour: date.hour(t: r._time)}))\n  |> group(columns: [\"hour\", \"change_type\"])\n  |> count()\n  |> rename(columns: {_value: \"change_count\"})\n  |> sort(columns: [\"hour\", \"change_count\"], desc: false)"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Document Accesses Over Time",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"document_management\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"document_access\")\n  |> aggregateWindow(every: v.windowPeriod, fn: count, createEmpty: false)\n  |> yield(name: \"count\")"
+        }
+      ]
+    }
+  ],
+  "templating": { "list": [] },
+  "annotations": { "list": [] }
+}
