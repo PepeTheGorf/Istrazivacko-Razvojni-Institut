@@ -16,4 +16,7 @@ public interface ProjectService {
     ProjectDTO getProjectById(String projectId, Long creatorId);
 
     List<ProjectDTO> findAll(Long creatorId);
+
+    List<ProjectDTO> findAllForSelection();
+
 }

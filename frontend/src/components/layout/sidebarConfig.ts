@@ -26,6 +26,10 @@ export const TEAM_MEMBER_SIDEBAR_SECTIONS: SidebarSection[] = [
     title: 'Zadaci',
     items: [{ to: '/my-tasks', label: 'Moji zadaci' }],
   },
+  {
+    title: 'Dokumenti',
+    items: [{ to: '/documents', label: 'Dokumenti', end: true }],
+  },
 ]
 
 export const ADMINISTRATOR_SIDEBAR_SECTIONS: SidebarSection[] = [
@@ -35,6 +39,6 @@ export const ADMINISTRATOR_SIDEBAR_SECTIONS: SidebarSection[] = [
   },
   {
     title: 'Resursi',
-    items: [],
+    items: [{ to: '/document-types', label: 'Tipovi Dokumenata', end: true }],
   },
 ]
