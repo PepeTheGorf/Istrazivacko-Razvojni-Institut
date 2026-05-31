@@ -34,6 +34,16 @@ export interface TaskSummary {
   subTasks?: TaskSummary[]
 }
 
+export interface AssignedTaskSummary {
+  id?: string
+  name: string
+  description?: string
+  phaseName?: string
+  endDate?: string
+  projectId?: string
+  projectName?: string
+}
+
 export interface TaskCreationPayload {
   name: string
   description?: string
