@@ -1,0 +1,14 @@
+apiVersion: 1
+datasources:
+- name: influxdb
+  uid: influxdb
+  type: influxdb
+  access: proxy
+  url: http://influxdb:8086
+  isDefault: true
+  jsonData:
+    version: Flux
+    organization: nais
+    defaultBucket: document_management
+  secureJsonData:
+    token: dev-analytics-token-change-me
