@@ -1,0 +1,82 @@
+{
+    "title": "Document Management - InfluxDB",
+    "uid": "document-management",
+    "version": 1,
+    "schemaVersion": 36,
+    "refresh": "30s",
+    "time": {
+        "from": "2026-04-29T00:00:00Z",
+        "to": "2026-05-29T23:59:59Z"
+    },
+    "panels": [
+        {
+            "id": 1,
+            "title": "Najaktivniji korisnici",
+            "type": "barchart",
+            "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
+            "datasource": { "type": "influxdb", "uid": "influxdb" },
+            "options": { "xField": "user_id" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "query": "from(bucket: \"document_management\")\n  |> range(start: 2026-04-29T00:00:00Z, stop: 2026-05-29T23:59:59Z)\n  |> filter(fn: (r) => r._measurement == \"document_access\")\n  |> filter(fn: (r) => r._field == \"session_duration_sec\")\n  |> group(columns: [\"user_id\"])\n  |> count()\n  |> group()\n  |> sort(columns: [\"_value\"], desc: true)\n  |> limit(n: 10)\n  |> rename(columns: {_value: \"total_accesses\"})"
+                }
+            ]
+        },
+        {
+            "id": 2,
+            "title": "Top Dokumenti",
+            "type": "table",
+            "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+            "datasource": { "type": "influxdb", "uid": "influxdb" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "query": "from(bucket: \"document_management\")\n  |> range(start: 2026-04-29T00:00:00Z, stop: 2026-05-29T23:59:59Z)\n  |> filter(fn: (r) => r._measurement == \"document_access\")\n  |> filter(fn: (r) => r.akcija == \"pregled\")\n  |> filter(fn: (r) => r._field == \"session_duration_sec\")\n  |> group(columns: [\"document_id\"])\n  |> count()\n  |> group()\n  |> rename(columns: {_value: \"view_count\"})\n  |> sort(columns: [\"view_count\"], desc: true)\n  |> limit(n: 10)"
+                }
+            ]
+        },
+        {
+            "id": 3,
+            "title": "Izmene po tipu akcije",
+            "type": "barchart",
+            "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+            "datasource": { "type": "influxdb", "uid": "influxdb" },
+            "options": { "xField": "akcija" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "query": "from(bucket: \"document_management\")\n  |> range(start: 2026-04-29T00:00:00Z, stop: 2026-05-29T23:59:59Z)\n  |> filter(fn: (r) => r._measurement == \"document_changes\")\n  |> filter(fn: (r) => r._field == \"version_number\")\n  |> group(columns: [\"akcija\"])\n  |> count()\n  |> group()\n  |> rename(columns: {_value: \"broj_izmena\"})\n  |> sort(columns: [\"broj_izmena\"], desc: true)"
+                }
+            ]
+        },
+        {
+            "id": 4,
+            "title": "Dnevni trend izmena",
+            "type": "timeseries",
+            "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
+            "datasource": { "type": "influxdb", "uid": "influxdb" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "query": "from(bucket: \"document_management\")\n  |> range(start: 2026-04-29T00:00:00Z, stop: 2026-05-29T23:59:59Z)\n  |> filter(fn: (r) => r._measurement == \"document_changes\")\n  |> filter(fn: (r) => r._field == \"version_number\")\n  |> map(fn: (r) => ({r with _field: \"Broj izmena\"}))\n  |> group(columns: [\"_field\"])\n  |> aggregateWindow(every: 1d, fn: count, createEmpty: true)\n  |> yield(name: \"dnevne_izmene\")"
+                }
+            ]
+        },
+        {
+            "id": 5,
+            "title": "Trend pristupa dokumentima",
+            "type": "timeseries",
+            "gridPos": { "h": 8, "w": 24, "x": 0, "y": 24 },
+            "datasource": { "type": "influxdb", "uid": "influxdb" },
+            "targets": [
+                {
+                    "refId": "A",
+                    "query": "from(bucket: \"document_management\")\n  |> range(start: 2026-04-29T00:00:00Z, stop: 2026-05-29T23:59:59Z)\n  |> filter(fn: (r) => r._measurement == \"document_access\")\n  |> filter(fn: (r) => r._field == \"session_duration_sec\")\n  |> map(fn: (r) => ({r with _field: \"Broj pristupa\"}))\n  |> group(columns: [\"_field\"])\n  |> aggregateWindow(every: 1d, fn: count, createEmpty: true)\n  |> yield(name: \"count\")"
+                }
+            ]
+        }
+    ],
+    "templating": { "list": [] },
+    "annotations": { "list": [] }
+}

@@ -40,7 +40,6 @@ services:
     ports:
       - "9003:9000"
 
-
   influxdb:
     image: influxdb:2.7
     container_name: influxdb
@@ -86,6 +85,42 @@ services:
       SERVER_PORT: 8080
     ports:
       - "9063:8080"
+
+  document-acsses-service:
+    build:
+      context: ./TimeseriesDatabaseService
+      dockerfile: Dockerfile
+    image: timeseries-database-service:latest
+    container_name: timeseries-database-service
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      influxdb:
+        condition: service_healthy
+    environment:
+      EUREKA_URL: http://eureka-server:8761/eureka/
+      INFLUX_URL: http://influxdb:8086
+      INFLUX_TOKEN: ${INFLUXDB_TOKEN:-dev-analytics-token-change-me}
+      INFLUX_ORG: ${INFLUXDB_ORG:-nais}
+      INFLUX_BUCKET: document_management
+      SERVER_PORT: 8082
+    ports:
+      - "8082:8082"
+
+  grafana:
+    build:
+      context: ./grafana
+      dockerfile: Dockerfile
+    image: document-management-grafana:latest
+    container_name: grafana
+    depends_on:
+      influxdb:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_PATHS_PROVISIONING: /etc/grafana/provisioning
 
   project-realization-postgres:
     image: postgres:16
@@ -325,4 +360,6 @@ volumes:
   minio_data: {}
   influxdb_data: {}
   redis_data: {}
+  etcd_data: {}
+  minio_data: {}
 
