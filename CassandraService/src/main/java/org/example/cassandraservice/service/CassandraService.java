@@ -1,12 +1,11 @@
 package org.example.cassandraservice.service;
 
 import com.datastax.oss.driver.api.core.CqlSession;
-import com.datastax.oss.driver.api.core.cql.BoundStatement;
-import com.datastax.oss.driver.api.core.cql.PreparedStatement;
-import com.datastax.oss.driver.api.core.cql.ResultSet;
-import com.datastax.oss.driver.api.core.cql.Row;
-import org.example.cassandraservice.model.*;
+import com.datastax.oss.driver.api.core.cql.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -19,249 +18,303 @@ public class CassandraService {
     @Autowired
     private CqlSession cqlSession;
 
-    private final String KEYSPACE = CassandraInitializationService.KEYSPACE;
+    private final String KEY = "prompt_analytics";
 
-    // ============= CRUD: LLM Requests =============
-
-    public String createLlmRequest(LlmRequestByResearcher request) {
-        String query = "INSERT INTO " + KEYSPACE + "." + CassandraInitializationService.TABLE_LLM_REQUESTS +
-                " (researcher_id, request_timestamp, request_id, document_id, request_type, token_count, response_time, status) " +
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-        
-        PreparedStatement prepared = cqlSession.prepare(query);
-        BoundStatement bound = prepared.bind(
-                request.getResearcherId(), request.getRequestTimestamp(), request.getRequestId(),
-                request.getDocumentId(), request.getRequestType(), request.getTokenCount(),
-                request.getResponseTime(), request.getStatus()
-        );
-        cqlSession.execute(bound);
-        return "LLM Request created";
+    //CRUD - llm_requests_by_researcher
+    @CacheEvict(value = "requestsCountByResearcher", allEntries = true)
+    public void insertLlmRequest(String resId, Instant ts, UUID id, String status) {
+        String q = "INSERT INTO " + KEY + ".llm_requests_by_researcher " +
+                   "(researcher_id, request_timestamp, request_id, status) VALUES (?,?,?,?)";
+        cqlSession.execute(cqlSession.prepare(q).bind(resId, ts, id, status));
     }
 
-    public List<LlmRequestByResearcher> getLlmRequestsByResearcher(String researcherId) {
-        String query = "SELECT * FROM " + KEYSPACE + "." + CassandraInitializationService.TABLE_LLM_REQUESTS +
-                " WHERE researcher_id = ? LIMIT 100";
-        
-        PreparedStatement prepared = cqlSession.prepare(query);
-        BoundStatement bound = prepared.bind(researcherId);
-        ResultSet resultSet = cqlSession.execute(bound);
-
-        List<LlmRequestByResearcher> results = new ArrayList<>();
-        for (Row row : resultSet) {
-            results.add(LlmRequestByResearcher.builder()
-                    .researcherId(row.getString("researcher_id"))
-                    .requestTimestamp(row.getInstant("request_timestamp"))
-                    .requestId(row.getUuid("request_id"))
-                    .documentId(row.getString("document_id"))
-                    .requestType(row.getString("request_type"))
-                    .tokenCount(row.getInt("token_count"))
-                    .responseTime(row.getFloat("response_time"))
-                    .status(row.getString("status"))
-                    .build());
-        }
+    @Cacheable(value = "llmRequestsByResearcher", key = "#resId")
+    public List<Map<String, Object>> getLlmRequestsByResearcher(String resId) {
+        String q = "SELECT request_timestamp, request_id, status FROM " + KEY +
+                   ".llm_requests_by_researcher WHERE researcher_id = ?";
+        ResultSet rs = cqlSession.execute(cqlSession.prepare(q).bind(resId));
+        List<Map<String, Object>> results = new ArrayList<>();
+        rs.forEach(row -> {
+            Map<String, Object> record = new LinkedHashMap<>();
+            record.put("researcher_id", resId);
+            record.put("request_timestamp", row.getInstant("request_timestamp"));
+            record.put("request_id", row.getUuid("request_id"));
+            record.put("status", row.getString("status"));
+            results.add(record);
+        });
         return results;
     }
 
-    public String updateLlmRequestStatus(String researcherId, Instant timestamp, UUID requestId, String newStatus) {
-        String query = "UPDATE " + KEYSPACE + "." + CassandraInitializationService.TABLE_LLM_REQUESTS +
-                " SET status = ? WHERE researcher_id = ? AND request_timestamp = ? AND request_id = ?";
-        
-        PreparedStatement prepared = cqlSession.prepare(query);
-        BoundStatement bound = prepared.bind(newStatus, researcherId, timestamp, requestId);
-        cqlSession.execute(bound);
-        return "LLM Request status updated";
+    @CachePut(value = "llmRequestsByResearcher", key = "#resId")
+    public List<Map<String, Object>> updateLlmRequestStatus(String resId, UUID requestId,
+                                                             Instant ts, String newStatus) {
+        String q = "UPDATE " + KEY + ".llm_requests_by_researcher SET status = ? " +
+                   "WHERE researcher_id = ? AND request_timestamp = ? AND request_id = ?";
+        cqlSession.execute(cqlSession.prepare(q).bind(newStatus, resId, ts, requestId));
+        return getLlmRequestsByResearcherDirect(resId);
     }
 
-    public String deleteLlmRequest(String researcherId, Instant timestamp, UUID requestId) {
-        String query = "DELETE FROM " + KEYSPACE + "." + CassandraInitializationService.TABLE_LLM_REQUESTS +
-                " WHERE researcher_id = ? AND request_timestamp = ? AND request_id = ?";
-        
-        PreparedStatement prepared = cqlSession.prepare(query);
-        BoundStatement bound = prepared.bind(researcherId, timestamp, requestId);
-        cqlSession.execute(bound);
-        return "LLM Request deleted";
+    @CacheEvict(value = {"llmRequestsByResearcher", "requestsCountByResearcher"}, key = "#resId")
+    public void deleteLlmRequest(String resId, Instant ts, UUID requestId) {
+        String q = "DELETE FROM " + KEY + ".llm_requests_by_researcher " +
+                   "WHERE researcher_id = ? AND request_timestamp = ? AND request_id = ?";
+        cqlSession.execute(cqlSession.prepare(q).bind(resId, ts, requestId));
     }
 
-    // ============= CRUD: Feedbacks =============
-
-    public String createFeedback(FeedbackByManager feedback) {
-        String query = "INSERT INTO " + KEYSPACE + "." + CassandraInitializationService.TABLE_FEEDBACK +
-                " (manager_id, feedback_date, feedback_id, research_field, rating, comments, action_required) " +
-                "VALUES (?, ?, ?, ?, ?, ?, ?)";
-        
-        PreparedStatement prepared = cqlSession.prepare(query);
-        BoundStatement bound = prepared.bind(
-                feedback.getManagerId(), feedback.getFeedbackDate(), feedback.getFeedbackId(),
-                feedback.getResearchField(), feedback.getRating(), feedback.getComments(),
-                feedback.getActionRequired()
-        );
-        cqlSession.execute(bound);
-        return "Feedback created";
-    }
-
-    public List<FeedbackByManager> getFeedbacksByManager(String managerId) {
-        String query = "SELECT * FROM " + KEYSPACE + "." + CassandraInitializationService.TABLE_FEEDBACK +
-                " WHERE manager_id = ? LIMIT 100";
-        
-        PreparedStatement prepared = cqlSession.prepare(query);
-        BoundStatement bound = prepared.bind(managerId);
-        ResultSet resultSet = cqlSession.execute(bound);
-
-        List<FeedbackByManager> results = new ArrayList<>();
-        for (Row row : resultSet) {
-            results.add(FeedbackByManager.builder()
-                    .managerId(row.getString("manager_id"))
-                    .feedbackDate(row.getInstant("feedback_date"))
-                    .feedbackId(row.getUuid("feedback_id"))
-                    .researchField(row.getString("research_field"))
-                    .rating(row.getInt("rating"))
-                    .comments(row.getString("comments"))
-                    .actionRequired(row.getString("action_required"))
-                    .build());
-        }
+    // Interna metoda bez keša (koristi se unutar @CachePut da izbegne self-invocation problem)
+    private List<Map<String, Object>> getLlmRequestsByResearcherDirect(String resId) {
+        String q = "SELECT request_timestamp, request_id, status FROM " + KEY +
+                   ".llm_requests_by_researcher WHERE researcher_id = ?";
+        ResultSet rs = cqlSession.execute(cqlSession.prepare(q).bind(resId));
+        List<Map<String, Object>> results = new ArrayList<>();
+        rs.forEach(row -> {
+            Map<String, Object> record = new LinkedHashMap<>();
+            record.put("researcher_id", resId);
+            record.put("request_timestamp", row.getInstant("request_timestamp"));
+            record.put("request_id", row.getUuid("request_id"));
+            record.put("status", row.getString("status"));
+            results.add(record);
+        });
         return results;
     }
 
-    public String updateFeedbackRating(String managerId, Instant feedbackDate, UUID feedbackId, int newRating) {
-        String query = "UPDATE " + KEYSPACE + "." + CassandraInitializationService.TABLE_FEEDBACK +
-                " SET rating = ? WHERE manager_id = ? AND feedback_date = ? AND feedback_id = ?";
-        
-        PreparedStatement prepared = cqlSession.prepare(query);
-        BoundStatement bound = prepared.bind(newRating, managerId, feedbackDate, feedbackId);
-        cqlSession.execute(bound);
-        return "Feedback rating updated";
+    // CRUD - feedbacks_by_field
+
+    @CacheEvict(value = "avgRatingByField", allEntries = true)
+    public void insertFeedback(String field, UUID id, int rating) {
+        String q = "INSERT INTO " + KEY + ".feedbacks_by_field " +
+                   "(research_field, feedback_id, rating) VALUES (?,?,?)";
+        cqlSession.execute(cqlSession.prepare(q).bind(field, id, rating));
     }
 
-    public String deleteFeedback(String managerId, Instant feedbackDate, UUID feedbackId) {
-        String query = "DELETE FROM " + KEYSPACE + "." + CassandraInitializationService.TABLE_FEEDBACK +
-                " WHERE manager_id = ? AND feedback_date = ? AND feedback_id = ?";
-        
-        PreparedStatement prepared = cqlSession.prepare(query);
-        BoundStatement bound = prepared.bind(managerId, feedbackDate, feedbackId);
-        cqlSession.execute(bound);
-        return "Feedback deleted";
-    }
-
-    // ============= COMPLEX QUERIES with GROUP BY and AGGREGATION =============
-
-    /**
-     * QUERY 1: Count LLM requests by researcher with status filter
-     * Shows which researchers made the most requests
-     */
-    public Map<String, Long> complexQuery1_CountRequestsByResearcherWithStatusFilter(String status) {
-        String query = "SELECT researcher_id, COUNT(*) as request_count FROM " + KEYSPACE + "." + 
-                       CassandraInitializationService.TABLE_LLM_REQUESTS +
-                       " WHERE status = ? ALLOW FILTERING";
-        
-        Map<String, Long> results = new HashMap<>();
-        try {
-            PreparedStatement prepared = cqlSession.prepare(query);
-            BoundStatement bound = prepared.bind(status);
-            ResultSet resultSet = cqlSession.execute(bound);
-            
-            for (Row row : resultSet) {
-                results.put(row.getString("researcher_id"), row.getLong("request_count"));
-            }
-        } catch (Exception e) {
-            System.err.println("Query 1 error: " + e.getMessage());
-        }
+    @Cacheable(value = "feedbacksByField", key = "#field")
+    public List<Map<String, Object>> getFeedbacksByField(String field) {
+        String q = "SELECT feedback_id, rating FROM " + KEY +
+                   ".feedbacks_by_field WHERE research_field = ?";
+        ResultSet rs = cqlSession.execute(cqlSession.prepare(q).bind(field));
+        List<Map<String, Object>> results = new ArrayList<>();
+        rs.forEach(row -> {
+            Map<String, Object> record = new LinkedHashMap<>();
+            record.put("research_field", field);
+            record.put("feedback_id", row.getUuid("feedback_id"));
+            record.put("rating", row.getInt("rating"));
+            results.add(record);
+        });
         return results;
     }
 
-    /**
-     * QUERY 2: Average rating by research field from feedbacks
-     * Shows effectiveness of feedback per research field
-     */
-    public Map<String, Double> complexQuery2_AverageRatingByResearchField() {
-        String query = "SELECT research_field, AVG(rating) as avg_rating FROM " + KEYSPACE + "." + 
-                       CassandraInitializationService.TABLE_FEEDBACK +
-                       " GROUP BY research_field ALLOW FILTERING";
-        
-        Map<String, Double> results = new HashMap<>();
-        try {
-            ResultSet resultSet = cqlSession.execute(query);
-            
-            for (Row row : resultSet) {
-                results.put(row.getString("research_field"), row.getDouble("avg_rating"));
-            }
-        } catch (Exception e) {
-            System.err.println("Query 2 error: " + e.getMessage());
-        }
+    @CacheEvict(value = {"feedbacksByField", "avgRatingByField"}, key = "#field")
+    public void updateFeedbackRating(String field, UUID feedbackId, int newRating) {
+        String q = "UPDATE " + KEY + ".feedbacks_by_field SET rating = ? " +
+                   "WHERE research_field = ? AND feedback_id = ?";
+        cqlSession.execute(cqlSession.prepare(q).bind(newRating, field, feedbackId));
+    }
+
+    @CacheEvict(value = {"feedbacksByField", "avgRatingByField"}, key = "#field")
+    public void deleteFeedback(String field, UUID feedbackId) {
+        String q = "DELETE FROM " + KEY + ".feedbacks_by_field " +
+                   "WHERE research_field = ? AND feedback_id = ?";
+        cqlSession.execute(cqlSession.prepare(q).bind(field, feedbackId));
+    }
+
+    // CRUD - regenerations_by_section
+
+    @CacheEvict(value = "regenCountBySection", allEntries = true)
+    public void insertRegeneration(String secId, UUID id, String resId) {
+        String q = "INSERT INTO " + KEY + ".regenerations_by_section " +
+                   "(section_id, regeneration_id, researcher_id) VALUES (?,?,?)";
+        cqlSession.execute(cqlSession.prepare(q).bind(secId, id, resId));
+    }
+
+    @Cacheable(value = "regenerationsBySection", key = "#secId")
+    public List<Map<String, Object>> getRegenerationsBySection(String secId) {
+        String q = "SELECT regeneration_id, researcher_id FROM " + KEY +
+                   ".regenerations_by_section WHERE section_id = ?";
+        ResultSet rs = cqlSession.execute(cqlSession.prepare(q).bind(secId));
+        List<Map<String, Object>> results = new ArrayList<>();
+        rs.forEach(row -> {
+            Map<String, Object> record = new LinkedHashMap<>();
+            record.put("section_id", secId);
+            record.put("regeneration_id", row.getUuid("regeneration_id"));
+            record.put("researcher_id", row.getString("researcher_id"));
+            results.add(record);
+        });
         return results;
     }
 
-    /**
-     * QUERY 3: Count regenerations per section
-     * Shows which sections are most frequently regenerated
-     */
-    public Map<String, Long> complexQuery3_CountRegenerationsBySection() {
-        String query = "SELECT section_id, COUNT(*) as regen_count FROM " + KEYSPACE + "." + 
-                       CassandraInitializationService.TABLE_REGENERATIONS +
-                       " GROUP BY section_id ALLOW FILTERING";
-        
-        Map<String, Long> results = new HashMap<>();
-        try {
-            ResultSet resultSet = cqlSession.execute(query);
-            
-            for (Row row : resultSet) {
-                results.put(row.getString("section_id"), row.getLong("regen_count"));
-            }
-        } catch (Exception e) {
-            System.err.println("Query 3 error: " + e.getMessage());
-        }
+    @CacheEvict(value = "regenerationsBySection", key = "#secId")
+    public void updateRegenerationResearcher(String secId, UUID regenId, String newResId) {
+        String q = "UPDATE " + KEY + ".regenerations_by_section SET researcher_id = ? " +
+                   "WHERE section_id = ? AND regeneration_id = ?";
+        cqlSession.execute(cqlSession.prepare(q).bind(newResId, secId, regenId));
+    }
+
+    @CacheEvict(value = {"regenerationsBySection", "regenCountBySection"}, key = "#secId")
+    public void deleteRegeneration(String secId, UUID regenId) {
+        String q = "DELETE FROM " + KEY + ".regenerations_by_section " +
+                   "WHERE section_id = ? AND regeneration_id = ?";
+        cqlSession.execute(cqlSession.prepare(q).bind(secId, regenId));
+    }
+
+    // CRUD - document_status_by_date
+
+    @CacheEvict(value = "docsByDateStatus", key = "#date.toString() + '_' + #status")
+    public void insertDocStatus(LocalDate date, String status, String docId) {
+        String q = "INSERT INTO " + KEY + ".document_status_by_date " +
+                   "(document_date, current_status, document_id) VALUES (?,?,?)";
+        cqlSession.execute(cqlSession.prepare(q).bind(date, status, docId));
+    }
+
+    @Cacheable(value = "docsByDateStatus", key = "#date.toString() + '_' + #status + '_' + #docId")
+    public Map<String, Object> getDocStatus(LocalDate date, String status, String docId) {
+        String q = "SELECT document_id, current_status, document_date FROM " + KEY +
+                   ".document_status_by_date WHERE document_date = ? AND current_status = ? AND document_id = ?";
+        Row row = cqlSession.execute(cqlSession.prepare(q).bind(date, status, docId)).one();
+        if (row == null) return Collections.emptyMap();
+        Map<String, Object> record = new LinkedHashMap<>();
+        record.put("document_date", row.getLocalDate("document_date"));
+        record.put("current_status", row.getString("current_status"));
+        record.put("document_id", row.getString("document_id"));
+        return record;
+    }
+
+    @CacheEvict(value = "docsByDateStatus", allEntries = true)
+    public void updateDocStatus(LocalDate date, String oldStatus, String newStatus, String docId) {
+        // U Cassandri PRIMARY KEY nije menjiv — brišemo stari slog i upisujemo novi
+        String del = "DELETE FROM " + KEY + ".document_status_by_date " +
+                     "WHERE document_date = ? AND current_status = ? AND document_id = ?";
+        cqlSession.execute(cqlSession.prepare(del).bind(date, oldStatus, docId));
+
+        String ins = "INSERT INTO " + KEY + ".document_status_by_date " +
+                     "(document_date, current_status, document_id) VALUES (?,?,?)";
+        cqlSession.execute(cqlSession.prepare(ins).bind(date, newStatus, docId));
+    }
+
+    @CacheEvict(value = "docsByDateStatus", allEntries = true)
+    public void deleteDocStatus(LocalDate date, String status, String docId) {
+        String q = "DELETE FROM " + KEY + ".document_status_by_date " +
+                   "WHERE document_date = ? AND current_status = ? AND document_id = ?";
+        cqlSession.execute(cqlSession.prepare(q).bind(date, status, docId));
+    }
+
+    // CRUD - prompt_usage_by_template
+
+    @CacheEvict(value = "promptUsageByTemplate", key = "#tempId")
+    public void insertPromptUsage(String tempId, UUID id, float eff) {
+        String q = "INSERT INTO " + KEY + ".prompt_usage_by_template " +
+                   "(prompt_template_id, usage_id, effectiveness) VALUES (?,?,?)";
+        cqlSession.execute(cqlSession.prepare(q).bind(tempId, id, eff));
+    }
+
+    @Cacheable(value = "promptUsageByTemplate", key = "#tempId")
+    public List<Map<String, Object>> getPromptUsageByTemplate(String tempId) {
+        String q = "SELECT usage_id, effectiveness FROM " + KEY +
+                   ".prompt_usage_by_template WHERE prompt_template_id = ?";
+        ResultSet rs = cqlSession.execute(cqlSession.prepare(q).bind(tempId));
+        List<Map<String, Object>> results = new ArrayList<>();
+        rs.forEach(row -> {
+            Map<String, Object> record = new LinkedHashMap<>();
+            record.put("prompt_template_id", tempId);
+            record.put("usage_id", row.getUuid("usage_id"));
+            record.put("effectiveness", row.getFloat("effectiveness"));
+            results.add(record);
+        });
         return results;
     }
 
-    /**
-     * QUERY 4: Filter and display document status records by date
-     * Shows all documents created on a specific date
-     */
-    public List<DocumentStatusByDate> complexQuery4_GetDocumentsByDateWithStatus(LocalDate date, String status) {
-        String query = "SELECT * FROM " + KEYSPACE + "." + CassandraInitializationService.TABLE_DOCUMENT_STATUS +
-                " WHERE document_date = ? AND current_status = ? ALLOW FILTERING";
-        
-        List<DocumentStatusByDate> results = new ArrayList<>();
-        try {
-            PreparedStatement prepared = cqlSession.prepare(query);
-            BoundStatement bound = prepared.bind(date, status);
-            ResultSet resultSet = cqlSession.execute(bound);
-            
-            for (Row row : resultSet) {
-                results.add(DocumentStatusByDate.builder()
-                        .documentDate(row.getLocalDate("document_date"))
-                        .documentId(row.getString("document_id"))
-                        .statusId(row.getUuid("status_id"))
-                        .currentStatus(row.getString("current_status"))
-                        .ownerResearcherId(row.getString("owner_researcher_id"))
-                        .sectionCount(row.getInt("section_count"))
-                        .lastModifiedBy(row.getString("last_modified_by"))
-                        .build());
-            }
-        } catch (Exception e) {
-            System.err.println("Query 4 error: " + e.getMessage());
-        }
-        return results;
+    @CacheEvict(value = "promptUsageByTemplate", key = "#tempId")
+    public void updatePromptEffectiveness(String tempId, UUID usageId, float newEff) {
+        String q = "UPDATE " + KEY + ".prompt_usage_by_template SET effectiveness = ? " +
+                   "WHERE prompt_template_id = ? AND usage_id = ?";
+        cqlSession.execute(cqlSession.prepare(q).bind(newEff, tempId, usageId));
+    }
+
+    @CacheEvict(value = "promptUsageByTemplate", key = "#tempId")
+    public void deletePromptUsage(String tempId, UUID usageId) {
+        String q = "DELETE FROM " + KEY + ".prompt_usage_by_template " +
+                   "WHERE prompt_template_id = ? AND usage_id = ?";
+        cqlSession.execute(cqlSession.prepare(q).bind(tempId, usageId));
     }
 
     /**
-     * QUERY 5: Average effectiveness score of prompts by template
-     * Shows which prompt templates are most effective
+     * UPIT 1 (Agregacija) — Broj zahteva po istraživaču.
+     * Keš se čuva 10 min (podrazumevano iz RedisConfiguration).
+     * Brise se pri svakom insertLlmRequest / deleteLlmRequest.
      */
-    public Map<String, Double> complexQuery5_AverageEffectivenessByPromptTemplate() {
-        String query = "SELECT prompt_template_id, AVG(average_effectiveness) as avg_effectiveness FROM " + KEYSPACE + "." + 
-                       CassandraInitializationService.TABLE_PROMPT_USAGE +
-                       " GROUP BY prompt_template_id ALLOW FILTERING";
+    @Cacheable(value = "requestsCountByResearcher")
+    public Map<String, Long> query1_CountRequestsByResearcher() {
+        String q = "SELECT researcher_id, COUNT(*) as total FROM " + KEY +
+                   ".llm_requests_by_researcher GROUP BY researcher_id";
+        ResultSet rs = cqlSession.execute(q);
+        Map<String, Long> res = new LinkedHashMap<>();
+        rs.forEach(row -> res.put(row.getString("researcher_id"), row.getLong("total")));
+        return res;
+    }
+
+    /**
+     * UPIT 2 (Agregacija) — Prosečna ocena po naučnom polju.
+     * Keš se čuva 10 min; briše se pri svakoj promeni feedbacka.
+     */
+    @Cacheable(value = "avgRatingByField")
+    public Map<String, Double> query2_AvgRatingByField() {
+       String q = "SELECT research_field, AVG(rating) as avg_rating FROM " + KEY +
+               ".feedbacks_by_field GROUP BY research_field";
+    ResultSet rs = cqlSession.execute(q);
+    Map<String, Double> res = new LinkedHashMap<>();
+    
+    rs.forEach(row -> {
+        String field = row.getString("research_field");
+        Object val = row.getObject("avg_rating");
+        double avg = 0.0;
         
-        Map<String, Double> results = new HashMap<>();
-        try {
-            ResultSet resultSet = cqlSession.execute(query);
-            
-            for (Row row : resultSet) {
-                results.put(row.getString("prompt_template_id"), row.getDouble("avg_effectiveness"));
-            }
-        } catch (Exception e) {
-            System.err.println("Query 5 error: " + e.getMessage());
+        if (val instanceof Number) {
+            avg = ((Number) val).doubleValue();
         }
+        
+        res.put(field, avg);
+    });
+    return res;
+    }
+
+    /**
+     * UPIT 3 (Agregacija) — Broj regeneracija po sekciji.
+     * Keš se čuva 10 min; briše se pri svakoj promeni regeneracije.
+     */
+    @Cacheable(value = "regenCountBySection")
+    public Map<String, Long> query3_CountRegensBySection() {
+        String q = "SELECT section_id, COUNT(*) as total FROM " + KEY +
+                   ".regenerations_by_section GROUP BY section_id";
+        ResultSet rs = cqlSession.execute(q);
+        Map<String, Long> res = new LinkedHashMap<>();
+        rs.forEach(row -> res.put(row.getString("section_id"), row.getLong("total")));
+        return res;
+    }
+
+    /**
+     * UPIT 4 (Uslovni prikaz) — Dokumenti za specifičan datum i status.
+     * Keš ključ je kombinacija datuma i statusa.
+     */
+    @Cacheable(value = "docsByDateStatus", key = "#date.toString() + '_' + #status")
+    public List<String> query4_GetDocsByDateAndStatus(LocalDate date, String status) {
+        String q = "SELECT document_id FROM " + KEY +
+                   ".document_status_by_date WHERE document_date = ? AND current_status = ?";
+        ResultSet rs = cqlSession.execute(cqlSession.prepare(q).bind(date, status));
+        List<String> docs = new ArrayList<>();
+        rs.forEach(row -> docs.add(row.getString("document_id")));
+        return docs;
+    }
+
+    /**
+     * UPIT 5 (Uslovni prikaz) — Sve effectiveness vrednosti za određeni prompt template.
+     * Keš ključ je templateId.
+     */
+    @Cacheable(value = "promptUsageByTemplate", key = "#templateId + '_effectiveness'")
+    public List<Float> query5_GetEffectivenessByTemplate(String templateId) {
+        String q = "SELECT effectiveness FROM " + KEY +
+                   ".prompt_usage_by_template WHERE prompt_template_id = ?";
+        ResultSet rs = cqlSession.execute(cqlSession.prepare(q).bind(templateId));
+        List<Float> results = new ArrayList<>();
+        rs.forEach(row -> results.add(row.getFloat("effectiveness")));
         return results;
     }
 }

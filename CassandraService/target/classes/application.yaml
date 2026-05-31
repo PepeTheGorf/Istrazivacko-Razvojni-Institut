@@ -6,6 +6,11 @@ spring:
     keyspace-name: prompt_analytics
     local-datacenter: datacenter1
 
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
 server:
   port: 8080
   servlet:

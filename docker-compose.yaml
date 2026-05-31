@@ -275,6 +275,11 @@ services:
       - "9064:8080"
 
   # ============= CASSANDRA SERVICE =============
+  redis:
+    image: redis:alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
   cassandra:
     image: cassandra:4.1
     container_name: cassandra
@@ -305,10 +310,14 @@ services:
         condition: service_healthy
       cassandra:
         condition: service_healthy
+      redis:                   
+        condition: service_started
     environment:
       EUREKA_URL: http://eureka-server:8761/eureka/
       SPRING_CASSANDRA_CONTACTPOINTS: cassandra:9042
       SPRING_CASSANDRA_KEYSPACENAME: prompt_analytics
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
       SERVER_PORT: 8080
     ports:
       - "9065:8080"

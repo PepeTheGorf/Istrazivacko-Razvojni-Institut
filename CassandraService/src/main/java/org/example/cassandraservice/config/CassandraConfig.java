@@ -28,7 +28,6 @@ public class CassandraConfig {
         return CqlSession.builder()
                 .addContactPoint(new InetSocketAddress(host, port))
                 .withLocalDatacenter(localDatacenter)
-                .withKeyspace(keyspaceName)
                 .build();
     }
 }
