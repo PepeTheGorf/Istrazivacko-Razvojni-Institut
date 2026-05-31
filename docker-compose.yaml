@@ -63,6 +63,7 @@ services:
       retries: 5
 
   project-realization-analytics-service:
+    profiles: ["analytics"]
     build:
       context: ./ProjectRealizationAnalyticsService
       dockerfile: Dockerfile
@@ -110,7 +111,7 @@ services:
     depends_on:
       eureka-server:
         condition: service_healthy
-      project-postgres:
+      project-realization-postgres:
         condition: service_healthy
       neo4j:
         condition: service_healthy
@@ -118,7 +119,7 @@ services:
         condition: service_healthy
     environment:
       EUREKA_URL: http://eureka-server:8761/eureka/
-      SPRING_DATASOURCE_URL: jdbc:postgresql://project-postgres:5432/project_realization
+      SPRING_DATASOURCE_URL: jdbc:postgresql://project-realization-postgres:5432/project_realization
       SPRING_DATASOURCE_USERNAME: project_realization
       SPRING_DATASOURCE_PASSWORD: project_realization
       SPRING_NEO4J_URI: bolt://neo4j:7687
@@ -176,7 +177,7 @@ services:
       ETCD_QUOTA_BACKEND_BYTES: "4294967296"
       ETCD_SNAPSHOT_COUNT: "50000"
     volumes:
-      - ./VectorDatabaseService/volumes/etcd:/etcd
+      - etcd_data:/etcd
     command: etcd -advertise-client-urls=http://etcd:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
     healthcheck:
       test: ["CMD", "etcdctl", "endpoint", "health"]
@@ -194,7 +195,7 @@ services:
       # - "9001:9001"  # MinIO console UI (not required for local dev)
       - "9000:9000"
     volumes:
-      - ./VectorDatabaseService/volumes/minio:/minio_data
+      - minio_data:/minio_data
     command: minio server /minio_data --console-address ":9001"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
@@ -274,7 +275,7 @@ services:
       POSTGRES_PASSWORD: document
       POSTGRES_HOST_AUTH_METHOD: trust
     ports:
-      - "5433:5432"
+      - "5434:5432"
     volumes:
       - document_pg_data:/var/lib/postgresql/data
     healthcheck:
@@ -319,6 +320,9 @@ volumes:
   stakeholder_pg_data: {}
   document_pg_data: {}
   project_pg_data: {}
+  project_realization_pg_data: {}
+  etcd_data: {}
+  minio_data: {}
   influxdb_data: {}
   redis_data: {}
 

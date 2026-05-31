@@ -9,4 +9,9 @@ export interface Dokument {
   tipDokumentaId?: string
   createdAt?: string
   vectorDocumentId?: string
+  tags?: string[]
+  metadata?: Record<string, string>
+  score?: number
+  semanticScore?: number
+  lexicalScore?: number
 }

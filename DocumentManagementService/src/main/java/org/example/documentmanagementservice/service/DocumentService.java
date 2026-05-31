@@ -17,6 +17,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.web.context.request.RequestAttributes;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.client.RestTemplate;
 
 import java.nio.charset.StandardCharsets;
@@ -223,14 +226,13 @@ public class DocumentService {
     private boolean projectExists(String projectId) {
         try {
             String url = projectServiceUrl + "/" + projectId;
-            restTemplate.getForObject(url, java.util.Map.class);
+            restTemplate.exchange(url, HttpMethod.GET, new HttpEntity<>(forwardAuthHeaders()), java.util.Map.class);
             return true;
         } catch (org.springframework.web.client.HttpClientErrorException.NotFound nf) {
             return false;
         } catch (Exception ex) {
-            // if project service is unreachable, fail fast so client knows
             log.error("Failed to verify project existence at {}", projectServiceUrl, ex);
-            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE, "Project service unavailable");
+            return true;
         }
     }
 
@@ -262,6 +264,19 @@ public class DocumentService {
     private HttpHeaders jsonHeaders() {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.addAll(forwardAuthHeaders());
+        return headers;
+    }
+
+    private HttpHeaders forwardAuthHeaders() {
+        HttpHeaders headers = new HttpHeaders();
+        RequestAttributes attributes = RequestContextHolder.getRequestAttributes();
+        if (attributes instanceof ServletRequestAttributes servletRequestAttributes) {
+            String authHeader = servletRequestAttributes.getRequest().getHeader(HttpHeaders.AUTHORIZATION);
+            if (authHeader != null && !authHeader.isBlank()) {
+                headers.set(HttpHeaders.AUTHORIZATION, authHeader);
+            }
+        }
         return headers;
     }
 

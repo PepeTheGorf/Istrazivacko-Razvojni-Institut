@@ -29,12 +29,12 @@ function App() {
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/projects/:projectId" element={<ProjectDetailsPage />} />
           <Route path="/projects/:projectId/tasks/:taskId" element={<TaskDetailsPage />} />
-          <Route path="/documents" element={<DocumentsPage />} />
         </Route>
 
         <Route element={<ProtectedRoute allowedRoles={['TEAM_MEMBER']} />}>
           <Route path="/my-tasks" element={<MyTasksPage />} />
           <Route path="/my-tasks/tasks/:taskId" element={<MyTaskDetailsPage />} />
+          <Route path="/documents" element={<DocumentsPage />} />
         </Route>
 
         <Route element={<ProtectedRoute allowedRoles={['MANAGER']} />}>

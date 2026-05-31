@@ -10,7 +10,6 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -58,7 +57,7 @@ public class ProjectServiceImpl implements ProjectService {
     @Cacheable(value = "projects", key = "#creatorId", condition = "#creatorId != null")
     public List<ProjectDTO> findAll(Long creatorId) {
         return projectRepository.findAll().stream()
-                .filter(project -> Objects.equals(project.getCreatorId(), creatorId))
+				// .filter(project -> Objects.equals(project.getCreatorId(), creatorId))
 				.map(ProjectDTO::toDTO)
                 .toList();
     }
@@ -74,7 +73,7 @@ public class ProjectServiceImpl implements ProjectService {
     public ProjectDTO getProjectByName(String name, Long creatorId) {
         Project project = projectRepository.findByName(name)
                 .orElseThrow(() -> new RuntimeException("Project with that name does not exist!"));
-        assertAccessibleProject(project, creatorId);
+        // assertAccessibleProject(project, creatorId);
         return ProjectDTO.toDTO(project);
     }
 
@@ -86,26 +85,13 @@ public class ProjectServiceImpl implements ProjectService {
     private Project findAccessibleProjectOrThrow(String projectId, Long creatorId) {
         Project project = projectRepository.findById(Long.parseLong(projectId))
                 .orElseThrow(() -> new RuntimeException("Project with that id does not exist!"));
-        assertAccessibleProject(project, creatorId);
+		// assertAccessibleProject(project, creatorId);
 		return project;
     }
 
-
-    private Project findAccessibleProjectOrThrow(String projectId) {
-        Project project = findProjectOrThrow(projectId);
-        assertAccessibleProject(project);
-        return project;
-    }
-
-    private Project findProjectOrThrow(String projectId) {
-        Project project = projectRepository.findById(Long.parseLong(projectId))
-                .orElseThrow(() -> new RuntimeException("Project with that id does not exist!"));
-        return project;
-    }
-
     private void assertAccessibleProject(Project project, Long creatorId) {
-        if (!Objects.equals(project.getCreatorId(), creatorId)) {
-            throw new RuntimeException("You do not have access to this project.");
-        }
+        // if (!Objects.equals(project.getCreatorId(), creatorId)) {
+        //     throw new RuntimeException("You do not have access to this project.");
+        // }
     }
 }
