@@ -1,4 +1,17 @@
 services:
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # Service Discovery: Keeps track of all microservices
   eureka-server:
     build: # Instructions for building a custom image from a local directory
@@ -49,27 +62,45 @@ services:
       timeout: 10s
       retries: 5
 
-  # project-realization-analytics-service:
-  #   build:
-  #     context: ./ProjectRealizationAnalyticsService
-  #     dockerfile: Dockerfile
-  #   image: project-realization-analytics-service:latest
-  #   depends_on:
-  #     eureka-server:
-  #       condition: service_healthy
-  #     influxdb:
-  #       condition: service_healthy
-  #   environment:
-  #     EUREKA_URL: http://eureka-server:8761/eureka/
-  #     INFLUX_URL: http://influxdb:8086
-  #     INFLUX_TOKEN: ${INFLUXDB_TOKEN:-dev-analytics-token-change-me}
-  #     INFLUX_ORG: ${INFLUXDB_ORG:-nais}
-  #     INFLUX_BUCKET: ${INFLUXDB_BUCKET:-project-analytics}
-  #     INFLUX_SEED_ENABLED: ${INFLUX_SEED_ENABLED:-true}
-  #     INFLUX_SEED_MIN_RECORDS: ${INFLUX_SEED_MIN_RECORDS:-5000}
-  #     SERVER_PORT: 8080
-  #   ports:
-  #     - "9063:8080"
+  project-realization-analytics-service:
+    build:
+      context: ./ProjectRealizationAnalyticsService
+      dockerfile: Dockerfile
+    image: project-realization-analytics-service:latest
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      influxdb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      EUREKA_URL: http://eureka-server:8761/eureka/
+      INFLUX_URL: http://influxdb:8086
+      INFLUX_TOKEN: ${INFLUXDB_TOKEN:-dev-analytics-token-change-me}
+      INFLUX_ORG: ${INFLUXDB_ORG:-nais}
+      INFLUX_BUCKET: ${INFLUXDB_BUCKET:-project-analytics}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SERVER_PORT: 8080
+    ports:
+      - "9063:8080"
+
+  project-realization-postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: project_realization
+      POSTGRES_USER: project_realization
+      POSTGRES_PASSWORD: project_realization
+    ports:
+      - "5433:5432"
+    volumes:
+      - project_realization_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U project_realization -d project_realization"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   project-realization-service:
     build:
@@ -83,6 +114,8 @@ services:
         condition: service_healthy
       neo4j:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       EUREKA_URL: http://eureka-server:8761/eureka/
       SPRING_DATASOURCE_URL: jdbc:postgresql://project-postgres:5432/project_realization
@@ -92,6 +125,8 @@ services:
       SPRING_NEO4J_AUTHENTICATION_USERNAME: neo4j
       SPRING_NEO4J_AUTHENTICATION_PASSWORD: password
       JWT_SECRET: c3Rha2Vob2xkZXJzZXJ2aWNland0c2VjcmV0a2V5Zm9ydGgyNTZiaXRzMTIzNDU2Nzg5MA==
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
     ports:
       - "9060:8080"
 
@@ -279,27 +314,11 @@ services:
       timeout: 5s
       retries: 5
 
-  project-postgres:
-    image: postgres:16
-    environment:
-      POSTGRES_DB: project_realization
-      POSTGRES_USER: project_realization
-      POSTGRES_PASSWORD: project_realization
-    ports:
-      - "5434:5432"
-    volumes:
-      - project_pg_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U project_realization -d project_realization"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
 volumes:
   neo4j_data: {}
   stakeholder_pg_data: {}
   document_pg_data: {}
   project_pg_data: {}
   influxdb_data: {}
-
+  redis_data: {}
 

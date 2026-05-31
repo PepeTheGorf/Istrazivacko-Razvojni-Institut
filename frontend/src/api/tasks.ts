@@ -2,12 +2,18 @@ import { apiFetch } from './client'
 import type {
   AcceptanceCriteriaPayload,
   AcceptanceCriterion,
+  AssignedTaskSummary,
   ProjectTask,
+  TaskSummary,
   TaskCreationPayload,
 } from '../types/task'
 
-export function fetchTasksByProject(projectId: string): Promise<ProjectTask[]> {
-  return apiFetch<ProjectTask[]>(`/tasks/project/${projectId}`)
+export function fetchMyAssignedTasks(): Promise<AssignedTaskSummary[]> {
+  return apiFetch<AssignedTaskSummary[]>('/tasks/my')
+}
+
+export function fetchTasksByProject(projectId: string): Promise<TaskSummary[]> {
+  return apiFetch<TaskSummary[]>(`/tasks/project/${projectId}`)
 }
 
 export function fetchTaskById(taskId: string): Promise<ProjectTask> {

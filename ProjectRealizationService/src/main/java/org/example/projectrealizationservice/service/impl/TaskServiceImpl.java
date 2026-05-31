@@ -2,12 +2,16 @@ package org.example.projectrealizationservice.service.impl;
 
 import lombok.RequiredArgsConstructor;
 import org.example.projectrealizationservice.dto.ProjectTaskDTO;
+import org.example.projectrealizationservice.dto.TaskSummaryDTO;
 import org.example.projectrealizationservice.dto.creation.TaskCreationDTO;
 import org.example.projectrealizationservice.mapper.TaskViewMapper;
+import org.example.projectrealizationservice.model.neo4j.Phase;
 import org.example.projectrealizationservice.model.neo4j.Task;
+import org.example.projectrealizationservice.model.neo4j.Workflow;
 import org.example.projectrealizationservice.model.sql.Project;
 import org.example.projectrealizationservice.model.sql.ProjectTask;
 import org.example.projectrealizationservice.repository.neo4j.TaskRepository;
+import org.example.projectrealizationservice.repository.neo4j.WorkflowRepository;
 import org.example.projectrealizationservice.repository.sql.AcceptanceCriteriaRepository;
 import org.example.projectrealizationservice.repository.sql.ProjectRepository;
 import org.example.projectrealizationservice.repository.sql.ProjectTaskRepository;
@@ -16,10 +20,14 @@ import org.example.projectrealizationservice.repository.sql.TaskResourceAssignme
 import org.example.projectrealizationservice.security.ResourceAuthorization;
 import org.example.projectrealizationservice.security.SecurityUtils;
 import org.example.projectrealizationservice.service.TaskService;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
@@ -28,16 +36,19 @@ import java.util.Objects;
 public class TaskServiceImpl implements TaskService {
 
     private final TaskRepository taskRepository;
+    private final WorkflowRepository workflowRepository;
     private final ProjectRepository projectRepository;
     private final ProjectTaskRepository projectTaskRepository;
     private final AcceptanceCriteriaRepository acceptanceCriteriaRepository;
     private final TaskAssignmentRepository taskAssignmentRepository;
     private final TaskResourceAssignmentRepository taskResourceAssignmentRepository;
     private final TaskViewMapper taskViewMapper;
+    private final CacheManager cacheManager;
 
     @Override
     @Transactional(transactionManager = "neo4jTransactionManager")
-    public void createTask(TaskCreationDTO taskCreation) {
+    @CacheEvict(value = "tasks-summary", key = "#taskCreation.projectId")
+    public TaskSummaryDTO createTask(TaskCreationDTO taskCreation) {
         Project project = findAccessibleProjectOrThrow(taskCreation.getProjectId());
         Long creatorId = ResourceAuthorization.requireCurrentUserId();
 
@@ -48,6 +59,7 @@ public class TaskServiceImpl implements TaskService {
                 .projectId(project.getId())
                 .phaseChangeDate(OffsetDateTime.now())
                 .build();
+        
         task = taskRepository.save(task);
 
         projectTaskRepository.save(ProjectTask.builder()
@@ -56,6 +68,7 @@ public class TaskServiceImpl implements TaskService {
                 .startDate(OffsetDateTime.now())
                 .endDate(taskCreation.getEndDate())
                 .build());
+        return taskViewMapper.toTaskSummaryDto(task);
     }
 
     @Override
@@ -74,6 +87,10 @@ public class TaskServiceImpl implements TaskService {
                 projectTaskRepository.save(projectTask);
             });
         }
+        if (existing.getProjectId() != null) {
+            Objects.requireNonNull(cacheManager.getCache("tasks-summary"))
+                    .evict(String.valueOf(existing.getProjectId()));
+        }
     }
 
     @Override
@@ -88,14 +105,19 @@ public class TaskServiceImpl implements TaskService {
         projectTaskRepository.findByTaskId(taskId)
                 .ifPresent(projectTaskRepository::delete);
         taskRepository.delete(existing);
+
+        if (existing.getProjectId() != null) {
+            Objects.requireNonNull(cacheManager.getCache("tasks-summary")).evict(String.valueOf(existing.getProjectId()));
+        }
     }
 
     @Override
-    public List<ProjectTaskDTO> getTasksByProjectId(String projectId) {
+    @Cacheable(value = "tasks-summary", key = "#projectId", condition = "#projectId != null")
+    public List<TaskSummaryDTO> getTasksByProjectId(String projectId) {
         Project project = findAccessibleProjectOrThrow(projectId);
         return taskRepository.findByProjectId(project.getId()).stream()
                 .filter(task -> task.getParentTask() == null)
-                .map(taskViewMapper::toProjectTaskDto)
+                .map(taskViewMapper::toTaskSummaryDto)
                 .toList();
     }
 
