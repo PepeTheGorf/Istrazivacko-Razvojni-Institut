@@ -55,4 +55,17 @@ public class SmartDocController {
     public ResponseEntity<?> getCategories() {
         return ResponseEntity.ok(smartDocService.getAllCategories());
     }
+    
+    @GetMapping("/documents/{id}")
+    public ResponseEntity<?> getDocumentById(@PathVariable Long id) {
+    try {
+        return ResponseEntity.ok(smartDocService.getDocumentById(id));
+    } catch (Exception e) {
+return ResponseEntity.status(404).body("Dokument nije pronađen");    }
+}
+@GetMapping("/templates/all")
+@PreAuthorize("hasRole('MANAGER')")
+public ResponseEntity<?> getAllTemplates() {
+    return ResponseEntity.ok(smartDocService.getAllTemplates());
+}
 }

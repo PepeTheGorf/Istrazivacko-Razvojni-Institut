@@ -16,11 +16,11 @@ public class SmartTemplate {
     private String name;
     private String description;
     
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "domain_id")
     private DocumentDomain domain;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "category_id")
     private DocumentCategory category;
 

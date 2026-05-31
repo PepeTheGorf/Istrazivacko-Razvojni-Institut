@@ -5,7 +5,8 @@ import { TextArea } from '../../components/ui/TextArea'
 import { Button } from '../../components/ui/Button'
 import { updateSectionInput } from '../../api/smartDocs' 
 import type { SmartDocument } from '../../types/smartDocs'
-import { fetchDocumentById } from '../../api/smartDocs'
+//import { fetchDocumentById } from '../../api/smartDocs'
+import { apiFetch } from '../../api/client'
 
 
 export function DocumentEditorPage() {
@@ -15,11 +16,17 @@ export function DocumentEditorPage() {
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
+   const loadDoc = async () => {
     if (docId) {
-    fetchDocumentById(docId)
-      .then(setDocument)
-      .catch(err => console.error("Greška:", err));
-  }
+      try {
+        const data = await apiFetch<SmartDocument>(`/smart-docs/documents/${docId}`);
+        setDocument(data);
+      } catch (err) {
+        console.error("Greška pri učitavanju dokumenta:", err);
+      }
+    }
+  };
+  void loadDoc();
 }, [docId])
 
   const handleUpdateSection = async (sectionId: number, text: string) => {

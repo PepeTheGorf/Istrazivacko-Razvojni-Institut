@@ -16,6 +16,7 @@ import { WorkflowsPage } from './pages/workflows/WorkflowsPage'
 import { TemplateCreateWizardPage } from './pages/smartTemplates/TemplateCreateWizardPage'
 import { TemplateSelectionPage } from './pages/smartDocs/TemplateSelectionPage'
 import { DocumentEditorPage } from './pages/smartDocs/DocumentEditorPage'
+import { TemplateListPage } from './pages/smartTemplates/TemplateListPage'
 
 function App() {
   return (
@@ -26,22 +27,26 @@ function App() {
           <Route path="/register" element={<RegisterPage />} />
         </Route>
 
+        {/* GRUPA ZA MENADŽERA */}
         <Route element={<ProtectedRoute allowedRoles={['MANAGER']} />}>
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/projects/:projectId" element={<ProjectDetailsPage />} />
           <Route path="/projects/:projectId/tasks/:taskId" element={<TaskDetailsPage />} />
+          <Route path="/projects/new" element={<ProjectFormPage />} />
+          <Route path="/projects/:projectId/edit" element={<ProjectFormPage />} />
+          <Route path="/smart-templates" element={<TemplateListPage />} /> 
+          <Route path="/smart-templates/new" element={<TemplateCreateWizardPage />} />
         </Route>
 
+        {/* GRUPA ZA ČLANA TIMA */}
         <Route element={<ProtectedRoute allowedRoles={['TEAM_MEMBER']} />}>
           <Route path="/my-tasks" element={<MyTasksPage />} />
           <Route path="/my-tasks/tasks/:taskId" element={<MyTaskDetailsPage />} />
+          <Route path="/smart-docs" element={<TemplateSelectionPage />} />
+          <Route path="/smart-docs/:docId" element={<DocumentEditorPage />} />
         </Route>
 
-        <Route element={<ProtectedRoute allowedRoles={['MANAGER']} />}>
-          <Route path="/projects/new" element={<ProjectFormPage />} />
-          <Route path="/projects/:projectId/edit" element={<ProjectFormPage />} />
-        </Route>
-
+        {/* GRUPA ZA ADMINISTRATORA */}
         <Route element={<ProtectedRoute allowedRoles={['ADMINISTRATOR']} />}>
           <Route path="/workflows" element={<WorkflowsPage />} />
           <Route path="/workflows/new" element={<WorkflowCreateWizardPage />} />
@@ -50,17 +55,6 @@ function App() {
 
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
-
-        <Route element={<ProtectedRoute allowedRoles={['MANAGER']} />}>
-            <Route path="/smart-templates" element={<div>Lista šablona (U izradi)</div>} />
-            <Route path="/smart-templates/new" element={<TemplateCreateWizardPage />} />
-        </Route>
-
-        <Route element={<ProtectedRoute allowedRoles={['TEAM_MEMBER']} />}>
-          <Route path="/smart-docs" element={<TemplateSelectionPage />} />
-          <Route path="/smart-docs/:docId" element={<DocumentEditorPage />} />
-        </Route>
-        
       </Routes>
     </AuthProvider>
   )

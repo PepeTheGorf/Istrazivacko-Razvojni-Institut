@@ -86,4 +86,14 @@ public class SmartDocService {
 
     public List<DocumentDomain> getAllDomains() { return domainRepository.findAll(); }
     public List<DocumentCategory> getAllCategories() { return categoryRepository.findAll(); }
+
+    @Transactional(readOnly = true)
+public GeneratedDocument getDocumentById(Long id) {
+    return documentRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Dokument nije pronađen"));
+}
+
+public List<SmartTemplate> getAllTemplates() {
+    return templateRepository.findAll();
+}
 }
