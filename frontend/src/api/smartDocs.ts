@@ -39,3 +39,7 @@ export function updateSectionInput(sectionId: number, userInput: string): Promis
     body: JSON.stringify({ userInput }),
   })
 }
+
+export function fetchDocumentById(docId: string): Promise<SmartDocument> {
+  return apiFetch<SmartDocument>(`/smart-docs/documents/${docId}`)
+}
