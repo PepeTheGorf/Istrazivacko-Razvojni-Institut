@@ -1,6 +1,17 @@
-version: "3.3" # Defines the Docker Compose file format version
-
 services:
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # Service Discovery: Keeps track of all microservices
   eureka-server:
     build: # Instructions for building a custom image from a local directory
@@ -28,7 +39,6 @@ services:
         condition: service_healthy
     ports:
       - "9003:9000"
-
 
   influxdb:
     image: influxdb:2.7
@@ -60,17 +70,71 @@ services:
         condition: service_healthy
       influxdb:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       EUREKA_URL: http://eureka-server:8761/eureka/
       INFLUX_URL: http://influxdb:8086
       INFLUX_TOKEN: ${INFLUXDB_TOKEN:-dev-analytics-token-change-me}
       INFLUX_ORG: ${INFLUXDB_ORG:-nais}
       INFLUX_BUCKET: ${INFLUXDB_BUCKET:-project-analytics}
-      INFLUX_SEED_ENABLED: ${INFLUX_SEED_ENABLED:-true}
-      INFLUX_SEED_MIN_RECORDS: ${INFLUX_SEED_MIN_RECORDS:-5000}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
       SERVER_PORT: 8080
     ports:
       - "9063:8080"
+
+  document-acsses-service:
+    build:
+      context: ./DocumentAnalyticsService
+      dockerfile: Dockerfile
+    image: timeseries-database-service:latest
+    container_name: timeseries-database-service
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      influxdb:
+        condition: service_healthy
+    environment:
+      EUREKA_URL: http://eureka-server:8761/eureka/
+      INFLUX_URL: http://influxdb:8086
+      INFLUX_TOKEN: ${INFLUXDB_TOKEN:-dev-analytics-token-change-me}
+      INFLUX_ORG: ${INFLUXDB_ORG:-nais}
+      INFLUX_BUCKET: document_management
+      SERVER_PORT: 8082
+    ports:
+      - "8082:8082"
+
+  grafana:
+    build:
+      context: ./grafana
+      dockerfile: Dockerfile
+    image: document-management-grafana:latest
+    container_name: grafana
+    depends_on:
+      influxdb:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_PATHS_PROVISIONING: /etc/grafana/provisioning
+
+  project-realization-postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: project_realization
+      POSTGRES_USER: project_realization
+      POSTGRES_PASSWORD: project_realization
+    ports:
+      - "5433:5432"
+    volumes:
+      - project_realization_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U project_realization -d project_realization"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   project-realization-service:
     build:
@@ -80,14 +144,23 @@ services:
     depends_on:
       eureka-server:
         condition: service_healthy
+      project-realization-postgres:
+        condition: service_healthy
       neo4j:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     environment:
       EUREKA_URL: http://eureka-server:8761/eureka/
+      SPRING_DATASOURCE_URL: jdbc:postgresql://project-realization-postgres:5432/project_realization
+      SPRING_DATASOURCE_USERNAME: project_realization
+      SPRING_DATASOURCE_PASSWORD: project_realization
       SPRING_NEO4J_URI: bolt://neo4j:7687
       SPRING_NEO4J_AUTHENTICATION_USERNAME: neo4j
       SPRING_NEO4J_AUTHENTICATION_PASSWORD: password
       JWT_SECRET: c3Rha2Vob2xkZXJzZXJ2aWNland0c2VjcmV0a2V5Zm9ydGgyNTZiaXRzMTIzNDU2Nzg5MA==
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
     ports:
       - "9060:8080"
 
@@ -124,6 +197,7 @@ services:
       EUREKA_URL: http://eureka-server:8761/eureka/
       MILVUS_HOST: standalone
       MILVUS_PORT: 19530
+      PROMPT_VECTOR_SEED_ENABLED: "false"
     ports:
       - "9061:8080"
 
@@ -136,7 +210,7 @@ services:
       ETCD_QUOTA_BACKEND_BYTES: "4294967296"
       ETCD_SNAPSHOT_COUNT: "50000"
     volumes:
-      - ./VectorDatabaseService/volumes/etcd:/etcd
+      - etcd_data:/etcd
     command: etcd -advertise-client-urls=http://etcd:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
     healthcheck:
       test: ["CMD", "etcdctl", "endpoint", "health"]
@@ -154,7 +228,7 @@ services:
       # - "9001:9001"  # MinIO console UI (not required for local dev)
       - "9000:9000"
     volumes:
-      - ./VectorDatabaseService/volumes/minio:/minio_data
+      - minio_data:/minio_data
     command: minio server /minio_data --console-address ":9001"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
@@ -191,11 +265,11 @@ services:
   #   depends_on:
   #     - standalone
 
-  doucument-management-service:
+  vector-database-service:
     build:
       context: ./VectorDatabaseService
       dockerfile: Dockerfile
-    image: doucument-management-service:latest
+    image: vector-database-service:latest
     environment:
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
       MILVUS_HOST: standalone
@@ -208,8 +282,43 @@ services:
       standalone:
         condition: service_healthy
 
+  document-management-service:
+    build:
+      context: ./DocumentManagementService
+      dockerfile: Dockerfile
+    image: document-management-service:latest
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      SPRING_DATASOURCE_URL: jdbc:postgresql://document-postgres:5432/documents
+      SPRING_DATASOURCE_USERNAME: document
+      SPRING_DATASOURCE_PASSWORD: document
+    ports:
+      - "9070:8080"
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      document-postgres:
+        condition: service_healthy
+
+  document-postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: documents
+      POSTGRES_USER: document
+      POSTGRES_PASSWORD: document
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5434:5432"
+    volumes:
+      - document_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U document -d documents"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   neo4j:
-    image: neo4j:5
+    image: neo4j:5.22.0
     ports:
       # - "7474:7474"  # Neo4j Browser UI (not required for services)
       - "7687:7687"
@@ -275,11 +384,7 @@ services:
       - "9064:8080"
 
   # ============= CASSANDRA SERVICE =============
-  redis:
-    image: redis:alpine
-    container_name: redis
-    ports:
-      - "6379:6379"
+
   cassandra:
     image: cassandra:4.1
     container_name: cassandra
@@ -311,11 +416,12 @@ services:
       cassandra:
         condition: service_healthy
       redis:                   
-        condition: service_started
+        condition: service_healthy
     environment:
       EUREKA_URL: http://eureka-server:8761/eureka/
       SPRING_CASSANDRA_CONTACTPOINTS: cassandra:9042
       SPRING_CASSANDRA_KEYSPACENAME: prompt_analytics
+      SPRING_CASSANDRA_LOCAL_DATACENTER: datacenter1
       REDIS_HOST: redis
       REDIS_PORT: 6379
       SERVER_PORT: 8080
@@ -325,9 +431,12 @@ services:
 volumes:
   neo4j_data: {}
   stakeholder_pg_data: {}
+  document_pg_data: {}
+  project_pg_data: {}
+  project_realization_pg_data: {}
+  etcd_data: {}
+  minio_data: {}
   influxdb_data: {}
   elasticsearch_data: {}
   cassandra_data: {}
   redis_data: {}
-
-

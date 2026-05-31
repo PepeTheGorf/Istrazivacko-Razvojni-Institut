@@ -4,7 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.example.projectrealizationservice.model.Phase;
+import org.example.projectrealizationservice.model.neo4j.Phase;
 
 @Data
 @Builder
@@ -14,14 +14,15 @@ public class PhaseDTO {
     private String id;
     private String name;
     private Integer order;
-    private Long creatorId;
 
     public static PhaseDTO toDTO(Phase phase) {
+        if (phase == null) {
+            return null;
+        }
         return PhaseDTO.builder()
                 .id(phase.getId())
                 .name(phase.getName())
                 .order(phase.getOrder())
-                .creatorId(phase.getCreatorId())
                 .build();
     }
 }

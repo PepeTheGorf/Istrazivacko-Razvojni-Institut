@@ -1,0 +1,20 @@
+spring:
+  application:
+    name: document-management-service
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://document-postgres:5432/documents}
+    username: ${SPRING_DATASOURCE_USERNAME:document}
+    password: ${SPRING_DATASOURCE_PASSWORD:document}
+  jpa:
+    hibernate:
+      ddl-auto: update
+
+server:
+  port: 8080
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:http://eureka-server:8761/eureka/}
+  instance:
+    prefer-ip-address: true

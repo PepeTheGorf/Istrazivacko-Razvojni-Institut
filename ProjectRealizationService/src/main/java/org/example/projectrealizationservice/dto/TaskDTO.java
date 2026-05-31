@@ -4,7 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.example.projectrealizationservice.model.Task;
+import org.example.projectrealizationservice.model.neo4j.Task;
 
 import java.time.OffsetDateTime;
 import java.util.Set;

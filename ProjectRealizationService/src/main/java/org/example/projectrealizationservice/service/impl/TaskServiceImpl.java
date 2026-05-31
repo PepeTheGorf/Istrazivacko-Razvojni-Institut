@@ -2,130 +2,145 @@ package org.example.projectrealizationservice.service.impl;
 
 import lombok.RequiredArgsConstructor;
 import org.example.projectrealizationservice.dto.ProjectTaskDTO;
+import org.example.projectrealizationservice.dto.TaskSummaryDTO;
 import org.example.projectrealizationservice.dto.creation.TaskCreationDTO;
-import org.example.projectrealizationservice.model.AcceptanceCriteria;
-import org.example.projectrealizationservice.model.Phase;
-import org.example.projectrealizationservice.model.Project;
-import org.example.projectrealizationservice.model.Task;
-import org.example.projectrealizationservice.repository.AcceptanceCriteriaRepository;
-import org.example.projectrealizationservice.repository.ProjectRepository;
-import org.example.projectrealizationservice.repository.TaskRepository;
-import org.example.projectrealizationservice.repository.TechnicalResourceRepository;
-import org.example.projectrealizationservice.repository.WorkflowRepository;
+import org.example.projectrealizationservice.mapper.TaskViewMapper;
+import org.example.projectrealizationservice.model.neo4j.Phase;
+import org.example.projectrealizationservice.model.neo4j.Task;
+import org.example.projectrealizationservice.model.neo4j.Workflow;
+import org.example.projectrealizationservice.model.sql.Project;
+import org.example.projectrealizationservice.model.sql.ProjectTask;
+import org.example.projectrealizationservice.repository.neo4j.TaskRepository;
+import org.example.projectrealizationservice.repository.neo4j.WorkflowRepository;
+import org.example.projectrealizationservice.repository.sql.AcceptanceCriteriaRepository;
+import org.example.projectrealizationservice.repository.sql.ProjectRepository;
+import org.example.projectrealizationservice.repository.sql.ProjectTaskRepository;
+import org.example.projectrealizationservice.repository.sql.TaskAssignmentRepository;
+import org.example.projectrealizationservice.repository.sql.TaskResourceAssignmentRepository;
+import org.example.projectrealizationservice.security.ResourceAuthorization;
 import org.example.projectrealizationservice.security.SecurityUtils;
 import org.example.projectrealizationservice.service.TaskService;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
-import java.util.HashSet;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
 public class TaskServiceImpl implements TaskService {
+
     private final TaskRepository taskRepository;
-    private final ProjectRepository projectRepository;
     private final WorkflowRepository workflowRepository;
-    private final TechnicalResourceRepository technicalResourceRepository;
+    private final ProjectRepository projectRepository;
+    private final ProjectTaskRepository projectTaskRepository;
     private final AcceptanceCriteriaRepository acceptanceCriteriaRepository;
+    private final TaskAssignmentRepository taskAssignmentRepository;
+    private final TaskResourceAssignmentRepository taskResourceAssignmentRepository;
+    private final TaskViewMapper taskViewMapper;
+    private final CacheManager cacheManager;
 
     @Override
-    public void createTask(TaskCreationDTO taskCreation) {
-        Project project = projectRepository.findById(taskCreation.getProjectId())
-                .orElseThrow(() -> new RuntimeException("Project with that id does not exist!"));
-        
-        Long creatorId = taskCreation.getCreatorId() != null
-                ? taskCreation.getCreatorId()
-                : SecurityUtils.getCurrentUserId();
+    @Transactional(transactionManager = "neo4jTransactionManager")
+    @CacheEvict(value = "tasks-summary", key = "#taskCreation.projectId")
+    public TaskSummaryDTO createTask(TaskCreationDTO taskCreation) {
+        Project project = findAccessibleProjectOrThrow(taskCreation.getProjectId());
+        Long creatorId = ResourceAuthorization.requireCurrentUserId();
 
         Task task = Task.builder()
                 .name(taskCreation.getName())
                 .description(taskCreation.getDescription())
                 .creatorId(creatorId)
+                .projectId(project.getId())
                 .phaseChangeDate(OffsetDateTime.now())
-                .parentTask(null)
-                .workflow(null)
-                .technicalResources(new HashSet<>())
-                .acceptanceCriteria(new HashSet<>())
                 .build();
-        task = taskRepository.save(task);
-        taskRepository.linkTaskToProject(project.getId(), task.getId(), null, taskCreation.getEndDate());
-    }
-
-    @Override
-    public void createSubtask(String parentTaskId, TaskCreationDTO taskCreation) {
-
-    }
-    
-
-    @Override
-    public void updateTask(String taskId, TaskCreationDTO taskCreation) {
-        Task existing = taskRepository.findById(taskId)
-                .orElseThrow(() -> new RuntimeException("Task with that id does not exist!"));
-        if(existing.getCreatorId() != null && !existing.getCreatorId().equals(SecurityUtils.getCurrentUserId())) {
-            throw new RuntimeException("Only the creator of the task can update it!");
-        }
         
+        task = taskRepository.save(task);
+
+        projectTaskRepository.save(ProjectTask.builder()
+                .projectId(project.getId())
+                .taskId(task.getId())
+                .startDate(OffsetDateTime.now())
+                .endDate(taskCreation.getEndDate())
+                .build());
+        return taskViewMapper.toTaskSummaryDto(task);
+    }
+
+    @Override
+    @Transactional(transactionManager = "transactionManager")
+    public void updateTask(String taskId, TaskCreationDTO taskCreation) {
+        Task existing = findAccessibleTaskOrThrow(taskId);
+        ResourceAuthorization.assertCurrentUserIsOwner(existing.getCreatorId());
+
         existing.setName(taskCreation.getName());
         existing.setDescription(taskCreation.getDescription());
-        if (taskCreation.getCreatorId() != null) {
-            existing.setCreatorId(taskCreation.getCreatorId());
-        }
-        if (taskCreation.getEndDate() != null) {
-            taskRepository.createOrUpdateTaskDates(taskCreation.getProjectId(), taskId, taskCreation.getEndDate());
-        }
         taskRepository.save(existing);
+
+        if (taskCreation.getEndDate() != null) {
+            projectTaskRepository.findByTaskId(taskId).ifPresent(projectTask -> {
+                projectTask.setEndDate(taskCreation.getEndDate());
+                projectTaskRepository.save(projectTask);
+            });
+        }
+        if (existing.getProjectId() != null) {
+            Objects.requireNonNull(cacheManager.getCache("tasks-summary"))
+                    .evict(String.valueOf(existing.getProjectId()));
+        }
     }
 
     @Override
+    @Transactional(transactionManager = "transactionManager")
     public void deleteTask(String taskId) {
-        Task existing = taskRepository.findById(taskId)
-                .orElseThrow(() -> new RuntimeException("Task with that id does not exist!"));
-        if(existing.getCreatorId() != null && !existing.getCreatorId().equals(SecurityUtils.getCurrentUserId())) {
-            throw new RuntimeException("Only the creator of the task can delete it!");
-        }
-        
+        Task existing = findAccessibleTaskOrThrow(taskId);
+        ResourceAuthorization.assertCurrentUserIsOwner(existing.getCreatorId());
+
+        acceptanceCriteriaRepository.deleteAll(acceptanceCriteriaRepository.findByTaskId(taskId));
+        taskAssignmentRepository.deleteAll(taskAssignmentRepository.findByTaskId(taskId));
+        taskResourceAssignmentRepository.deleteAll(taskResourceAssignmentRepository.findByTaskId(taskId));
+        projectTaskRepository.findByTaskId(taskId)
+                .ifPresent(projectTaskRepository::delete);
         taskRepository.delete(existing);
-    }
 
-    //todo: make this method accept phaseId as well and also check if transition condition exists and is fulfilled before allowing the transition
-    @Override
-    public void moveTaskToNextPhase(String taskId) {
-        Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new RuntimeException("Task with that id does not exist!"));
-        if(task.getAssignments().stream().noneMatch(taskAssignment -> taskAssignment.getAssigneeId().equals(SecurityUtils.getCurrentUserId()))) {
-            throw new RuntimeException("Only assigned users can move the task to the next phase!");
+        if (existing.getProjectId() != null) {
+            Objects.requireNonNull(cacheManager.getCache("tasks-summary")).evict(String.valueOf(existing.getProjectId()));
         }
-        Phase nextPhase = workflowRepository.findNextPhaseInWorkflow(task.getWorkflow().getId(), task.getPhase().getOrder())
-                .orElseThrow(() -> new RuntimeException("Task is already in the last phase of the workflow!"));
-        task.setPhase(nextPhase);
-        task.setPhaseChangeDate(OffsetDateTime.now());
-        taskRepository.save(task);
     }
 
     @Override
-    public void completeAcceptanceCriteria(String taskId, String criteriaId) {
-
-    }
-
-    @Override
-    public List<ProjectTaskDTO> getTasksByProjectId(String projectId) {
-        return taskRepository.findAllByProject(projectId).stream()
-                .map(ProjectTaskDTO::fromTask)
+    @Cacheable(value = "tasks-summary", key = "#projectId", condition = "#projectId != null")
+    public List<TaskSummaryDTO> getTasksByProjectId(String projectId) {
+        Project project = findAccessibleProjectOrThrow(projectId);
+        return taskRepository.findByProjectId(project.getId()).stream()
+                .filter(task -> task.getParentTask() == null)
+                .map(taskViewMapper::toTaskSummaryDto)
                 .toList();
     }
 
-    //todo: create dto toDto method for task :)
     @Override
     public ProjectTaskDTO getTaskById(String taskId) {
-        return taskRepository.findById(taskId)
-                .map(ProjectTaskDTO::fromTask)
-                .orElseThrow(() -> new RuntimeException("Task with that id does not exist!"));
+        return taskViewMapper.toProjectTaskDto(findAccessibleTaskOrThrow(taskId));
     }
 
+    private Task findAccessibleTaskOrThrow(String taskId) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new RuntimeException("Task with that id does not exist!"));
+        if (task.getProjectId() != null) {
+            findAccessibleProjectOrThrow(String.valueOf(task.getProjectId()));
+        }
+        return task;
+    }
 
-    @Override
-    public List<AcceptanceCriteria> analyzeAcceptanceCriteriaCompletion(String projectId, String phaseId, long minCompleted) {
-        return List.of();
+    private Project findAccessibleProjectOrThrow(String projectId) {
+        Project project = projectRepository.findById(Long.parseLong(projectId))
+                .orElseThrow(() -> new RuntimeException("Project with that id does not exist!"));
+        if (!Objects.equals(project.getCreatorId(), SecurityUtils.getCurrentUserId())) {
+            throw new RuntimeException("You do not have access to this project.");
+        }
+        return project;
     }
 }

@@ -23,9 +23,43 @@ def _merge_optional(existing: dict, update: dict) -> dict:
     return merged
 
 
+def _normalize_optional_id(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = value.strip()
+    return normalized if normalized else None
+
+
 def _tokenize(text: str) -> set[str]:
     cleaned = "".join(ch.lower() if ch.isalnum() else " " for ch in text)
     return {token for token in cleaned.split() if token}
+
+
+def _normalize_text(text: str) -> str:
+    replacements = {
+        "č": "c",
+        "ć": "c",
+        "đ": "dj",
+        "š": "s",
+        "ž": "z",
+        "Č": "c",
+        "Ć": "c",
+        "Đ": "dj",
+        "Š": "s",
+        "Ž": "z",
+    }
+    return "".join(replacements.get(ch, ch.lower()) for ch in text)
+
+
+def _document_search_tokens(row: dict) -> set[str]:
+    parts: list[str] = [
+        row.get("title", ""),
+        row.get("content", ""),
+        " ".join(row.get("tags") or []),
+    ]
+    metadata = row.get("metadata") or {}
+    parts.extend(f"{key} {value}" for key, value in metadata.items())
+    return _tokenize(_normalize_text(" ".join(parts)))
 
 
 def _cosine(left: list[float], right: list[float]) -> float:
@@ -82,9 +116,18 @@ class DocumentManagementService:
     def create_document(self, payload: DocumentCreate) -> dict:
         timestamp = payload.created_at or _now()
         updated_at = payload.updated_at or timestamp
-        embedding = embedding_service.encode_text_one(f"{payload.title}\n{payload.content}")
+        folder_id = _normalize_optional_id(payload.folder_id)
+        tags_text = " ".join(payload.tags or [])
+        metadata_text = " ".join(f"{k}: {v}" for k, v in (payload.metadata or {}).items())
+        embedding_text = f"{payload.title}\n{payload.content}\n{tags_text}\n{metadata_text}"
+        embedding = embedding_service.encode_text_one(embedding_text)
         record = payload.model_dump()
-        record.update({"created_at": timestamp, "updated_at": updated_at, "content_embedding": embedding})
+        record.update({
+            "folder_id": folder_id,
+            "created_at": timestamp,
+            "updated_at": updated_at,
+            "content_embedding": embedding,
+        })
         result = document_repository.insert([record])
         return {"inserted_ids": result["ids"], "insert_count": result["insert_count"]}
 
@@ -107,12 +150,32 @@ class DocumentManagementService:
         current = document_repository.get_by_id(document_id, include_vectors=True)
         if current is None:
             raise KeyError(f"Document {document_id} not found")
-        merged = _merge_optional(current, payload.model_dump(exclude_none=True))
-        if any(field in payload.model_dump(exclude_none=True) for field in ("title", "content")):
-            merged["content_embedding"] = embedding_service.encode_text_one(f"{merged.get('title', '')}\n{merged.get('content', '')}")
+        update_data = payload.model_dump(exclude_none=True)
+
+        # Avoid overwriting optional IDs with blank strings coming from UI forms.
+        for optional_id_key in ("folder_id", "project_id", "doc_type_id", "author_id"):
+            if optional_id_key in update_data and isinstance(update_data[optional_id_key], str):
+                normalized = _normalize_optional_id(update_data[optional_id_key])
+                if normalized is None:
+                    update_data.pop(optional_id_key, None)
+                else:
+                    update_data[optional_id_key] = normalized
+
+        merged = _merge_optional(current, update_data)
+        if any(field in update_data for field in ("title", "content", "tags", "metadata")):
+            tags_text = " ".join(merged.get("tags") or [])
+            metadata_text = " ".join(f"{k}: {v}" for k, v in (merged.get("metadata") or {}).items())
+            embedding_text = f"{merged.get('title', '')}\n{merged.get('content', '')}\n{tags_text}\n{metadata_text}"
+            merged["content_embedding"] = embedding_service.encode_text_one(embedding_text)
         merged["updated_at"] = payload.updated_at or _now()
         result = document_repository.upsert(merged)
-        return {"upserted_count": result["upsert_count"]}
+        ids = result.get("ids") or []
+        return {
+            "upserted_count": result["upsert_count"],
+            "ids": ids,
+            "id": ids[0] if ids else None,
+            "previous_id": document_id,
+        }
 
     def update_chunk(self, chunk_id: int, payload: ChunkUpdate) -> dict:
         current = chunk_repository.get_by_id(chunk_id, include_vectors=True)
@@ -144,8 +207,7 @@ class DocumentManagementService:
         return chunk_repository.count(filter_expr=filter_expr)
 
     def search_documents(self, query: str, top_k: int = 10, filter_expr: str = "") -> list[dict]:
-        vector = embedding_service.encode_text_one(query)
-        return document_repository.search([vector], top_k=top_k, filter_expr=filter_expr)[0]
+        return self.search_documents_iterator(query=query, top_k=top_k, page_size=max(top_k * 4, 50), filter_expr=filter_expr)
 
     def search_chunks(self, query: str, top_k: int = 10, filter_expr: str = "") -> list[dict]:
         vector = embedding_service.encode_text_one(query)
@@ -153,10 +215,18 @@ class DocumentManagementService:
 
     def search_documents_iterator(self, query: str, top_k: int = 10, page_size: int = 50, filter_expr: str = "") -> list[dict]:
         query_vector = embedding_service.encode_text_one(query)
+        query_tokens = _tokenize(_normalize_text(query))
         results: list[dict] = []
         for row in _DocumentRowIterator(filter_expr=filter_expr, page_size=page_size):
-            score = _cosine(query_vector, row.get("content_embedding", embedding_service.zero_vector()))
+            semantic_score = _cosine(query_vector, row.get("content_embedding", embedding_service.zero_vector()))
+            lexical_tokens = _document_search_tokens(row)
+            overlap = len(query_tokens & lexical_tokens)
+            lexical_score = overlap / max(len(query_tokens), 1)
+            score = (0.75 * semantic_score) + (0.25 * lexical_score)
             enriched = dict(row)
+            enriched.pop("content_embedding", None)
+            enriched["semantic_score"] = round(semantic_score, 4)
+            enriched["lexical_score"] = round(lexical_score, 4)
             enriched["score"] = round(score, 4)
             results.append(enriched)
             if len(results) >= top_k:

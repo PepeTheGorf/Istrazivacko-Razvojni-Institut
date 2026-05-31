@@ -20,6 +20,14 @@ jwt:
   secret: ${JWT_SECRET:c3Rha2Vob2xkZXJzZXJ2aWNland0c2VjcmV0a2V5Zm9ydGgyNTZiaXRzMTIzNDU2Nzg5MA==}
   expiration-ms: ${JWT_EXPIRATION_MS:86400000}
 
+app:
+  bootstrap:
+    admin:
+      email: ${BOOTSTRAP_ADMIN_EMAIL:admin@gmail.com}
+      password: ${BOOTSTRAP_ADMIN_PASSWORD:admin}
+      name: ${BOOTSTRAP_ADMIN_NAME:admin}
+      surname: ${BOOTSTRAP_ADMIN_SURNAME:admin}
+
 eureka:
   client:
     service-url:

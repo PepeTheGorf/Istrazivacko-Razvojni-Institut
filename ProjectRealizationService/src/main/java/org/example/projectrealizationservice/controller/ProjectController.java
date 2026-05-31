@@ -2,8 +2,8 @@ package org.example.projectrealizationservice.controller;
 
 import lombok.RequiredArgsConstructor;
 import org.example.projectrealizationservice.dto.ProjectDTO;
+import org.example.projectrealizationservice.security.SecurityUtils;
 import org.example.projectrealizationservice.service.ProjectService;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -21,7 +21,8 @@ public class ProjectController {
     @PreAuthorize("hasRole('MANAGER')")
     public ResponseEntity<?> createProject(@RequestBody ProjectDTO project) {
         try {
-            projectService.createProject(project);
+            Long creatorId = SecurityUtils.getCurrentUserId();
+            projectService.createProject(project, creatorId);
             return ResponseEntity.ok().build();
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
@@ -30,19 +31,27 @@ public class ProjectController {
     
     @GetMapping("/all")
     public List<ProjectDTO> getAllProjects() {
-        return projectService.findAll();
+        Long creatorId = SecurityUtils.getCurrentUserId();
+        return projectService.findAll(creatorId);
+    }
+
+    @GetMapping("/selection/all")
+    public List<ProjectDTO> getAllProjectsForSelection() {
+        return projectService.findAllForSelection();
     }
 
     @GetMapping("/{projectId}")
     public ProjectDTO getProjectById(@PathVariable String projectId) {
-        return projectService.getProjectById(projectId);
+        Long creatorId = SecurityUtils.getCurrentUserId();
+        return projectService.getProjectById(projectId, creatorId);
     }
     
     @PutMapping("/{projectId}")
     @PreAuthorize("hasRole('MANAGER')")
     public ResponseEntity<?> updateProject(@PathVariable String projectId, @RequestBody ProjectDTO project) {
         try {
-            projectService.updateProject(projectId, project);
+            Long creatorId = SecurityUtils.getCurrentUserId();
+            projectService.updateProject(projectId, project, creatorId);
             return ResponseEntity.ok().build();
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
@@ -53,7 +62,8 @@ public class ProjectController {
     @PreAuthorize("hasRole('MANAGER')")
     public ResponseEntity<?> deleteProject(@PathVariable String projectId) {
         try {
-            projectService.deleteProject(projectId);
+            Long creatorId = SecurityUtils.getCurrentUserId();
+            projectService.deleteProject(projectId, creatorId);
             return ResponseEntity.ok().build();
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());

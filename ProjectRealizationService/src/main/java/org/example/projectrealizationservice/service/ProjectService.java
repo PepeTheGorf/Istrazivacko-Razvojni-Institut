@@ -2,26 +2,21 @@ package org.example.projectrealizationservice.service;
 
 import org.example.projectrealizationservice.dto.ProjectDTO;
 
-import java.time.OffsetDateTime;
 import java.util.List;
 
 public interface ProjectService {
-    void createProject(ProjectDTO project);
+    void createProject(ProjectDTO project, Long creatorId);
 
-    void deleteProject(String projectId);
+    void deleteProject(String projectId, Long creatorId);
 
-    void updateProject(String projectId, ProjectDTO project);
-    
-    ProjectDTO getProjectByName(String name);
+    void updateProject(String projectId, ProjectDTO project, Long creatorId);
 
-    ProjectDTO getProjectById(String projectId);
+    ProjectDTO getProjectByName(String name, Long creatorId);
 
-    List<ProjectDTO> findAll();
+    ProjectDTO getProjectById(String projectId, Long creatorId);
 
-    List<ProjectDTO> findProjectsByWorkflowWithMinTaskCount(String workflowName, long minTaskCount);
+    List<ProjectDTO> findAll(Long creatorId);
 
-    List<ProjectDTO> findProjectsWithDelayedTasks(OffsetDateTime currentDate);
-
-    List<ProjectDTO> findProjectsWithHighTechnicalResourceWorkload(OffsetDateTime startDate, OffsetDateTime endDate);
+    List<ProjectDTO> findAllForSelection();
 
 }
