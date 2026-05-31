@@ -7,7 +7,7 @@ import org.example.projectrealizationservice.dto.creation.TaskCreationDTO;
 import java.util.List;
 
 public interface TaskService {
-    void createTask(TaskCreationDTO taskCreation);
+    TaskSummaryDTO createTask(TaskCreationDTO taskCreation);
 
     void updateTask(String taskId, TaskCreationDTO taskCreation);
 
