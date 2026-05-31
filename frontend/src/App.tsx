@@ -47,6 +47,17 @@ function App() {
 
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
+
+        <Route element={<ProtectedRoute allowedRoles={['MANAGER']} />}>
+         <Route path="/smart-templates" element={<div>Lista šablona (Đuro)</div>} />
+         <Route path="/smart-templates/new" element={<div>Novi šablon Wizard</div>} />
+        </Route>
+
+        <Route element={<ProtectedRoute allowedRoles={['TEAM_MEMBER']} />}>
+         <Route path="/smart-docs" element={<div>Izbor Šablona i Filtriranje (Ana)</div>} />
+         <Route path="/smart-docs/:docId" element={<div>Editor Dokumenta</div>} />
+        </Route>
+        
       </Routes>
     </AuthProvider>
   )
