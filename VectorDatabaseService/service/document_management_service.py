@@ -8,6 +8,7 @@ from config import AUTO_SEED_ON_STARTUP, SEED_CHUNK_COUNT, SEED_DOCUMENT_COUNT
 from model.document_models import ChunkCreate, ChunkUpdate, DocumentCreate, DocumentUpdate
 from repository.chunk_repository import chunk_repository
 from repository.document_repository import document_repository
+from services.redis_cache import get_json, invalidate, set_json
 from services.embedding_service import embedding_service
 
 
@@ -101,6 +102,8 @@ class _DocumentRowIterator:
 
 
 class DocumentManagementService:
+    SEARCH_NAMESPACE = "vector-search"
+
     def bootstrap(self) -> None:
         document_repository.ensure_collection()
         chunk_repository.ensure_collection()
@@ -129,6 +132,7 @@ class DocumentManagementService:
             "content_embedding": embedding,
         })
         result = document_repository.insert([record])
+        invalidate(self.SEARCH_NAMESPACE)
         return {"inserted_ids": result["ids"], "insert_count": result["insert_count"]}
 
     def create_chunk(self, payload: ChunkCreate) -> dict:
@@ -138,6 +142,7 @@ class DocumentManagementService:
         record = payload.model_dump()
         record.update({"created_at": timestamp, "updated_at": updated_at, "chunk_embedding": embedding})
         result = chunk_repository.insert([record])
+        invalidate(self.SEARCH_NAMESPACE)
         return {"inserted_ids": result["ids"], "insert_count": result["insert_count"]}
 
     def get_document(self, document_id: int, include_vectors: bool = False) -> dict | None:
@@ -169,6 +174,7 @@ class DocumentManagementService:
             merged["content_embedding"] = embedding_service.encode_text_one(embedding_text)
         merged["updated_at"] = payload.updated_at or _now()
         result = document_repository.upsert(merged)
+        invalidate(self.SEARCH_NAMESPACE)
         ids = result.get("ids") or []
         return {
             "upserted_count": result["upsert_count"],
@@ -186,13 +192,18 @@ class DocumentManagementService:
             merged["chunk_embedding"] = embedding_service.encode_text_one(f"{merged.get('section_title', '')}\n{merged.get('chunk_text', '')}")
         merged["updated_at"] = payload.updated_at or _now()
         result = chunk_repository.upsert(merged)
+        invalidate(self.SEARCH_NAMESPACE)
         return {"upserted_count": result["upsert_count"]}
 
     def delete_document(self, document_id: int) -> dict:
-        return document_repository.delete_by_id(document_id)
+        result = document_repository.delete_by_id(document_id)
+        invalidate(self.SEARCH_NAMESPACE)
+        return result
 
     def delete_chunk(self, chunk_id: int) -> dict:
-        return chunk_repository.delete_by_id(chunk_id)
+        result = chunk_repository.delete_by_id(chunk_id)
+        invalidate(self.SEARCH_NAMESPACE)
+        return result
 
     def list_documents(self, filter_expr: str = "", limit: int = 20, offset: int = 0) -> list[dict]:
         return document_repository.list(filter_expr=filter_expr, limit=limit, offset=offset)
@@ -207,13 +218,25 @@ class DocumentManagementService:
         return chunk_repository.count(filter_expr=filter_expr)
 
     def search_documents(self, query: str, top_k: int = 10, filter_expr: str = "") -> list[dict]:
-        return self.search_documents_iterator(query=query, top_k=top_k, page_size=max(top_k * 4, 50), filter_expr=filter_expr)
+        cache_key = ("search_documents", query, top_k, filter_expr)
+        cached = get_json(self.SEARCH_NAMESPACE, cache_key)
+        if cached is not None:
+            return cached
+
+        results = self.search_documents_iterator(query=query, top_k=top_k, page_size=max(top_k * 4, 50), filter_expr=filter_expr)
+        set_json(self.SEARCH_NAMESPACE, cache_key, results)
+        return results
 
     def search_chunks(self, query: str, top_k: int = 10, filter_expr: str = "") -> list[dict]:
         vector = embedding_service.encode_text_one(query)
         return chunk_repository.search([vector], top_k=top_k, filter_expr=filter_expr)[0]
 
     def search_documents_iterator(self, query: str, top_k: int = 10, page_size: int = 50, filter_expr: str = "") -> list[dict]:
+        cache_key = ("search_documents_iterator", query, top_k, page_size, filter_expr)
+        cached = get_json(self.SEARCH_NAMESPACE, cache_key)
+        if cached is not None:
+            return cached
+
         query_vector = embedding_service.encode_text_one(query)
         query_tokens = _tokenize(_normalize_text(query))
         results: list[dict] = []
@@ -232,9 +255,16 @@ class DocumentManagementService:
             if len(results) >= top_k:
                 break
         results.sort(key=lambda item: item.get("score", 0.0), reverse=True)
-        return results[:top_k]
+        cached_results = results[:top_k]
+        set_json(self.SEARCH_NAMESPACE, cache_key, cached_results)
+        return cached_results
 
     def search_chunks_hybrid(self, query: str, top_k: int = 10, filter_expr: str = "") -> list[dict]:
+        cache_key = ("search_chunks_hybrid", query, top_k, filter_expr)
+        cached = get_json(self.SEARCH_NAMESPACE, cache_key)
+        if cached is not None:
+            return cached
+
         dense_hits = self.search_chunks(query=query, top_k=max(top_k * 3, 30), filter_expr=filter_expr)
         query_tokens = _tokenize(query)
         ranked: list[dict] = []
@@ -250,7 +280,9 @@ class DocumentManagementService:
             enriched["fused_score"] = round(fused, 4)
             ranked.append(enriched)
         ranked.sort(key=lambda item: item.get("fused_score", 0.0), reverse=True)
-        return ranked[:top_k]
+        results = ranked[:top_k]
+        set_json(self.SEARCH_NAMESPACE, cache_key, results)
+        return results
 
 
 document_management_service = DocumentManagementService()

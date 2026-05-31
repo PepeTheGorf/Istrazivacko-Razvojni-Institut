@@ -28,6 +28,11 @@ DEFAULT_BATCH_SIZE = int(os.getenv("DEFAULT_BATCH_SIZE", "64"))
 INDEX_NLIST = int(os.getenv("INDEX_NLIST", "64"))
 INDEX_NPROBE = int(os.getenv("INDEX_NPROBE", "16"))
 
+REDIS_HOST = os.getenv("REDIS_HOST", "redis")
+REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
+REDIS_DB = int(os.getenv("REDIS_DB", "0"))
+SEARCH_CACHE_TTL_SECONDS = int(os.getenv("SEARCH_CACHE_TTL_SECONDS", "600"))
+
 AUTO_SEED_ON_STARTUP = os.getenv("AUTO_SEED_ON_STARTUP", "true").lower() == "true"
 SEED_DOCUMENT_COUNT = int(os.getenv("SEED_DOCUMENT_COUNT", "500"))
 SEED_CHUNK_COUNT = int(os.getenv("SEED_CHUNK_COUNT", "1000"))

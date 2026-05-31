@@ -1,6 +1,8 @@
 spring:
   application:
     name: document-management-service
+  cache:
+    type: redis
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://document-postgres:5432/documents}
     username: ${SPRING_DATASOURCE_USERNAME:document}
@@ -8,6 +10,10 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
+
+redis:
+  host: ${REDIS_HOST:localhost}
+  port: ${REDIS_PORT:6379}
 
 server:
   port: 8080

@@ -794,8 +794,8 @@ export function DocumentsPage() {
                 type="button"
                 onClick={() => setSelectedProjectId(null)}
                 className={`w-full rounded-md border px-3 py-2 text-left text-sm ${selectedProjectId === null
-                    ? 'border-hairline bg-surface-2 text-ink'
-                    : 'border-hairline bg-surface-1 text-ink-muted hover:bg-surface-2'
+                  ? 'border-hairline bg-surface-2 text-ink'
+                  : 'border-hairline bg-surface-1 text-ink-muted hover:bg-surface-2'
                   }`}
               >
                 Svi projekti
@@ -806,8 +806,8 @@ export function DocumentsPage() {
                   onClick={() => setSelectedProjectId(project.id ?? null)}
                   key={project.id ?? project.name}
                   className={`w-full rounded-md border px-3 py-2 text-left text-sm ${selectedProjectId === (project.id ?? null)
-                      ? 'border-hairline bg-surface-2 text-ink'
-                      : 'border-hairline bg-surface-1 text-ink-muted hover:bg-surface-2'
+                    ? 'border-hairline bg-surface-2 text-ink'
+                    : 'border-hairline bg-surface-1 text-ink-muted hover:bg-surface-2'
                     }`}
                 >
                   <div className="font-medium">{project.name}</div>

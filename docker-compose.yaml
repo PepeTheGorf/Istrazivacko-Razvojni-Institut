@@ -274,6 +274,8 @@ services:
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
       MILVUS_HOST: standalone
       MILVUS_PORT: 19530
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
     ports:
       - "8000:8000"
     depends_on:
@@ -292,12 +294,16 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://document-postgres:5432/documents
       SPRING_DATASOURCE_USERNAME: document
       SPRING_DATASOURCE_PASSWORD: document
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
     ports:
       - "9070:8080"
     depends_on:
       eureka-server:
         condition: service_healthy
       document-postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
   document-postgres:
