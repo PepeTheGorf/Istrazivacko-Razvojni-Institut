@@ -62,25 +62,25 @@ services:
       timeout: 10s
       retries: 5
 
-  # project-realization-analytics-service:
-  #   build:
-  #     context: ./ProjectRealizationAnalyticsService
-  #     dockerfile: Dockerfile
-  #   image: project-realization-analytics-service:latest
-  #   depends_on:
-  #     eureka-server:
-  #       condition: service_healthy
-  #     influxdb:
-  #       condition: service_healthy
-  #   environment:
-  #     EUREKA_URL: http://eureka-server:8761/eureka/
-  #     INFLUX_URL: http://influxdb:8086
-  #     INFLUX_TOKEN: ${INFLUXDB_TOKEN:-dev-analytics-token-change-me}
-  #     INFLUX_ORG: ${INFLUXDB_ORG:-nais}
-  #     INFLUX_BUCKET: ${INFLUXDB_BUCKET:-project-analytics}
-  #     SERVER_PORT: 8080
-  #   ports:
-  #     - "9063:8080"
+  project-realization-analytics-service:
+    build:
+      context: ./ProjectRealizationAnalyticsService
+      dockerfile: Dockerfile
+    image: project-realization-analytics-service:latest
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      influxdb:
+        condition: service_healthy
+    environment:
+      EUREKA_URL: http://eureka-server:8761/eureka/
+      INFLUX_URL: http://influxdb:8086
+      INFLUX_TOKEN: ${INFLUXDB_TOKEN:-dev-analytics-token-change-me}
+      INFLUX_ORG: ${INFLUXDB_ORG:-nais}
+      INFLUX_BUCKET: ${INFLUXDB_BUCKET:-project-analytics}
+      SERVER_PORT: 8080
+    ports:
+      - "9063:8080"
 
   document-acsses-service:
     build:
@@ -262,22 +262,22 @@ services:
   #   depends_on:
   #     - standalone
 
-  # doucument-management-service:
-  #   build:
-  #     context: ./VectorDatabaseService
-  #     dockerfile: Dockerfile
-  #   image: doucument-management-service:latest
-  #   environment:
-  #     EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
-  #     MILVUS_HOST: standalone
-  #     MILVUS_PORT: 19530
-  #   ports:
-  #     - "8000:8000"
-  #   depends_on:
-  #     eureka-server:
-  #       condition: service_healthy
-  #     standalone:
-  #       condition: service_healthy
+  doucument-management-service:
+    build:
+      context: ./VectorDatabaseService
+      dockerfile: Dockerfile
+    image: doucument-management-service:latest
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      MILVUS_HOST: standalone
+      MILVUS_PORT: 19530
+    ports:
+      - "8000:8000"
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      standalone:
+        condition: service_healthy
 
   neo4j:
     image: neo4j:5
