@@ -55,6 +55,10 @@ public class MetapodatakService {
         return repository.findByDokumentId(dokumentId).stream().map(MetapodatakResponseDTO::fromEntity).toList();
     }
 
+    public void deleteByDokumentId(UUID dokumentId) {
+        repository.deleteByDokumentId(dokumentId);
+    }
+
     private Metapodatak findEntityById(UUID id) {
         return repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Metapodatak not found: " + id));

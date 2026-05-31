@@ -13,4 +13,6 @@ public interface MetapodatakRepository extends JpaRepository<Metapodatak, UUID> 
     List<Metapodatak> findByTipMetapodatkaId(UUID tipMetapodatkaId);
 
     List<Metapodatak> findByDokumentIdAndTipMetapodatkaId(UUID dokumentId, UUID tipMetapodatkaId);
+
+    void deleteByDokumentId(UUID dokumentId);
 }

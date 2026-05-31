@@ -23,6 +23,13 @@ def _merge_optional(existing: dict, update: dict) -> dict:
     return merged
 
 
+def _normalize_optional_id(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = value.strip()
+    return normalized if normalized else None
+
+
 def _tokenize(text: str) -> set[str]:
     cleaned = "".join(ch.lower() if ch.isalnum() else " " for ch in text)
     return {token for token in cleaned.split() if token}
@@ -109,12 +116,18 @@ class DocumentManagementService:
     def create_document(self, payload: DocumentCreate) -> dict:
         timestamp = payload.created_at or _now()
         updated_at = payload.updated_at or timestamp
+        folder_id = _normalize_optional_id(payload.folder_id)
         tags_text = " ".join(payload.tags or [])
         metadata_text = " ".join(f"{k}: {v}" for k, v in (payload.metadata or {}).items())
         embedding_text = f"{payload.title}\n{payload.content}\n{tags_text}\n{metadata_text}"
         embedding = embedding_service.encode_text_one(embedding_text)
         record = payload.model_dump()
-        record.update({"created_at": timestamp, "updated_at": updated_at, "content_embedding": embedding})
+        record.update({
+            "folder_id": folder_id,
+            "created_at": timestamp,
+            "updated_at": updated_at,
+            "content_embedding": embedding,
+        })
         result = document_repository.insert([record])
         return {"inserted_ids": result["ids"], "insert_count": result["insert_count"]}
 
@@ -138,6 +151,16 @@ class DocumentManagementService:
         if current is None:
             raise KeyError(f"Document {document_id} not found")
         update_data = payload.model_dump(exclude_none=True)
+
+        # Avoid overwriting optional IDs with blank strings coming from UI forms.
+        for optional_id_key in ("folder_id", "project_id", "doc_type_id", "author_id"):
+            if optional_id_key in update_data and isinstance(update_data[optional_id_key], str):
+                normalized = _normalize_optional_id(update_data[optional_id_key])
+                if normalized is None:
+                    update_data.pop(optional_id_key, None)
+                else:
+                    update_data[optional_id_key] = normalized
+
         merged = _merge_optional(current, update_data)
         if any(field in update_data for field in ("title", "content", "tags", "metadata")):
             tags_text = " ".join(merged.get("tags") or [])
@@ -146,7 +169,13 @@ class DocumentManagementService:
             merged["content_embedding"] = embedding_service.encode_text_one(embedding_text)
         merged["updated_at"] = payload.updated_at or _now()
         result = document_repository.upsert(merged)
-        return {"upserted_count": result["upsert_count"]}
+        ids = result.get("ids") or []
+        return {
+            "upserted_count": result["upsert_count"],
+            "ids": ids,
+            "id": ids[0] if ids else None,
+            "previous_id": document_id,
+        }
 
     def update_chunk(self, chunk_id: int, payload: ChunkUpdate) -> dict:
         current = chunk_repository.get_by_id(chunk_id, include_vectors=True)

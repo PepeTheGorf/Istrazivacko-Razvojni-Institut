@@ -11,9 +11,12 @@ import org.example.documentmanagementservice.repository.TagRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestTemplate;
 
 import java.nio.charset.StandardCharsets;
@@ -34,7 +37,7 @@ public class DocumentService {
     private final MetapodatakService metapodatakService;
     private final TagRepository tagRepository;
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate = createRestTemplate();
 
     @Value("${vector.service.url:http://vector-database-service:8000/api/v1/documents}")
     private String vectorServiceUrl;
@@ -137,6 +140,42 @@ public class DocumentService {
 
         existing = dokumentRepository.save(existing);
 
+        // replace all existing tag assignments with the submitted set
+        dokumentTagService.deleteByDokumentId(existing.getId());
+        if (request.getTagovi() != null && !request.getTagovi().isEmpty()) {
+            for (String naziv : request.getTagovi()) {
+                if (naziv == null || naziv.isBlank()) {
+                    continue;
+                }
+                var existingTag = tagRepository.findByNaziv(naziv.trim()).orElse(null);
+                Tag tag;
+                if (existingTag == null) {
+                    tag = Tag.builder().naziv(naziv.trim()).build();
+                    tag = tagRepository.save(tag);
+                } else {
+                    tag = existingTag;
+                }
+                dokumentTagService.create(new org.example.documentmanagementservice.dto.DokumentTagRequestDTO(existing.getId(), tag.getId()));
+            }
+        }
+
+        // replace all existing metadata values with the submitted set
+        metapodatakService.deleteByDokumentId(existing.getId());
+        if (request.getMetapodaci() != null && !request.getMetapodaci().isEmpty()) {
+            for (MetapodatakCreateDTO m : request.getMetapodaci()) {
+                if (m == null || m.getTipMetapodatkaId() == null || m.getVrednost() == null || m.getVrednost().isBlank()) {
+                    continue;
+                }
+                metapodatakService.create(
+                        new org.example.documentmanagementservice.dto.MetapodatakRequestDTO(
+                                existing.getId(),
+                                m.getTipMetapodatkaId(),
+                                m.getVrednost()
+                        )
+                );
+            }
+        }
+
         // propagate to vector service: if we already have vector id, PUT; otherwise POST and persist returned id
         try {
             var payload = new java.util.HashMap<String, Object>();
@@ -148,7 +187,20 @@ public class DocumentService {
 
             if (existing.getVectorDocumentId() != null) {
                 String url = vectorServiceUrl + "/" + existing.getVectorDocumentId();
-                restTemplate.put(url, new HttpEntity<>(payload, jsonHeaders()));
+                ResponseEntity<Map> updateResponse = restTemplate.exchange(
+                        url,
+                        HttpMethod.PUT,
+                        new HttpEntity<>(payload, jsonHeaders()),
+                        Map.class
+                );
+                Object newId = extractPrimaryId(updateResponse.getBody());
+                if (newId != null) {
+                    String newVectorId = newId.toString();
+                    if (!newVectorId.equals(existing.getVectorDocumentId())) {
+                        existing.setVectorDocumentId(newVectorId);
+                        existing = dokumentRepository.save(existing);
+                    }
+                }
             } else {
                 @SuppressWarnings("unchecked")
                 java.util.Map<String, Object> resp = restTemplate.postForObject(vectorServiceUrl, new HttpEntity<>(payload, jsonHeaders()), java.util.Map.class);
@@ -213,6 +265,13 @@ public class DocumentService {
         return headers;
     }
 
+    private RestTemplate createRestTemplate() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(3000);
+        factory.setReadTimeout(5000);
+        return new RestTemplate(factory);
+    }
+
     private UUID resolveAuthorId(String rawAuthorId) {
         if (rawAuthorId == null || rawAuthorId.isBlank()) {
             throw new org.springframework.web.server.ResponseStatusException(
@@ -261,5 +320,23 @@ public class DocumentService {
             return null;
         }
         return value.trim();
+    }
+
+    private Object extractPrimaryId(Map<?, ?> body) {
+        if (body == null) {
+            return null;
+        }
+
+        Object singleId = body.get("id");
+        if (singleId != null) {
+            return singleId;
+        }
+
+        Object ids = body.get("ids");
+        if (ids instanceof List<?> idsList && !idsList.isEmpty()) {
+            return idsList.get(0);
+        }
+
+        return null;
     }
 }

@@ -80,6 +80,24 @@ function metadataOptionsForDocumentType(tipovi: TipMetapodatka[], tipDokumentaId
   return tipovi.filter((item) => !item.tipDokumentaId || item.tipDokumentaId === tipDokumentaId)
 }
 
+function resolveEditableProjectId(document: Dokument, projects: Project[]): string {
+  if (document.projectName) {
+    const matchByName = projects.find((project) => project.name === document.projectName)
+    if (matchByName?.id) {
+      return String(matchByName.id)
+    }
+  }
+
+  if (document.projektId) {
+    const matchById = projects.find((project) => String(project.id ?? '') === document.projektId)
+    if (matchById?.id) {
+      return String(matchById.id)
+    }
+  }
+
+  return ''
+}
+
 export function DocumentsPage() {
   const { user } = useAuth()
   const [documents, setDocuments] = useState<Dokument[]>([])
@@ -245,19 +263,11 @@ export function DocumentsPage() {
         fetchMetapodatakByDocument(document.id),
       ])
 
-      const resolvedProjectId =
-        projects.find((project) => {
-          if (!project.id) return false
-          if (project.id === document.projektId) return true
-          if (document.projectName && project.name === document.projectName) return true
-          return false
-        })?.id ?? ''
-
       setFormValues({
         naslov: document.naslov ?? '',
         authorId: user ? String(user.id) : document.authorId ?? '',
         sadrzaj: document.sadrzaj ?? '',
-        projektId: resolvedProjectId,
+        projektId: resolveEditableProjectId(document, projects),
         tipDokumentaId: document.tipDokumentaId ?? '',
         tagoviText: joinTags(mapTagNames(documentTags, tags)),
         metapodaci: documentMetadata.map((item: Metapodatak) => ({
@@ -453,6 +463,20 @@ export function DocumentsPage() {
                   >
                     <div className="min-w-0">
                       <div className="truncate text-base font-medium text-ink">{document.naslov}</div>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {(() => {
+                          const tagNames = documentTagNamesByDocumentId.get(document.id) ?? []
+                          if (!tagNames.length) {
+                            return null
+                          }
+
+                          return tagNames.map((tagName) => (
+                            <span key={`${document.id}-${tagName}`} className="rounded-full bg-surface-2 px-2 py-1 text-xs text-ink-subtle">
+                              {tagName}
+                            </span>
+                          ))
+                        })()}
+                      </div>
                     </div>
                     <div className="truncate text-sm text-ink-muted">{document.authorName ?? document.authorId}</div>
                     <div className="text-sm text-ink-muted">{formatDate(document.createdAt)}</div>

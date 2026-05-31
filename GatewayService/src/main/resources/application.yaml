@@ -34,6 +34,12 @@ spring:
             - Path=/project-realization-service/**
           filters:
             - StripPrefix=1
+        - id: DocumentManagementService
+          uri: lb://document-management-service
+          predicates:
+            - Path=/document-management-service/**
+          filters:
+            - StripPrefix=1
         - id: ProjectRealizationAnalyticsService
           uri: lb://project-realization-analytics-service
           predicates:
@@ -50,9 +56,3 @@ spring:
           uri: lb://prompt-vector-service
           predicates:
             - Path=/prompt-vector-service/**
-        - id: doucument-management-service
-          uri: lb://doucument-management-service
-          predicates:
-            - Path=/doucument-management-service/**
-          filters:
-            - StripPrefix=1
