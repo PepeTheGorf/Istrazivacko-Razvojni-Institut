@@ -59,6 +59,13 @@ public class ProjectServiceImpl implements ProjectService {
     public List<ProjectDTO> findAll(Long creatorId) {
         return projectRepository.findAll().stream()
                 .filter(project -> Objects.equals(project.getCreatorId(), creatorId))
+				.map(ProjectDTO::toDTO)
+                .toList();
+    }
+
+    @Override
+    public List<ProjectDTO> findAllForSelection() {
+        return projectRepository.findAll().stream()
                 .map(ProjectDTO::toDTO)
                 .toList();
     }
@@ -80,6 +87,19 @@ public class ProjectServiceImpl implements ProjectService {
         Project project = projectRepository.findById(Long.parseLong(projectId))
                 .orElseThrow(() -> new RuntimeException("Project with that id does not exist!"));
         assertAccessibleProject(project, creatorId);
+		return project;
+    }
+
+
+    private Project findAccessibleProjectOrThrow(String projectId) {
+        Project project = findProjectOrThrow(projectId);
+        assertAccessibleProject(project);
+        return project;
+    }
+
+    private Project findProjectOrThrow(String projectId) {
+        Project project = projectRepository.findById(Long.parseLong(projectId))
+                .orElseThrow(() -> new RuntimeException("Project with that id does not exist!"));
         return project;
     }
 
