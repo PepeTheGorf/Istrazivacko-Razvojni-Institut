@@ -12,9 +12,9 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class PromptUsageByTemplate {
-    private String promptTemplateId;       // Partition Key
-    private String researcherId;           // Clustering Key 1
-    private UUID usageId;                  // Clustering Key 2
+    private String promptTemplateId;       //partition key
+    private String researcherId;           //clustering key1
+    private UUID usageId;                  //clustering key2
     private Integer usageCount;
     private Float averageEffectiveness;
     private String lastUsedDate;

@@ -15,7 +15,7 @@ public class CassandraController {
     @Autowired
     private CassandraService cassandraService;
 
-    // --- Analytics Endpoints  ---
+    //analytics endpoints
 
     @GetMapping("/analytics/requests-count")
     public Map<String, Long> getCountByResearcher() {

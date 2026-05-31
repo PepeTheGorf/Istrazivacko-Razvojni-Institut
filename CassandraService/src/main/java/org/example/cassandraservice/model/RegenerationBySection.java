@@ -13,9 +13,9 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class RegenerationBySection {
-    private String sectionId;              // Partition Key
-    private Instant regenerationTime;      // Clustering Key 1 (ordered by time)
-    private UUID regenerationId;           // Clustering Key 2
+    private String sectionId;              //partition key
+    private Instant regenerationTime;      //clustering key1 (ordered by time)
+    private UUID regenerationId;           //clustering key2
     private String researcherId;
     private String previousText;
     private String newText;

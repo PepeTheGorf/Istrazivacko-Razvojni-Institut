@@ -61,7 +61,6 @@ public class CassandraService {
         cqlSession.execute(cqlSession.prepare(q).bind(resId, ts, requestId));
     }
 
-    // Interna metoda bez keša (koristi se unutar @CachePut da izbegne self-invocation problem)
     private List<Map<String, Object>> getLlmRequestsByResearcherDirect(String resId) {
         String q = "SELECT request_timestamp, request_id, status FROM " + KEY +
                    ".llm_requests_by_researcher WHERE researcher_id = ?";
@@ -78,7 +77,7 @@ public class CassandraService {
         return results;
     }
 
-    // CRUD - feedbacks_by_field
+    //CRUD - feedbacks_by_field
 
     @CacheEvict(value = "avgRatingByField", allEntries = true)
     public void insertFeedback(String field, UUID id, int rating) {
@@ -117,7 +116,7 @@ public class CassandraService {
         cqlSession.execute(cqlSession.prepare(q).bind(field, feedbackId));
     }
 
-    // CRUD - regenerations_by_section
+    //CRUD - regenerations_by_section
 
     @CacheEvict(value = "regenCountBySection", allEntries = true)
     public void insertRegeneration(String secId, UUID id, String resId) {
@@ -156,7 +155,7 @@ public class CassandraService {
         cqlSession.execute(cqlSession.prepare(q).bind(secId, regenId));
     }
 
-    // CRUD - document_status_by_date
+    //CRUD - document_status_by_date
 
     @CacheEvict(value = "docsByDateStatus", key = "#date.toString() + '_' + #status")
     public void insertDocStatus(LocalDate date, String status, String docId) {
@@ -197,7 +196,7 @@ public class CassandraService {
         cqlSession.execute(cqlSession.prepare(q).bind(date, status, docId));
     }
 
-    // CRUD - prompt_usage_by_template
+    //CRUD - prompt_usage_by_template
 
     @CacheEvict(value = "promptUsageByTemplate", key = "#tempId")
     public void insertPromptUsage(String tempId, UUID id, float eff) {
@@ -236,11 +235,8 @@ public class CassandraService {
         cqlSession.execute(cqlSession.prepare(q).bind(tempId, usageId));
     }
 
-    /**
-     * UPIT 1 (Agregacija) — Broj zahteva po istraživaču.
-     * Keš se čuva 10 min (podrazumevano iz RedisConfiguration).
-     * Brise se pri svakom insertLlmRequest / deleteLlmRequest.
-     */
+    //UPIT 1 (Agregacija) — Broj zahteva po istrazivacu.
+  
     @Cacheable(value = "requestsCountByResearcher")
     public Map<String, Long> query1_CountRequestsByResearcher() {
         String q = "SELECT researcher_id, COUNT(*) as total FROM " + KEY +
@@ -251,10 +247,8 @@ public class CassandraService {
         return res;
     }
 
-    /**
-     * UPIT 2 (Agregacija) — Prosečna ocena po naučnom polju.
-     * Keš se čuva 10 min; briše se pri svakoj promeni feedbacka.
-     */
+    //UPIT 2 (Agregacija) — Prosecna ocena po naucnom polju.
+     
     @Cacheable(value = "avgRatingByField")
     public Map<String, Double> query2_AvgRatingByField() {
        String q = "SELECT research_field, AVG(rating) as avg_rating FROM " + KEY +
@@ -276,10 +270,8 @@ public class CassandraService {
     return res;
     }
 
-    /**
-     * UPIT 3 (Agregacija) — Broj regeneracija po sekciji.
-     * Keš se čuva 10 min; briše se pri svakoj promeni regeneracije.
-     */
+    //UPIT 3 (Agregacija) — Broj regeneracija po sekciji.
+
     @Cacheable(value = "regenCountBySection")
     public Map<String, Long> query3_CountRegensBySection() {
         String q = "SELECT section_id, COUNT(*) as total FROM " + KEY +
@@ -290,10 +282,9 @@ public class CassandraService {
         return res;
     }
 
-    /**
-     * UPIT 4 (Uslovni prikaz) — Dokumenti za specifičan datum i status.
-     * Keš ključ je kombinacija datuma i statusa.
-     */
+   
+     //UPIT 4 (Uslovni prikaz) — Dokumenti za specifican datum i status.
+     
     @Cacheable(value = "docsByDateStatus", key = "#date.toString() + '_' + #status")
     public List<String> query4_GetDocsByDateAndStatus(LocalDate date, String status) {
         String q = "SELECT document_id FROM " + KEY +
@@ -304,10 +295,8 @@ public class CassandraService {
         return docs;
     }
 
-    /**
-     * UPIT 5 (Uslovni prikaz) — Sve effectiveness vrednosti za određeni prompt template.
-     * Keš ključ je templateId.
-     */
+    //UPIT 5 (Uslovni prikaz) — Sve effectiveness vrednosti za odredjeni prompt template.
+     
     @Cacheable(value = "promptUsageByTemplate", key = "#templateId + '_effectiveness'")
     public List<Float> query5_GetEffectivenessByTemplate(String templateId) {
         String q = "SELECT effectiveness FROM " + KEY +

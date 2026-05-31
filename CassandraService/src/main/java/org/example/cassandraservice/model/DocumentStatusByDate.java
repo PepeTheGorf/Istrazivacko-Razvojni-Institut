@@ -13,10 +13,10 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class DocumentStatusByDate {
-    private LocalDate documentDate;        // Partition Key
-    private String documentId;             // Clustering Key 1
-    private UUID statusId;                 // Clustering Key 2
-    private String currentStatus;          // DRAFT, IN_REVIEW, PUBLISHED
+    private LocalDate documentDate;        //partition key
+    private String documentId;             //clustering key1
+    private UUID statusId;                 //clustering key2
+    private String currentStatus;          //DRAFT IN_REVIEW PUBLISHED
     private String ownerResearcherId;
     private Integer sectionCount;
     private String lastModifiedBy;

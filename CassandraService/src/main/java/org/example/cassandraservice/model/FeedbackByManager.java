@@ -13,11 +13,11 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class FeedbackByManager {
-    private String managerId;              // Partition Key
-    private Instant feedbackDate;          // Clustering Key 1 (ordered by date)
-    private UUID feedbackId;               // Clustering Key 2
+    private String managerId;              //partition key
+    private Instant feedbackDate;          //clustering key1 (ordered by date)
+    private UUID feedbackId;               //clustering key2
     private String researchField;
     private Integer rating;
     private String comments;
-    private String actionRequired;         // YES, NO
+    private String actionRequired;         //YES NO
 }
