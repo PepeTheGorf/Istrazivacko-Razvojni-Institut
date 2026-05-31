@@ -5,8 +5,9 @@ export function getHomePathForRole(role: Role): string {
     case 'ADMINISTRATOR':
       return '/workflows'
     case 'MANAGER':
-    case 'TEAM_MEMBER':
       return '/projects'
+    case 'TEAM_MEMBER':
+      return '/my-tasks'
     default:
       return '/login'
   }

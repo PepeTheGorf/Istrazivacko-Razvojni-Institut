@@ -3,6 +3,7 @@ import { cn } from '../../lib/cn'
 import {
   ADMINISTRATOR_SIDEBAR_SECTIONS,
   MANAGER_SIDEBAR_SECTIONS,
+  TEAM_MEMBER_SIDEBAR_SECTIONS,
 } from './sidebarConfig'
 import { useAuth } from '../../auth/AuthContext'
 
@@ -23,9 +24,12 @@ function navLinkClass(isActive: boolean) {
 
 export function Sidebar({ open, onClose }: SidebarProps) {
   const { user } = useAuth()
-  const sections = user?.role === 'ADMINISTRATOR'
-    ? ADMINISTRATOR_SIDEBAR_SECTIONS
-    : MANAGER_SIDEBAR_SECTIONS
+  const sections =
+    user?.role === 'ADMINISTRATOR'
+      ? ADMINISTRATOR_SIDEBAR_SECTIONS
+      : user?.role === 'TEAM_MEMBER'
+        ? TEAM_MEMBER_SIDEBAR_SECTIONS
+        : MANAGER_SIDEBAR_SECTIONS
 
   return (
     <>

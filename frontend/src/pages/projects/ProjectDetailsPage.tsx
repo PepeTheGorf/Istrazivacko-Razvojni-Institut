@@ -190,7 +190,7 @@ export function ProjectDetailsPage() {
             <section className="rounded-xl border border-hairline bg-surface-1 p-5">
               <h2 className="m-0 text-xl font-semibold text-ink">Zadaci na projektu</h2>
               <p className="m-0 mt-1 text-sm text-ink-subtle">
-                Prikaz je pripremljen za thread/hijerarhijsko renderovanje glavnih i pod-zadataka.
+                Prikaz
               </p>
               <div className="mt-4">
                 {projectId ? <TaskTree tasks={tasks} projectId={projectId} /> : null}

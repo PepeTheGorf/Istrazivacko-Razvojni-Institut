@@ -21,6 +21,13 @@ export const MANAGER_SIDEBAR_SECTIONS: SidebarSection[] = [
   },
 ]
 
+export const TEAM_MEMBER_SIDEBAR_SECTIONS: SidebarSection[] = [
+  {
+    title: 'Zadaci',
+    items: [{ to: '/my-tasks', label: 'Moji zadaci' }],
+  },
+]
+
 export const ADMINISTRATOR_SIDEBAR_SECTIONS: SidebarSection[] = [
   {
     title: 'Radni Tokovi',
