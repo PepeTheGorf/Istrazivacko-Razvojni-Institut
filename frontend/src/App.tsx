@@ -13,6 +13,9 @@ import { MyTasksPage } from './pages/teamMemberTasks/MyTasksPage'
 import { WorkflowCreateWizardPage } from './pages/workflowCreate/WorkflowCreateWizardPage'
 import { WorkflowEditWizardPage } from './pages/workflows/WorkflowEditWizardPage'
 import { WorkflowsPage } from './pages/workflows/WorkflowsPage'
+import { TemplateCreateWizardPage } from './pages/smartTemplates/TemplateCreateWizardPage'
+import { TemplateSelectionPage } from './pages/smartDocs/TemplateSelectionPage'
+import { DocumentEditorPage } from './pages/smartDocs/DocumentEditorPage'
 
 function App() {
   return (
@@ -49,13 +52,13 @@ function App() {
         <Route path="*" element={<Navigate to="/login" replace />} />
 
         <Route element={<ProtectedRoute allowedRoles={['MANAGER']} />}>
-         <Route path="/smart-templates" element={<div>Lista šablona (Đuro)</div>} />
-         <Route path="/smart-templates/new" element={<div>Novi šablon Wizard</div>} />
+            <Route path="/smart-templates" element={<div>Lista šablona (U izradi)</div>} />
+            <Route path="/smart-templates/new" element={<TemplateCreateWizardPage />} />
         </Route>
 
         <Route element={<ProtectedRoute allowedRoles={['TEAM_MEMBER']} />}>
-         <Route path="/smart-docs" element={<div>Izbor Šablona i Filtriranje (Ana)</div>} />
-         <Route path="/smart-docs/:docId" element={<div>Editor Dokumenta</div>} />
+          <Route path="/smart-docs" element={<TemplateSelectionPage />} />
+          <Route path="/smart-docs/:docId" element={<DocumentEditorPage />} />
         </Route>
         
       </Routes>
