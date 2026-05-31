@@ -42,7 +42,6 @@ services:
     ports:
       - "9003:9000"
 
-
   influxdb:
     image: influxdb:2.7
     container_name: influxdb
@@ -63,11 +62,32 @@ services:
       timeout: 10s
       retries: 5
 
-  project-realization-analytics-service:
+  # project-realization-analytics-service:
+  #   build:
+  #     context: ./ProjectRealizationAnalyticsService
+  #     dockerfile: Dockerfile
+  #   image: project-realization-analytics-service:latest
+  #   depends_on:
+  #     eureka-server:
+  #       condition: service_healthy
+  #     influxdb:
+  #       condition: service_healthy
+  #   environment:
+  #     EUREKA_URL: http://eureka-server:8761/eureka/
+  #     INFLUX_URL: http://influxdb:8086
+  #     INFLUX_TOKEN: ${INFLUXDB_TOKEN:-dev-analytics-token-change-me}
+  #     INFLUX_ORG: ${INFLUXDB_ORG:-nais}
+  #     INFLUX_BUCKET: ${INFLUXDB_BUCKET:-project-analytics}
+  #     SERVER_PORT: 8080
+  #   ports:
+  #     - "9063:8080"
+
+  document-acsses-service:
     build:
-      context: ./ProjectRealizationAnalyticsService
+      context: ./TimeseriesDatabaseService
       dockerfile: Dockerfile
-    image: project-realization-analytics-service:latest
+    image: timeseries-database-service:latest
+    container_name: timeseries-database-service
     depends_on:
       eureka-server:
         condition: service_healthy
@@ -78,10 +98,25 @@ services:
       INFLUX_URL: http://influxdb:8086
       INFLUX_TOKEN: ${INFLUXDB_TOKEN:-dev-analytics-token-change-me}
       INFLUX_ORG: ${INFLUXDB_ORG:-nais}
-      INFLUX_BUCKET: ${INFLUXDB_BUCKET:-project-analytics}
-      SERVER_PORT: 8080
+      INFLUX_BUCKET: document_management
+      SERVER_PORT: 8082
     ports:
-      - "9063:8080"
+      - "8082:8082"
+
+  grafana:
+    build:
+      context: ./grafana
+      dockerfile: Dockerfile
+    image: document-management-grafana:latest
+    container_name: grafana
+    depends_on:
+      influxdb:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_PATHS_PROVISIONING: /etc/grafana/provisioning
 
   project-realization-postgres:
     image: postgres:16
@@ -172,7 +207,7 @@ services:
       ETCD_QUOTA_BACKEND_BYTES: "4294967296"
       ETCD_SNAPSHOT_COUNT: "50000"
     volumes:
-      - ./VectorDatabaseService/volumes/etcd:/etcd
+      - etcd_data:/etcd
     command: etcd -advertise-client-urls=http://etcd:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
     healthcheck:
       test: ["CMD", "etcdctl", "endpoint", "health"]
@@ -190,7 +225,7 @@ services:
       # - "9001:9001"  # MinIO console UI (not required for local dev)
       - "9000:9000"
     volumes:
-      - ./VectorDatabaseService/volumes/minio:/minio_data
+      - minio_data:/minio_data
     command: minio server /minio_data --console-address ":9001"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
@@ -227,22 +262,22 @@ services:
   #   depends_on:
   #     - standalone
 
-  doucument-management-service:
-    build:
-      context: ./VectorDatabaseService
-      dockerfile: Dockerfile
-    image: doucument-management-service:latest
-    environment:
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
-      MILVUS_HOST: standalone
-      MILVUS_PORT: 19530
-    ports:
-      - "8000:8000"
-    depends_on:
-      eureka-server:
-        condition: service_healthy
-      standalone:
-        condition: service_healthy
+  # doucument-management-service:
+  #   build:
+  #     context: ./VectorDatabaseService
+  #     dockerfile: Dockerfile
+  #   image: doucument-management-service:latest
+  #   environment:
+  #     EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+  #     MILVUS_HOST: standalone
+  #     MILVUS_PORT: 19530
+  #   ports:
+  #     - "8000:8000"
+  #   depends_on:
+  #     eureka-server:
+  #       condition: service_healthy
+  #     standalone:
+  #       condition: service_healthy
 
   neo4j:
     image: neo4j:5
@@ -281,5 +316,7 @@ volumes:
   project_realization_pg_data: {}
   influxdb_data: {}
   redis_data: {}
+  etcd_data: {}
+  minio_data: {}
 
 
