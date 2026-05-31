@@ -58,6 +58,12 @@ spring:
             - Path=/prompt-vector-service/**
           filters:
             - StripPrefix=1
+        - id: CassandraService
+          uri: lb://cassandra-service
+          predicates:
+            - Path=/cassandra-service/**
+          filters:
+            - StripPrefix=1
         - id: VectorDatabaseService
           uri: lb://vector-database-service
           predicates:
