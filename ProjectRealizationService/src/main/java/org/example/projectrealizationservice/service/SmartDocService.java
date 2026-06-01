@@ -42,16 +42,20 @@ public class SmartDocService {
                 .createdAt(OffsetDateTime.now())
                 .build();
 
-        template.setSections(dto.getSections().stream()
-                .map(s -> TemplateSection.builder()
+        List<TemplateSection> sections = dto.getSections().stream()
+            .map(s -> {
+                TemplateSection ts = TemplateSection.builder()
                         .title(s.getTitle())
                         .systemPrompt(s.getSystemPrompt())
                         .sectionOrder(s.getOrder())
-                        .template(template)
-                        .build())
-                .collect(Collectors.toList()));
+                        .template(template) 
+                        .build();
+                return ts;
+            })
+            .collect(Collectors.toList());
 
-        templateRepository.save(template);
+    template.setSections(sections);
+    templateRepository.save(template);
     }
 
     public List<SmartTemplate> getTemplatesByFilter(Long domainId, Long categoryId) {

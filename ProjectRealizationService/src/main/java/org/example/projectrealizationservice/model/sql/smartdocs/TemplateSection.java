@@ -20,5 +20,6 @@ public class TemplateSection {
 
     @ManyToOne
     @JoinColumn(name = "template_id")
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private SmartTemplate template;
 }

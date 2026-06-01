@@ -13,10 +13,12 @@ public class DocumentSection {
 
     @ManyToOne
     @JoinColumn(name = "document_id")
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private GeneratedDocument document;
 
     @ManyToOne
     @JoinColumn(name = "template_section_id")
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private TemplateSection templateSection; 
 
     @Column(columnDefinition = "TEXT")
