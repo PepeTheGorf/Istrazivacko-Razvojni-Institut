@@ -4,7 +4,6 @@ import com.datastax.oss.driver.api.core.CqlSession;
 import com.datastax.oss.driver.api.core.cql.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
@@ -28,7 +27,6 @@ public class CassandraService {
         cqlSession.execute(cqlSession.prepare(q).bind(resId, ts, id, status));
     }
 
-    @Cacheable(value = "llmRequestsByResearcher", key = "#resId")
     public List<Map<String, Object>> getLlmRequestsByResearcher(String resId) {
         String q = "SELECT request_timestamp, request_id, status FROM " + KEY +
                    ".llm_requests_by_researcher WHERE researcher_id = ?";
@@ -45,7 +43,6 @@ public class CassandraService {
         return results;
     }
 
-    @CachePut(value = "llmRequestsByResearcher", key = "#resId")
     public List<Map<String, Object>> updateLlmRequestStatus(String resId, UUID requestId,
                                                              Instant ts, String newStatus) {
         String q = "UPDATE " + KEY + ".llm_requests_by_researcher SET status = ? " +
@@ -54,7 +51,6 @@ public class CassandraService {
         return getLlmRequestsByResearcherDirect(resId);
     }
 
-    @CacheEvict(value = {"llmRequestsByResearcher", "requestsCountByResearcher"}, key = "#resId")
     public void deleteLlmRequest(String resId, Instant ts, UUID requestId) {
         String q = "DELETE FROM " + KEY + ".llm_requests_by_researcher " +
                    "WHERE researcher_id = ? AND request_timestamp = ? AND request_id = ?";
@@ -79,14 +75,12 @@ public class CassandraService {
 
     //CRUD - feedbacks_by_field
 
-    @CacheEvict(value = "avgRatingByField", allEntries = true)
     public void insertFeedback(String field, UUID id, int rating) {
         String q = "INSERT INTO " + KEY + ".feedbacks_by_field " +
                    "(research_field, feedback_id, rating) VALUES (?,?,?)";
         cqlSession.execute(cqlSession.prepare(q).bind(field, id, rating));
     }
 
-    @Cacheable(value = "feedbacksByField", key = "#field")
     public List<Map<String, Object>> getFeedbacksByField(String field) {
         String q = "SELECT feedback_id, rating FROM " + KEY +
                    ".feedbacks_by_field WHERE research_field = ?";
@@ -102,14 +96,12 @@ public class CassandraService {
         return results;
     }
 
-    @CacheEvict(value = {"feedbacksByField", "avgRatingByField"}, key = "#field")
     public void updateFeedbackRating(String field, UUID feedbackId, int newRating) {
         String q = "UPDATE " + KEY + ".feedbacks_by_field SET rating = ? " +
                    "WHERE research_field = ? AND feedback_id = ?";
         cqlSession.execute(cqlSession.prepare(q).bind(newRating, field, feedbackId));
     }
 
-    @CacheEvict(value = {"feedbacksByField", "avgRatingByField"}, key = "#field")
     public void deleteFeedback(String field, UUID feedbackId) {
         String q = "DELETE FROM " + KEY + ".feedbacks_by_field " +
                    "WHERE research_field = ? AND feedback_id = ?";
@@ -118,14 +110,12 @@ public class CassandraService {
 
     //CRUD - regenerations_by_section
 
-    @CacheEvict(value = "regenCountBySection", allEntries = true)
     public void insertRegeneration(String secId, UUID id, String resId) {
         String q = "INSERT INTO " + KEY + ".regenerations_by_section " +
                    "(section_id, regeneration_id, researcher_id) VALUES (?,?,?)";
         cqlSession.execute(cqlSession.prepare(q).bind(secId, id, resId));
     }
 
-    @Cacheable(value = "regenerationsBySection", key = "#secId")
     public List<Map<String, Object>> getRegenerationsBySection(String secId) {
         String q = "SELECT regeneration_id, researcher_id FROM " + KEY +
                    ".regenerations_by_section WHERE section_id = ?";
@@ -141,14 +131,12 @@ public class CassandraService {
         return results;
     }
 
-    @CacheEvict(value = "regenerationsBySection", key = "#secId")
     public void updateRegenerationResearcher(String secId, UUID regenId, String newResId) {
         String q = "UPDATE " + KEY + ".regenerations_by_section SET researcher_id = ? " +
                    "WHERE section_id = ? AND regeneration_id = ?";
         cqlSession.execute(cqlSession.prepare(q).bind(newResId, secId, regenId));
     }
 
-    @CacheEvict(value = {"regenerationsBySection", "regenCountBySection"}, key = "#secId")
     public void deleteRegeneration(String secId, UUID regenId) {
         String q = "DELETE FROM " + KEY + ".regenerations_by_section " +
                    "WHERE section_id = ? AND regeneration_id = ?";
@@ -157,14 +145,12 @@ public class CassandraService {
 
     //CRUD - document_status_by_date
 
-    @CacheEvict(value = "docsByDateStatus", key = "#date.toString() + '_' + #status")
     public void insertDocStatus(LocalDate date, String status, String docId) {
         String q = "INSERT INTO " + KEY + ".document_status_by_date " +
                    "(document_date, current_status, document_id) VALUES (?,?,?)";
         cqlSession.execute(cqlSession.prepare(q).bind(date, status, docId));
     }
 
-    @Cacheable(value = "docsByDateStatus", key = "#date.toString() + '_' + #status + '_' + #docId")
     public Map<String, Object> getDocStatus(LocalDate date, String status, String docId) {
         String q = "SELECT document_id, current_status, document_date FROM " + KEY +
                    ".document_status_by_date WHERE document_date = ? AND current_status = ? AND document_id = ?";
@@ -177,7 +163,6 @@ public class CassandraService {
         return record;
     }
 
-    @CacheEvict(value = "docsByDateStatus", allEntries = true)
     public void updateDocStatus(LocalDate date, String oldStatus, String newStatus, String docId) {
         // U Cassandri PRIMARY KEY nije menjiv — brišemo stari slog i upisujemo novi
         String del = "DELETE FROM " + KEY + ".document_status_by_date " +
@@ -189,7 +174,6 @@ public class CassandraService {
         cqlSession.execute(cqlSession.prepare(ins).bind(date, newStatus, docId));
     }
 
-    @CacheEvict(value = "docsByDateStatus", allEntries = true)
     public void deleteDocStatus(LocalDate date, String status, String docId) {
         String q = "DELETE FROM " + KEY + ".document_status_by_date " +
                    "WHERE document_date = ? AND current_status = ? AND document_id = ?";
@@ -198,14 +182,12 @@ public class CassandraService {
 
     //CRUD - prompt_usage_by_template
 
-    @CacheEvict(value = "promptUsageByTemplate", key = "#tempId")
     public void insertPromptUsage(String tempId, UUID id, float eff) {
         String q = "INSERT INTO " + KEY + ".prompt_usage_by_template " +
                    "(prompt_template_id, usage_id, effectiveness) VALUES (?,?,?)";
         cqlSession.execute(cqlSession.prepare(q).bind(tempId, id, eff));
     }
 
-    @Cacheable(value = "promptUsageByTemplate", key = "#tempId")
     public List<Map<String, Object>> getPromptUsageByTemplate(String tempId) {
         String q = "SELECT usage_id, effectiveness FROM " + KEY +
                    ".prompt_usage_by_template WHERE prompt_template_id = ?";
@@ -221,14 +203,12 @@ public class CassandraService {
         return results;
     }
 
-    @CacheEvict(value = "promptUsageByTemplate", key = "#tempId")
     public void updatePromptEffectiveness(String tempId, UUID usageId, float newEff) {
         String q = "UPDATE " + KEY + ".prompt_usage_by_template SET effectiveness = ? " +
                    "WHERE prompt_template_id = ? AND usage_id = ?";
         cqlSession.execute(cqlSession.prepare(q).bind(newEff, tempId, usageId));
     }
 
-    @CacheEvict(value = "promptUsageByTemplate", key = "#tempId")
     public void deletePromptUsage(String tempId, UUID usageId) {
         String q = "DELETE FROM " + KEY + ".prompt_usage_by_template " +
                    "WHERE prompt_template_id = ? AND usage_id = ?";
