@@ -61,11 +61,26 @@ public class SmartDocController {
     try {
         return ResponseEntity.ok(smartDocService.getDocumentById(id));
     } catch (Exception e) {
-return ResponseEntity.status(404).body("Dokument nije pronađen");    }
-}
-@GetMapping("/templates/all")
-@PreAuthorize("hasRole('MANAGER')")
-public ResponseEntity<?> getAllTemplates() {
-    return ResponseEntity.ok(smartDocService.getAllTemplates());
+        e.printStackTrace(); 
+        return ResponseEntity.status(500).body("Greška na serveru: " + e.getMessage()); }
+    }
+
+    @GetMapping("/templates/all")
+    @PreAuthorize("hasRole('MANAGER')")
+    public ResponseEntity<?> getAllTemplates() {
+        return ResponseEntity.ok(smartDocService.getAllTemplates());
+    }
+
+    @PutMapping("/sections/{sectionId}")
+public ResponseEntity<?> updateSectionInput(
+        @PathVariable Long sectionId, 
+        @RequestBody Map<String, String> payload) {
+    try {
+        String text = payload.get("userInput");
+        smartDocService.updateSectionInput(sectionId, text);
+        return ResponseEntity.ok().build();
+    } catch (Exception e) {
+        return ResponseEntity.badRequest().body(e.getMessage());
+    }
 }
 }

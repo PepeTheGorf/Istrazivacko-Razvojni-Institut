@@ -1,6 +1,8 @@
 package org.example.projectrealizationservice.service;
 
 import lombok.RequiredArgsConstructor;
+
+import org.example.projectrealizationservice.dto.smartdocs.DocumentResponseDTO;
 import org.example.projectrealizationservice.dto.smartdocs.TemplateCreationDTO;
 import org.example.projectrealizationservice.model.sql.smartdocs.*;
 import org.example.projectrealizationservice.repository.sql.smartdocs.*;
@@ -91,13 +93,36 @@ public class SmartDocService {
     public List<DocumentDomain> getAllDomains() { return domainRepository.findAll(); }
     public List<DocumentCategory> getAllCategories() { return categoryRepository.findAll(); }
 
-    @Transactional(readOnly = true)
-public GeneratedDocument getDocumentById(Long id) {
-    return documentRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Dokument nije pronađen"));
-}
 
-public List<SmartTemplate> getAllTemplates() {
-    return templateRepository.findAll();
-}
+    @Transactional(value = "transactionManager", readOnly = true)
+    public DocumentResponseDTO getDocumentById(Long id) {
+        GeneratedDocument doc = documentRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Dokument sa ID " + id + " zaista ne postoji u bazi"));
+
+    return DocumentResponseDTO.builder()
+            .id(doc.getId())
+            .status(doc.getStatus())
+            .templateName(doc.getTemplate() != null ? doc.getTemplate().getName() : "Nepoznat šablon")
+            .sections(doc.getSections().stream()
+                    .map(s -> DocumentResponseDTO.SectionResponseDTO.builder()
+                            .id(s.getId())
+                            .title(s.getTemplateSection() != null ? s.getTemplateSection().getTitle() : "Sekcija bez naslova")
+                            .userInput(s.getUserInput())
+                            .llmResult(s.getLlmResult())
+                            .build())
+                    .collect(Collectors.toList()))
+            .build();
+        }
+
+       public List<SmartTemplate> getAllTemplates() {
+          return templateRepository.findAll();
+        }
+
+        @Transactional("transactionManager")
+        public void updateSectionInput(Long sectionId, String text) {
+           DocumentSection section = documentSectionRepository.findById(sectionId)
+            .orElseThrow(() -> new RuntimeException("Sekcija nije pronađena"));
+            section.setUserInput(text);
+        documentSectionRepository.save(section);
+        }
 }

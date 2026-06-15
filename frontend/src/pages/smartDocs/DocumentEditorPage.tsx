@@ -63,7 +63,7 @@ export function DocumentEditorPage() {
           {document.sections.map((section, index) => (
             <section key={section.id} className="rounded-xl border border-hairline bg-surface-1 p-6">
               <h2 className="mb-4 text-lg font-medium text-primary">
-                Sekcija {index + 1}: {/* Ovde bi backend trebao da vrati i title sekcije */}
+                Sekcija {index + 1}: {section.title}
               </h2>
               
               <TextArea

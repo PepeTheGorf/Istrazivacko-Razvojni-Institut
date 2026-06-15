@@ -42,6 +42,7 @@ export interface TemplateCreationPayload {
 
 export interface DocumentSection {
   id: number
+  title: string;
   templateSectionId: number
   userInput: string      
   llmResult?: string     
