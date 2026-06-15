@@ -21,20 +21,23 @@ def get_document(document_id: int) -> dict:
 
 @router.get("")
 def list_documents(
-    doc_type: str | None = None,
-    author: str | None = None,
-    project_id: int | None = None,
+    doc_type_id: str | None = None,
+    author_id: str | None = None,
+    project_id: str | None = None,
+    folder_id: str | None = None,
     is_archived: bool | None = None,
     limit: int = Query(default=20, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
 ) -> dict:
     filters = []
-    if doc_type:
-        filters.append(f'doc_type == "{doc_type}"')
-    if author:
-        filters.append(f'author == "{author}"')
-    if project_id is not None:
-        filters.append(f"project_id == {project_id}")
+    if doc_type_id:
+        filters.append(f'doc_type_id == "{doc_type_id}"')
+    if author_id:
+        filters.append(f'author_id == "{author_id}"')
+    if project_id:
+        filters.append(f'project_id == "{project_id}"')
+    if folder_id:
+        filters.append(f'folder_id == "{folder_id}"')
     if is_archived is not None:
         filters.append(f"is_archived == {'true' if is_archived else 'false'}")
     filter_expr = " && ".join(filters)
@@ -63,8 +66,12 @@ def preview_document(document_id: int) -> dict:
     return {
         "id": row["id"],
         "title": row.get("title"),
-        "author": row.get("author"),
-        "doc_type": row.get("doc_type"),
+        "author_id": row.get("author_id"),
+        "doc_type_id": row.get("doc_type_id"),
+        "project_id": row.get("project_id"),
+        "folder_id": row.get("folder_id"),
+        "tags": row.get("tags"),
+        "metadata": row.get("metadata"),
         "content_preview": (row.get("content", "") or "")[:300],
     }
 

@@ -1,27 +1,33 @@
-from typing import Optional
+from typing import Dict, List, Optional
 
 from pydantic import BaseModel
 
 
 class DocumentCreate(BaseModel):
     title: str
-    author: str
-    doc_type: str
-    project_id: int
+    author_id: str
+    doc_type_id: str
+    project_id: str
+    folder_id: Optional[str] = None
     content: str
+    tags: Optional[List[str]] = []
+    metadata: Optional[Dict[str, str]] = {}
+    is_archived: bool = False
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
-    is_archived: bool = False
 
 
 class DocumentUpdate(BaseModel):
     title: Optional[str] = None
-    author: Optional[str] = None
-    doc_type: Optional[str] = None
-    project_id: Optional[int] = None
+    author_id: Optional[str] = None
+    doc_type_id: Optional[str] = None
+    project_id: Optional[str] = None
+    folder_id: Optional[str] = None
     content: Optional[str] = None
-    updated_at: Optional[str] = None
+    tags: Optional[List[str]] = None
+    metadata: Optional[Dict[str, str]] = None
     is_archived: Optional[bool] = None
+    updated_at: Optional[str] = None
 
 
 class ChunkCreate(BaseModel):

@@ -35,6 +35,11 @@ public class ProjectController {
         return projectService.findAll(creatorId);
     }
 
+    @GetMapping("/selection/all")
+    public List<ProjectDTO> getAllProjectsForSelection() {
+        return projectService.findAllForSelection();
+    }
+
     @GetMapping("/{projectId}")
     public ProjectDTO getProjectById(@PathVariable String projectId) {
         Long creatorId = SecurityUtils.getCurrentUserId();

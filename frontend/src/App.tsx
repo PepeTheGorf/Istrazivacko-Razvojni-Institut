@@ -17,6 +17,8 @@ import { TemplateCreateWizardPage } from './pages/smartTemplates/TemplateCreateW
 import { TemplateSelectionPage } from './pages/smartDocs/TemplateSelectionPage'
 import { DocumentEditorPage } from './pages/smartDocs/DocumentEditorPage'
 import { TemplateListPage } from './pages/smartTemplates/TemplateListPage'
+import { DocumentsPage } from './pages/documents/DocumentsPage'
+import { DocumentTypesPage } from './pages/documentTypes/DocumentTypesPage'
 
 function App() {
   return (
@@ -42,6 +44,8 @@ function App() {
         <Route element={<ProtectedRoute allowedRoles={['TEAM_MEMBER']} />}>
           <Route path="/my-tasks" element={<MyTasksPage />} />
           <Route path="/my-tasks/tasks/:taskId" element={<MyTaskDetailsPage />} />
+          
+          <Route path="/documents" element={<DocumentsPage />} />
           <Route path="/smart-docs" element={<TemplateSelectionPage />} />
           <Route path="/smart-docs/:docId" element={<DocumentEditorPage />} />
         </Route>
@@ -49,6 +53,7 @@ function App() {
         {/* GRUPA ZA ADMINISTRATORA */}
         <Route element={<ProtectedRoute allowedRoles={['ADMINISTRATOR']} />}>
           <Route path="/workflows" element={<WorkflowsPage />} />
+          <Route path="/document-types" element={<DocumentTypesPage />} />
           <Route path="/workflows/new" element={<WorkflowCreateWizardPage />} />
           <Route path="/workflows/:workflowId/edit" element={<WorkflowEditWizardPage />} />
         </Route>

@@ -5,6 +5,10 @@ export function fetchProjects(): Promise<Project[]> {
   return apiFetch<Project[]>('/projects/all')
 }
 
+export function fetchProjectsForSelection(): Promise<Project[]> {
+  return apiFetch<Project[]>('/projects/selection/all')
+}
+
 export function fetchProjectById(projectId: string): Promise<Project> {
   return apiFetch<Project>(`/projects/${projectId}`)
 }

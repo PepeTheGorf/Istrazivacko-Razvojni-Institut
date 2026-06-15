@@ -1,103 +1,109 @@
-from datetime import datetime, timezone
+import os
+import sys
+import time
+from typing import List
 
-from config import SEED_CHUNK_COUNT, SEED_DOCUMENT_COUNT
-from model.document_models import ChunkCreate, DocumentCreate
-from repository.chunk_repository import chunk_repository
-from repository.document_repository import document_repository
-from services.embedding_service import embedding_service
+import requests
+import json
 
+BASE_URL = os.environ.get("BASE_URL", "http://localhost:8000/api/v1")
 
-TOPICS = [
-    ("Project charter", "governance", "planning"),
-    ("Architecture decision", "systems", "design"),
-    ("Research note", "analysis", "study"),
-    ("Meeting minutes", "coordination", "discussion"),
-    ("Tagging guideline", "metadata", "classification"),
-    ("Compliance memo", "policy", "review"),
-    ("Knowledge brief", "insights", "summary"),
-    ("Experiment log", "testing", "results"),
-]
+PAYLOAD_PATH = os.path.join(os.path.dirname(__file__), "seed_payload.json")
 
 
-def _now() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+def _load_documents() -> List[dict]:
+    if os.path.exists(PAYLOAD_PATH):
+        try:
+            with open(PAYLOAD_PATH, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if isinstance(data, list):
+                    print(f"Loaded {len(data)} documents from seed_payload.json")
+                    return data
+        except Exception as exc:
+            print(f"Failed to load {PAYLOAD_PATH}: {exc}")
+
+    # fallback to `documents` defined earlier in-file (if present)
+    try:
+        return documents  # type: ignore[name-defined]
+    except NameError:
+        return []
 
 
-def _document_payload(index: int) -> DocumentCreate:
-    topic, area, focus = TOPICS[index % len(TOPICS)]
-    return DocumentCreate(
-        title=f"{topic} {index:03d}",
-        author=f"Author {index % 12 + 1}",
-        doc_type=area,
-        project_id=index % 8 + 1,
-        content=(
-            f"This document discusses {focus} in the context of {area}. "
-            f"It contains semantically related descriptions, responsibilities, and follow-up actions. "
-            f"Record number {index} is intentionally phrased with natural language variety for semantic search."
-        ),
-        created_at=_now(),
-        updated_at=_now(),
-        is_archived=False,
-    )
+def _chunkify(items: List[dict], size: int):
+    for i in range(0, len(items), size):
+        yield items[i : i + size]
 
 
-def seed_demo_data() -> None:
-    if document_repository.count() >= SEED_DOCUMENT_COUNT and chunk_repository.count() >= SEED_CHUNK_COUNT:
-        return
+def _post_documents(docs: List[dict]) -> bool:
+    """Post documents to the API. Returns True if any errors occurred."""
+    any_errors = False
+    total = len(docs)
+    for i, doc in enumerate(docs, start=1):
+        try:
+            resp = requests.post(f"{BASE_URL}/documents", json=doc, timeout=15)
+        except requests.RequestException as exc:
+            print(f"{i}/{total} - request failed: {exc}")
+            any_errors = True
+            continue
 
-    document_repository.reset()
-    chunk_repository.reset()
+        try:
+            body = resp.json()
+        except ValueError:
+            body = resp.text
 
-    document_records = []
-    chunk_records = []
+        print(f"{i}/{total} - {resp.status_code} -> {body}")
+        if resp.status_code >= 400:
+            any_errors = True
 
-    for index in range(SEED_DOCUMENT_COUNT):
-        payload = _document_payload(index)
-        embedding = embedding_service.encode_text_one(f"{payload.title}\n{payload.content}")
-        document_records.append({**payload.model_dump(), "content_embedding": embedding})
+    return any_errors
 
-    inserted_documents = document_repository.insert(document_records)
-    document_ids = inserted_documents["ids"]
 
-    for index, document_id in enumerate(document_ids):
-        payload = _document_payload(index)
-        sections = [
-            (0, "Overview", f"{payload.title} overview for semantic retrieval and fuzzy keyword matching."),
-            (1, "Details", f"Detailed explanation about {payload.doc_type}, {payload.author}, and {payload.project_id}."),
-        ]
-        for chunk_index, section_title, chunk_text in sections:
-            chunk_records.append(
-                {
-                    **ChunkCreate(
-                        document_id=document_id,
-                        chunk_index=chunk_index,
-                        section_title=section_title,
-                        chunk_text=chunk_text,
-                        source_page=index % 5 + 1,
-                        created_at=_now(),
-                        updated_at=_now(),
-                    ).model_dump(),
-                    "chunk_embedding": embedding_service.encode_text_one(f"{section_title}\n{chunk_text}"),
-                }
-            )
+def _wait_until_available(retries: int = 5, delay: float = 2.0) -> None:
+    for attempt in range(1, retries + 1):
+        try:
+            r = requests.get(BASE_URL, timeout=5)
+            print(f"server reachable: {r.status_code}")
+            return
+        except requests.RequestException as exc:
+            print(f"server not reachable (attempt {attempt}/{retries}): {exc}")
+            if attempt < retries:
+                time.sleep(delay)
+    print("Proceeding — server still not reachable. Posts will likely fail.")
 
-    while len(chunk_records) < SEED_CHUNK_COUNT:
-        index = len(chunk_records)
-        document_id = document_ids[index % len(document_ids)]
-        chunk_text = f"Supplementary chunk {index} about document search, tagging, and metadata-driven retrieval."
-        chunk_records.append(
-            {
-                **ChunkCreate(
-                    document_id=document_id,
-                    chunk_index=index % 4,
-                    section_title="Supplementary",
-                    chunk_text=chunk_text,
-                    source_page=index % 7 + 1,
-                    created_at=_now(),
-                    updated_at=_now(),
-                ).model_dump(),
-                "chunk_embedding": embedding_service.encode_text_one(f"Supplementary\n{chunk_text}"),
-            }
-        )
 
-    chunk_repository.insert(chunk_records)
+def main() -> int:
+    print(f"Using BASE_URL={BASE_URL}")
+    _wait_until_available()
+
+    docs = _load_documents()
+    if not docs:
+        print("No documents to post. Exiting.")
+        return 0
+
+    try:
+        batch_size = int(os.environ.get("BATCH_SIZE", "16"))
+    except ValueError:
+        batch_size = 16
+
+    total = len(docs)
+    print(f"Posting {total} documents in batches of {batch_size}...")
+
+    any_errors = False
+    posted = 0
+    for chunk in _chunkify(docs, batch_size):
+        print(f"Posting batch: {posted + 1} - {posted + len(chunk)}")
+        errs = _post_documents(chunk)
+        if errs:
+            any_errors = True
+        posted += len(chunk)
+
+    print(f"Completed: attempted={total}, posted={posted}, errors={'yes' if any_errors else 'no'}")
+    return 1 if any_errors else 0
+
+
+def seed_demo_data() -> int:
+    return main()
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
