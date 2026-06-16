@@ -70,3 +70,33 @@ export function saveSectionFeedback(
     body: JSON.stringify({ rating, comment }),
   })
 }
+
+export function deleteDocument(docId: number): Promise<void> {
+  return apiFetch<void>(`/smart-docs/documents/${docId}`, {
+    method: 'DELETE',
+  })
+}
+export interface PromptVersion {
+  id: number
+  content: string
+  versionNumber: number
+  active: boolean
+  createdAt: string
+}
+
+export function fetchPromptHistory(sectionId: number): Promise<PromptVersion[]> {
+  return apiFetch<PromptVersion[]>(`/smart-docs/sections/${sectionId}/prompts`)
+}
+
+export function createNewPromptVersion(sectionId: number, content: string): Promise<void> {
+  return apiFetch<void>(`/smart-docs/sections/${sectionId}/prompts`, {
+    method: 'POST',
+    body: JSON.stringify({ content }),
+  })
+}
+
+export function activatePromptVersion(sectionId: number, versionId: number): Promise<void> {
+  return apiFetch<void>(`/smart-docs/sections/${sectionId}/prompts/${versionId}/activate`, {
+    method: 'PUT',
+  })
+}

@@ -9,7 +9,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import java.util.List; 
 import org.example.projectrealizationservice.dto.smartdocs.SmartTemplateDTO;
-
+import org.example.projectrealizationservice.dto.smartdocs.PromptVersionDTO;
+import java.time.OffsetDateTime;
 import java.util.Map;
 
 @RestController
@@ -109,20 +110,20 @@ public class SmartDocController {
     }
   }
 
-@PostMapping("/documents/{id}/complete")
-@PreAuthorize("hasRole('TEAM_MEMBER')")
-public ResponseEntity<?> completeDocument(@PathVariable Long id) {
+   @PostMapping("/documents/{id}/complete")
+   @PreAuthorize("hasRole('TEAM_MEMBER')")
+   public ResponseEntity<?> completeDocument(@PathVariable Long id) {
     try {
         smartDocService.completeDocument(id);
         return ResponseEntity.ok().build();
     } catch (Exception e) {
         return ResponseEntity.status(500).body(e.getMessage());
     }
-}
+   }
 
-@PostMapping("/sections/{sectionId}/feedback")
-@PreAuthorize("hasRole('TEAM_MEMBER')")
-public ResponseEntity<?> leaveFeedback(
+    @PostMapping("/sections/{sectionId}/feedback")
+    @PreAuthorize("hasRole('TEAM_MEMBER')")
+    public ResponseEntity<?> leaveFeedback(
         @PathVariable Long sectionId,
         @RequestBody Map<String, Object> payload) {
     try {
@@ -133,6 +134,60 @@ public ResponseEntity<?> leaveFeedback(
     } catch (Exception e) {
         return ResponseEntity.badRequest().body(e.getMessage());
     }
+   }
+
+   @DeleteMapping("/documents/{id}")
+   @PreAuthorize("hasRole('TEAM_MEMBER')")
+   public ResponseEntity<?> deleteDocument(@PathVariable Long id) {
+    try {
+        smartDocService.deleteDocument(id);
+        return ResponseEntity.ok().build();
+    } catch (Exception e) {
+        return ResponseEntity.status(500).body("Greška pri brisanju: " + e.getMessage());
+    }
+   }
+
+
+   @GetMapping("/sections/{sectionId}/prompts")
+   @PreAuthorize("hasRole('MANAGER')")
+   public ResponseEntity<List<PromptVersionDTO>> getPromptHistory(@PathVariable Long sectionId) {
+    return ResponseEntity.ok(smartDocService.getPromptHistory(sectionId));
+   }
+
+   @PostMapping("/sections/{sectionId}/prompts")
+   @PreAuthorize("hasRole('MANAGER')")
+   public ResponseEntity<?> createNewVersion(
+        @PathVariable Long sectionId, 
+        @RequestBody Map<String, String> payload) {
+    try {
+        String newContent = payload.get("content");
+        smartDocService.createNewPromptVersion(sectionId, newContent);
+        return ResponseEntity.ok().build();
+    } catch (Exception e) {
+        return ResponseEntity.badRequest().body(e.getMessage());
+    }
 }
 
+   @PutMapping("/sections/{sectionId}/prompts/{versionId}/activate")
+   @PreAuthorize("hasRole('MANAGER')")
+   public ResponseEntity<?> activateVersion(
+        @PathVariable Long sectionId, 
+        @PathVariable Long versionId) {
+    try {
+        smartDocService.activateOldVersion(sectionId, versionId);
+        return ResponseEntity.ok().build();
+    } catch (Exception e) {
+        return ResponseEntity.badRequest().body(e.getMessage());
+    }
+  }
+
+  @GetMapping("/templates/{id}")
+@PreAuthorize("hasRole('MANAGER')")
+public ResponseEntity<SmartTemplateDTO> getTemplateById(@PathVariable Long id) {
+    try {
+        return ResponseEntity.ok(smartDocService.getTemplateById(id));
+    } catch (Exception e) {
+        return ResponseEntity.status(404).body(null);
+    }
+}
 }

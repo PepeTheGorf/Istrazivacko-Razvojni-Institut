@@ -8,10 +8,17 @@ export interface SmartCategory {
   name: string
 }
 
+export interface PromptVersion {
+  id: number
+  content: string
+  versionNumber: number
+  active: boolean
+  createdAt: string
+}
+
 export interface TemplateSection {
   id?: number
   title: string
-  systemPrompt: string 
   sectionOrder: number
 }
 
@@ -24,6 +31,7 @@ export interface SmartTemplate {
   sections: TemplateSection[]
   creatorId: number
   createdAt: string
+  averageRating?: number
 }
 
 export interface TemplateCreationPayload {

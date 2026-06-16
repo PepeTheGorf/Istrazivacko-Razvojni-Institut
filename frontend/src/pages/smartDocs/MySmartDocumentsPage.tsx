@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AppShell } from '../../components/layout/AppShell'
 import { Button } from '../../components/ui/Button'
-import { ProgressBar } from '../../components/ui/ProgressBar' // Nova komponenta
-import { Breadcrumbs } from '../../components/ui/Breadcrumbs' // Nova komponenta
-import { fetchMySmartDocuments } from '../../api/smartDocs'
+import { ProgressBar } from '../../components/ui/ProgressBar' 
+import { Breadcrumbs } from '../../components/ui/Breadcrumbs' 
+import { deleteDocument, fetchMySmartDocuments } from '../../api/smartDocs'
 import type { SmartDocumentSummary } from '../../types/smartDocs'
 import { formatDate } from '../../lib/formatDate'
 
@@ -20,11 +20,21 @@ export function MySmartDocumentsPage() {
       .finally(() => setLoading(false))
   }, [])
 
-  // ISPRAVKA: Filtriramo niz za prikaz
   const filteredDocs = docs.filter(doc => {
     if (filter === 'ALL') return true
     return doc.status === filter
   })
+
+  const handleDelete = async (docId: number) => {
+  if (!window.confirm("Da li ste sigurni da želite trajno da obrišete ovaj dokument?")) return;
+  
+  try {
+    await deleteDocument(docId);
+    setDocs(docs.filter(d => d.id !== docId));
+  } catch {
+    alert("Greška pri brisanju dokumenta.");
+  }
+};
 
   return (
     <AppShell>
@@ -99,9 +109,16 @@ export function MySmartDocumentsPage() {
                         </Button>
                       ) : (
                         <Button variant="primary" onClick={() => navigate(`/smart-docs/${doc.id}`)}>
-                          Otvori Editor
+                          Editor
                         </Button>
                       )}
+                       <button 
+                              onClick={() => handleDelete(doc.id)}
+                              className="p-2 text-error hover:bg-error/10 rounded-md transition-colors"
+                              title="Obriši dokument"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                       </button>
                     </td>
                   </tr>
                 ))}

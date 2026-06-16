@@ -21,6 +21,6 @@ public class GeneratedDocument {
     private OffsetDateTime createdAt;
     private String status; 
 
-    @OneToMany(mappedBy = "document", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "document", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<DocumentSection> sections;
 }
