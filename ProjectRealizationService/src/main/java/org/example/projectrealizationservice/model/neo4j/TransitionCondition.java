@@ -21,10 +21,10 @@ public class TransitionCondition {
     @Id
     @GeneratedValue
     private String id;
-
-    private String description;
-    private String transitionType;
-
+    
+    @Relationship(type = "TRANSITION_TYPE", direction = Relationship.Direction.OUTGOING)
+    private TransitionConditionType transitionType;
+    
     @Relationship(type = "FROM_PHASE", direction = Relationship.Direction.OUTGOING)
     private Phase fromPhase;
 

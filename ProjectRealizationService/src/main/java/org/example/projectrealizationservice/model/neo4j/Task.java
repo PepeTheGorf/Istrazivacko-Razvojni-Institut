@@ -30,6 +30,10 @@ public class Task {
 
     private Long projectId;
 
+    private OffsetDateTime startDate;
+
+    private OffsetDateTime endDate;
+
     private OffsetDateTime phaseChangeDate;
 
     @Relationship(type = "SUBTASK_OF", direction = Relationship.Direction.OUTGOING)

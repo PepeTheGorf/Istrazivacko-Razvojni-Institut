@@ -32,4 +32,8 @@ public class Workflow {
     @Relationship(type = "HAS_PHASE", direction = Relationship.Direction.OUTGOING)
     @Builder.Default
     private Set<Phase> phases = new HashSet<>();
+    
+    @Relationship(type = "HAS_TRANSITION_CONDITION", direction = Relationship.Direction.OUTGOING)
+    @Builder.Default
+    private Set<TransitionCondition> transitionConditions = new HashSet<>();
 }
