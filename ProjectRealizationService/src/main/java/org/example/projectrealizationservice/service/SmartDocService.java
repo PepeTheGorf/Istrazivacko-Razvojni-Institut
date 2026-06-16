@@ -218,4 +218,12 @@ public class SmartDocService {
                 .average()
                 .orElse(0.0);
     }
+
+    @Transactional("transactionManager")
+    public void deleteDocument(Long docId) {
+    if (!documentRepository.existsById(docId)) {
+        throw new RuntimeException("Dokument ne postoji.");
+    }
+    documentRepository.deleteById(docId);
+    }
 }

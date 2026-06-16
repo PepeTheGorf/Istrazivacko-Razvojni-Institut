@@ -109,20 +109,20 @@ public class SmartDocController {
     }
   }
 
-@PostMapping("/documents/{id}/complete")
-@PreAuthorize("hasRole('TEAM_MEMBER')")
-public ResponseEntity<?> completeDocument(@PathVariable Long id) {
+   @PostMapping("/documents/{id}/complete")
+   @PreAuthorize("hasRole('TEAM_MEMBER')")
+   public ResponseEntity<?> completeDocument(@PathVariable Long id) {
     try {
         smartDocService.completeDocument(id);
         return ResponseEntity.ok().build();
     } catch (Exception e) {
         return ResponseEntity.status(500).body(e.getMessage());
     }
-}
+   }
 
-@PostMapping("/sections/{sectionId}/feedback")
-@PreAuthorize("hasRole('TEAM_MEMBER')")
-public ResponseEntity<?> leaveFeedback(
+    @PostMapping("/sections/{sectionId}/feedback")
+    @PreAuthorize("hasRole('TEAM_MEMBER')")
+    public ResponseEntity<?> leaveFeedback(
         @PathVariable Long sectionId,
         @RequestBody Map<String, Object> payload) {
     try {
@@ -133,6 +133,16 @@ public ResponseEntity<?> leaveFeedback(
     } catch (Exception e) {
         return ResponseEntity.badRequest().body(e.getMessage());
     }
-}
+   }
 
+   @DeleteMapping("/documents/{id}")
+   @PreAuthorize("hasRole('TEAM_MEMBER')")
+   public ResponseEntity<?> deleteDocument(@PathVariable Long id) {
+    try {
+        smartDocService.deleteDocument(id);
+        return ResponseEntity.ok().build();
+    } catch (Exception e) {
+        return ResponseEntity.status(500).body("Greška pri brisanju: " + e.getMessage());
+    }
+   }
 }

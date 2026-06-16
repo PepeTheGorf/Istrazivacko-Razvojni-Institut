@@ -70,3 +70,9 @@ export function saveSectionFeedback(
     body: JSON.stringify({ rating, comment }),
   })
 }
+
+export function deleteDocument(docId: number): Promise<void> {
+  return apiFetch<void>(`/smart-docs/documents/${docId}`, {
+    method: 'DELETE',
+  })
+}
