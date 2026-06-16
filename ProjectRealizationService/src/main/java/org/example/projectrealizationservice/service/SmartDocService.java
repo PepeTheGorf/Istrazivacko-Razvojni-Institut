@@ -3,6 +3,7 @@ package org.example.projectrealizationservice.service;
 import lombok.RequiredArgsConstructor;
 
 import org.example.projectrealizationservice.dto.smartdocs.DocumentResponseDTO;
+import org.example.projectrealizationservice.dto.smartdocs.SmartDocumentSummaryDTO;
 import org.example.projectrealizationservice.dto.smartdocs.TemplateCreationDTO;
 import org.example.projectrealizationservice.model.sql.smartdocs.*;
 import org.example.projectrealizationservice.repository.sql.smartdocs.*;
@@ -124,5 +125,17 @@ public class SmartDocService {
             .orElseThrow(() -> new RuntimeException("Sekcija nije pronađena"));
             section.setUserInput(text);
         documentSectionRepository.save(section);
+        }
+
+        @Transactional(value = "transactionManager", readOnly = true)
+        public List<SmartDocumentSummaryDTO> getMyDocuments(Long researcherId) {
+            return documentRepository.findByResearcherId(researcherId).stream()
+            .map(doc -> SmartDocumentSummaryDTO.builder()
+                    .id(doc.getId())
+                    .templateName(doc.getTemplate() != null ? doc.getTemplate().getName() : "Nepoznat šablon")
+                    .status(doc.getStatus())
+                    .createdAt(doc.getCreatedAt())
+                    .build())
+            .collect(Collectors.toList());
         }
 }

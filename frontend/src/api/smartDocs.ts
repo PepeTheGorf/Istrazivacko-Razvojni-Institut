@@ -4,7 +4,8 @@ import type {
   SmartCategory, 
   SmartTemplate, 
   TemplateCreationPayload,
-  SmartDocument 
+  SmartDocument, 
+  SmartDocumentSummary
 } from '../types/smartDocs'
 
 export function fetchDomains(): Promise<SmartDomain[]> {
@@ -42,4 +43,7 @@ export function updateSectionInput(sectionId: number, userInput: string): Promis
 
 export function fetchDocumentById(docId: string): Promise<SmartDocument> {
   return apiFetch<SmartDocument>(`/smart-docs/documents/${docId}`)
+}
+export function fetchMySmartDocuments(): Promise<SmartDocumentSummary[]> {
+  return apiFetch<SmartDocumentSummary[]>('/smart-docs/my')
 }

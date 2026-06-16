@@ -72,7 +72,7 @@ public class SmartDocController {
     }
 
     @PutMapping("/sections/{sectionId}")
-public ResponseEntity<?> updateSectionInput(
+    public ResponseEntity<?> updateSectionInput(
         @PathVariable Long sectionId, 
         @RequestBody Map<String, String> payload) {
     try {
@@ -82,5 +82,16 @@ public ResponseEntity<?> updateSectionInput(
     } catch (Exception e) {
         return ResponseEntity.badRequest().body(e.getMessage());
     }
-}
+    }
+
+    @GetMapping("/my")
+    @PreAuthorize("hasRole('TEAM_MEMBER')")
+    public ResponseEntity<?> getMyDocuments() {
+    try {
+        Long researcherId = SecurityUtils.getCurrentUserId();
+        return ResponseEntity.ok(smartDocService.getMyDocuments(researcherId));
+    } catch (Exception e) {
+        return ResponseEntity.status(500).body("Greška: " + e.getMessage());
+    }
+    }
 }
