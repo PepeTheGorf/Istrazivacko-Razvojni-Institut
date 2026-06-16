@@ -3,6 +3,7 @@ package org.example.projectrealizationservice.service;
 import lombok.RequiredArgsConstructor;
 
 import org.example.projectrealizationservice.dto.smartdocs.DocumentResponseDTO;
+import org.example.projectrealizationservice.dto.smartdocs.SmartDocumentSummaryDTO;
 import org.example.projectrealizationservice.dto.smartdocs.TemplateCreationDTO;
 import org.example.projectrealizationservice.model.sql.smartdocs.*;
 import org.example.projectrealizationservice.repository.sql.smartdocs.*;
@@ -22,6 +23,7 @@ public class SmartDocService {
     private final DocumentCategoryRepository categoryRepository;
     private final GeneratedDocumentRepository documentRepository;
     private final DocumentSectionRepository documentSectionRepository;
+    private final AiService aiService;
 
     @Transactional("transactionManager")
     public void createTemplate(TemplateCreationDTO dto, Long creatorId) {
@@ -125,4 +127,66 @@ public class SmartDocService {
             section.setUserInput(text);
         documentSectionRepository.save(section);
         }
+
+        @Transactional(value = "transactionManager", readOnly = true)
+        public List<SmartDocumentSummaryDTO> getMyDocuments(Long researcherId) {
+            return documentRepository.findByResearcherId(researcherId).stream()
+            .map(doc -> SmartDocumentSummaryDTO.builder()
+                    .id(doc.getId())
+                    .templateName(doc.getTemplate() != null ? doc.getTemplate().getName() : "Nepoznat šablon")
+                    .status(doc.getStatus())
+                    .createdAt(doc.getCreatedAt())
+                    .build())
+            .collect(Collectors.toList());
+        }
+
+        @Transactional("transactionManager")
+        public String generateSectionContent(Long sectionId) {
+        DocumentSection currentSection = documentSectionRepository.findById(sectionId)
+            .orElseThrow(() -> new RuntimeException("Sekcija nije pronađena"));
+
+        GeneratedDocument doc = currentSection.getDocument();
+        TemplateSection ts = currentSection.getTemplateSection();
+
+        List<DocumentSection> allSections = doc.getSections();
+    
+        allSections.sort((a, b) -> a.getTemplateSection().getSectionOrder()
+            .compareTo(b.getTemplateSection().getSectionOrder()));
+
+        StringBuilder contextBuilder = new StringBuilder();
+        for (DocumentSection s : allSections) {
+          if (s.getTemplateSection().getSectionOrder() < ts.getSectionOrder()) {
+            String content = s.getLlmResult();
+            if (content != null && !content.isBlank()) {
+                contextBuilder.append("Sekcija [")
+                        .append(s.getTemplateSection().getTitle())
+                        .append("]: ")
+                        .append(content)
+                        .append("\n\n");
+            }
+        }
+    }
+
+    String context = contextBuilder.toString();
+
+    String generatedResult = aiService.generateText(
+            ts.getSystemPrompt(), 
+            context, 
+            currentSection.getUserInput()
+    );
+
+    currentSection.setLlmResult(generatedResult);
+    documentSectionRepository.save(currentSection);
+
+    return generatedResult;
+}
+
+@Transactional("transactionManager")
+public void completeDocument(Long docId) {
+    GeneratedDocument doc = documentRepository.findById(docId)
+            .orElseThrow(() -> new RuntimeException("Dokument nije pronađen"));
+    doc.setStatus("COMPLETED");
+    documentRepository.save(doc);
+}
+
 }

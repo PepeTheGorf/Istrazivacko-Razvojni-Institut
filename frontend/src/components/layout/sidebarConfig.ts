@@ -40,6 +40,7 @@ export const TEAM_MEMBER_SIDEBAR_SECTIONS: SidebarSection[] = [
   {
     title: 'AI Dokumentacija', 
     items: [
+      { to: '/my-smart-docs', label: 'Moja Dokumentacija', end: true },
       { to: '/smart-docs', label: 'Nova AI Dokumentacija' },
     ],
   },

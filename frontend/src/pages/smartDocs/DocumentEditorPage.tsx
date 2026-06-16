@@ -3,9 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { AppShell } from '../../components/layout/AppShell'
 import { TextArea } from '../../components/ui/TextArea'
 import { Button } from '../../components/ui/Button'
-import { updateSectionInput } from '../../api/smartDocs' 
+import { updateSectionInput, generateSectionContent, completeDocument} from '../../api/smartDocs' 
 import type { SmartDocument } from '../../types/smartDocs'
-//import { fetchDocumentById } from '../../api/smartDocs'
 import { apiFetch } from '../../api/client'
 
 
@@ -14,6 +13,7 @@ export function DocumentEditorPage() {
   const navigate = useNavigate()
   const [document, setDocument] = useState<SmartDocument | null>(null)
   const [saving, setSaving] = useState(false)
+  const [generatingId, setGeneratingId] = useState<number | null>(null);
 
   useEffect(() => {
    const loadDoc = async () => {
@@ -46,6 +46,35 @@ export function DocumentEditorPage() {
     }
   }
 
+  const handleGenerate = async (sectionId: number) => {
+  setGeneratingId(sectionId); // Aktivira spinner samo za tu sekciju
+  try {
+    const response = await generateSectionContent(sectionId);
+  
+    if (document) {
+      const updatedSections = document.sections.map(s => 
+        s.id === sectionId ? { ...s, llmResult: response.result } : s
+      );
+      setDocument({ ...document, sections: updatedSections });
+    }
+  } catch (err) {
+    console.error("Greška pri AI generisanju:", err);
+    alert("Nije uspelo generisanje teksta.");
+  } finally {
+    setGeneratingId(null); 
+  }
+};
+const handleComplete = async () => {
+  if (!window.confirm("Da li ste sigurni da želite da završite dokument? Nakon ovoga nećete moći da ga menjate.")) return;
+  
+  try {
+    await completeDocument(Number(docId));
+    navigate('/my-smart-docs');
+  } catch  {
+    alert("Greška pri završavanju dokumenta.");
+  }
+};
+
   if (!document) return <AppShell><div>Učitavanje...</div></AppShell>
 
   return (
@@ -68,26 +97,36 @@ export function DocumentEditorPage() {
               
               <TextArea
                 label="Vaš unos / Kontekst za AI"
-                name={`ana-input-${section.id}`}
+                name={`section-${section.id}`}
                 value={section.userInput}
                 onChange={(e) => handleUpdateSection(section.id, e.target.value)}
                 placeholder="Unesite specifične podatke za ovu sekciju..."
-                className="min-h-[150px]"
+                className="mb-4 min-h-[150px]"
               />
+               {section.llmResult && (
+    <div className="mb-4 rounded-lg bg-surface-2 p-4 border-l-4 border-primary">
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-ink-subtle mb-2">AI Predlog:</h3>
+      <p className="text-sm leading-relaxed text-ink whitespace-pre-wrap">{section.llmResult}</p>
+    </div>
+  )}
+  
               
               <div className="mt-4 flex justify-end">
-                <Button variant="tertiary" disabled>Generiši tekst (Uskoro)</Button>
+                <Button variant="tertiary" onClick={() => handleGenerate(section.id)}
+      disabled={generatingId === section.id || !section.userInput}>{generatingId === section.id ? 'AI razmišlja...' : 'Generiši tekst'}</Button>
               </div>
             </section>
           ))}
         </div>
 
-        <footer className="mt-12 border-t border-hairline pt-6">
-          <Button fullWidth onClick={() => navigate('/smart-docs')}
-            disabled={saving}>
-           {saving ? 'Čuvanje...' : 'Sačuvaj i zatvori'}
-          </Button>
-        </footer>
+        <footer className="mt-12 flex gap-4 border-t border-hairline pt-6">
+  <Button variant="secondary" onClick={() => navigate('/my-smart-docs')}>
+    Sačuvaj i izađi
+  </Button>
+  <Button className="flex-1" onClick={handleComplete} disabled={saving}>
+    Završi i finalizuj dokumentaciju
+  </Button>
+</footer>
       </div>
     </AppShell>
   )

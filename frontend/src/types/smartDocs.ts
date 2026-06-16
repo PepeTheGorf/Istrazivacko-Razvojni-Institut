@@ -51,8 +51,15 @@ export interface DocumentSection {
 export interface SmartDocument {
   id: number
   templateId: number
+  templateName?: string
   researcherId: number
   status: 'DRAFT' | 'COMPLETED'
   createdAt: string
   sections: DocumentSection[]
+}
+export interface SmartDocumentSummary {
+  id: number
+  templateName: string
+  status: string
+  createdAt: string
 }

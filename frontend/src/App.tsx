@@ -19,6 +19,8 @@ import { DocumentEditorPage } from './pages/smartDocs/DocumentEditorPage'
 import { TemplateListPage } from './pages/smartTemplates/TemplateListPage'
 import { DocumentsPage } from './pages/documents/DocumentsPage'
 import { DocumentTypesPage } from './pages/documentTypes/DocumentTypesPage'
+import { MySmartDocumentsPage } from './pages/smartDocs/MySmartDocumentsPage'
+import { DocumentViewPage } from './pages/smartDocs/DocumentViewPage'
 
 function App() {
   return (
@@ -48,6 +50,8 @@ function App() {
           <Route path="/documents" element={<DocumentsPage />} />
           <Route path="/smart-docs" element={<TemplateSelectionPage />} />
           <Route path="/smart-docs/:docId" element={<DocumentEditorPage />} />
+          <Route path="/my-smart-docs" element={<MySmartDocumentsPage />} />
+          <Route path="/smart-docs/:docId/view" element={<DocumentViewPage />} />
         </Route>
 
         {/* GRUPA ZA ADMINISTRATORA */}
