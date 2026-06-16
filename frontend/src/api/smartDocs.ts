@@ -47,3 +47,9 @@ export function fetchDocumentById(docId: string): Promise<SmartDocument> {
 export function fetchMySmartDocuments(): Promise<SmartDocumentSummary[]> {
   return apiFetch<SmartDocumentSummary[]>('/smart-docs/my')
 }
+
+export function generateSectionContent(sectionId: number): Promise<{ result: string }> {
+  return apiFetch<{ result: string }>(`/smart-docs/sections/${sectionId}/generate`, {
+    method: 'POST',
+  })
+}

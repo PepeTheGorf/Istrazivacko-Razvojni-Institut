@@ -2,6 +2,12 @@ server:
   port: 8080
 
 spring:
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY:tvoj_kljuc_ovde}
+      chat:
+        options:
+          model: gpt-3.5-turbo
   cache:
     type: redis
   neo4j:

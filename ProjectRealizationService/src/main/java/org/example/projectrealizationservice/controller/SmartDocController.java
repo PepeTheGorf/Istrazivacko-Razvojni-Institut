@@ -94,4 +94,16 @@ public class SmartDocController {
         return ResponseEntity.status(500).body("Greška: " + e.getMessage());
     }
     }
+
+    @PostMapping("/sections/{sectionId}/generate")
+    @PreAuthorize("hasRole('TEAM_MEMBER')")
+    public ResponseEntity<?> generateContent(@PathVariable Long sectionId) {
+    try {
+        String result = smartDocService.generateSectionContent(sectionId);
+        return ResponseEntity.ok(Map.of("result", result));
+    } catch (Exception e) {
+        e.printStackTrace();
+        return ResponseEntity.status(500).body("Greška pri generisanju: " + e.getMessage());
+    }
+  }
 }

@@ -23,6 +23,7 @@ public class SmartDocService {
     private final DocumentCategoryRepository categoryRepository;
     private final GeneratedDocumentRepository documentRepository;
     private final DocumentSectionRepository documentSectionRepository;
+    private final AiService aiService;
 
     @Transactional("transactionManager")
     public void createTemplate(TemplateCreationDTO dto, Long creatorId) {
@@ -138,4 +139,45 @@ public class SmartDocService {
                     .build())
             .collect(Collectors.toList());
         }
+
+        @Transactional("transactionManager")
+        public String generateSectionContent(Long sectionId) {
+        DocumentSection currentSection = documentSectionRepository.findById(sectionId)
+            .orElseThrow(() -> new RuntimeException("Sekcija nije pronađena"));
+
+        GeneratedDocument doc = currentSection.getDocument();
+        TemplateSection ts = currentSection.getTemplateSection();
+
+        List<DocumentSection> allSections = doc.getSections();
+    
+        allSections.sort((a, b) -> a.getTemplateSection().getSectionOrder()
+            .compareTo(b.getTemplateSection().getSectionOrder()));
+
+        StringBuilder contextBuilder = new StringBuilder();
+        for (DocumentSection s : allSections) {
+          if (s.getTemplateSection().getSectionOrder() < ts.getSectionOrder()) {
+            String content = s.getLlmResult();
+            if (content != null && !content.isBlank()) {
+                contextBuilder.append("Sekcija [")
+                        .append(s.getTemplateSection().getTitle())
+                        .append("]: ")
+                        .append(content)
+                        .append("\n\n");
+            }
+        }
+    }
+
+    String context = contextBuilder.toString();
+
+    String generatedResult = aiService.generateText(
+            ts.getSystemPrompt(), 
+            context, 
+            currentSection.getUserInput()
+    );
+
+    currentSection.setLlmResult(generatedResult);
+    documentSectionRepository.save(currentSection);
+
+    return generatedResult;
+}
 }
