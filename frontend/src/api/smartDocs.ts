@@ -59,3 +59,14 @@ export function completeDocument(docId: number): Promise<void> {
     method: 'POST',
   })
 }
+
+export function saveSectionFeedback(
+  sectionId: number, 
+  rating: number, 
+  comment: string
+): Promise<void> {
+  return apiFetch<void>(`/smart-docs/sections/${sectionId}/feedback`, {
+    method: 'POST',
+    body: JSON.stringify({ rating, comment }),
+  })
+}

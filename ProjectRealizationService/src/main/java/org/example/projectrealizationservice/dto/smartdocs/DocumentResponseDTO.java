@@ -19,5 +19,7 @@ public class DocumentResponseDTO {
         private String title; 
         private String userInput;
         private String llmResult;
+        private Integer rating;
+        private String feedbackComment;
     }
 }

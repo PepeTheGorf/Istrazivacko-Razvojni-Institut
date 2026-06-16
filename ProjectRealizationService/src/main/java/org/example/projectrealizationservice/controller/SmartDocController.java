@@ -7,6 +7,8 @@ import org.example.projectrealizationservice.service.SmartDocService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import java.util.List; 
+import org.example.projectrealizationservice.dto.smartdocs.SmartTemplateDTO;
 
 import java.util.Map;
 
@@ -67,7 +69,7 @@ public class SmartDocController {
 
     @GetMapping("/templates/all")
     @PreAuthorize("hasRole('MANAGER')")
-    public ResponseEntity<?> getAllTemplates() {
+    public ResponseEntity<List<SmartTemplateDTO>> getAllTemplates() {
         return ResponseEntity.ok(smartDocService.getAllTemplates());
     }
 
@@ -115,6 +117,21 @@ public ResponseEntity<?> completeDocument(@PathVariable Long id) {
         return ResponseEntity.ok().build();
     } catch (Exception e) {
         return ResponseEntity.status(500).body(e.getMessage());
+    }
+}
+
+@PostMapping("/sections/{sectionId}/feedback")
+@PreAuthorize("hasRole('TEAM_MEMBER')")
+public ResponseEntity<?> leaveFeedback(
+        @PathVariable Long sectionId,
+        @RequestBody Map<String, Object> payload) {
+    try {
+        Integer rating = (Integer) payload.get("rating");
+        String comment = (String) payload.get("comment");
+        smartDocService.saveFeedback(sectionId, rating, comment);
+        return ResponseEntity.ok().build();
+    } catch (Exception e) {
+        return ResponseEntity.badRequest().body(e.getMessage());
     }
 }
 
