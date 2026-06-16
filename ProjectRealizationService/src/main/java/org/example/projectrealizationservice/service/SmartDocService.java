@@ -22,6 +22,8 @@ public class SmartDocService {
     private final DocumentSectionRepository documentSectionRepository;
     private final SectionFeedbackRepository feedbackRepository;
     private final AiService aiService;
+    private final PromptVersionRepository promptVersionRepository;
+    private final TemplateSectionRepository templateSectionRepository;
 
     @Transactional("transactionManager")
     public void createTemplate(TemplateCreationDTO dto, Long creatorId) {
@@ -45,13 +47,24 @@ public class SmartDocService {
                 .build();
 
         List<TemplateSection> sections = dto.getSections().stream()
-            .map(s -> TemplateSection.builder()
-                        .title(s.getTitle())
-                        .systemPrompt(s.getSystemPrompt())
-                        .sectionOrder(s.getOrder())
-                        .template(template) 
-                        .build())
-            .collect(Collectors.toList());
+            .map(s -> {
+        TemplateSection ts = TemplateSection.builder()
+                .title(s.getTitle())
+                .sectionOrder(s.getOrder())
+                .template(template) 
+                .build();
+    
+        PromptVersion v1 = PromptVersion.builder()
+                .content(s.getSystemPrompt())
+                .versionNumber(1)
+                .active(true)
+                .createdAt(OffsetDateTime.now())
+                .templateSection(ts)
+                .build();
+        
+        ts.setPromptVersions(List.of(v1));
+        return ts;
+    }).collect(Collectors.toList());
 
         template.setSections(sections);
         templateRepository.save(template);
@@ -180,7 +193,11 @@ public class SmartDocService {
             }
         }
 
-        String generatedResult = aiService.generateText(ts.getSystemPrompt(), contextBuilder.toString(), currentSection.getUserInput());
+        String generatedResult = aiService.generateText(
+        ts.getActivePromptContent(), 
+        contextBuilder.toString(), 
+        currentSection.getUserInput()
+);
         currentSection.setLlmResult(generatedResult);
         documentSectionRepository.save(currentSection);
         return generatedResult;
@@ -226,4 +243,66 @@ public class SmartDocService {
     }
     documentRepository.deleteById(docId);
     }
+
+    @Transactional("transactionManager")
+    public void createNewPromptVersion(Long sectionId, String newContent) {
+    TemplateSection ts = templateSectionRepository.findById(sectionId).orElseThrow();
+    
+    ts.getPromptVersions().forEach(v -> v.setActive(false));
+
+    int nextVersion = ts.getPromptVersions().stream()
+            .mapToInt(PromptVersion::getVersionNumber)
+            .max().orElse(0) + 1;
+
+    PromptVersion newVersion = PromptVersion.builder()
+            .content(newContent)
+            .versionNumber(nextVersion)
+            .active(true)
+            .createdAt(OffsetDateTime.now())
+            .templateSection(ts)
+            .build();
+
+    promptVersionRepository.save(newVersion);
+}
+
+    @Transactional("transactionManager")
+    public void activateOldVersion(Long sectionId, Long versionId) {
+    TemplateSection ts = templateSectionRepository.findById(sectionId).orElseThrow();
+    
+    ts.getPromptVersions().forEach(v -> {
+        v.setActive(v.getId().equals(versionId));
+    });
+    
+    templateSectionRepository.save(ts);
+  }
+
+  @Transactional(value = "transactionManager", readOnly = true)
+  public List<PromptVersionDTO> getPromptHistory(Long sectionId) {
+    return promptVersionRepository.findByTemplateSectionIdOrderByVersionNumberDesc(sectionId).stream()
+            .map(v -> PromptVersionDTO.builder()
+                    .id(v.getId())
+                    .content(v.getContent())
+                    .versionNumber(v.getVersionNumber())
+                    .active(v.isActive())
+                    .createdAt(v.getCreatedAt())
+                    .build())
+            .collect(Collectors.toList());
+ }
+
+ @Transactional(value = "transactionManager", readOnly = true)
+public SmartTemplateDTO getTemplateById(Long id) {
+    SmartTemplate t = templateRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Šablon nije pronađen"));
+
+    return SmartTemplateDTO.builder()
+            .id(t.getId())
+            .name(t.getName())
+            .description(t.getDescription())
+            .domain(t.getDomain())
+            .category(t.getCategory())
+            .sections(t.getSections()) 
+            .createdAt(t.getCreatedAt())
+            .averageRating(getAverageRatingForTemplate(t.getId()))
+            .build();
+}
 }

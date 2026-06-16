@@ -21,6 +21,7 @@ import { DocumentsPage } from './pages/documents/DocumentsPage'
 import { DocumentTypesPage } from './pages/documentTypes/DocumentTypesPage'
 import { MySmartDocumentsPage } from './pages/smartDocs/MySmartDocumentsPage'
 import { DocumentViewPage } from './pages/smartDocs/DocumentViewPage'
+import { TemplateDetailsPage } from './pages/smartTemplates/TemplateDetailsPage'
 
 function App() {
   return (
@@ -40,6 +41,7 @@ function App() {
           <Route path="/projects/:projectId/edit" element={<ProjectFormPage />} />
           <Route path="/smart-templates" element={<TemplateListPage />} /> 
           <Route path="/smart-templates/new" element={<TemplateCreateWizardPage />} />
+          <Route path="/smart-templates/:templateId" element={<TemplateDetailsPage />} />
         </Route>
 
         {/* GRUPA ZA ČLANA TIMA */}

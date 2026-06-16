@@ -46,7 +46,9 @@ export function TemplateListPage() {
                 {templates.map(t => (
                   <tr key={t.id} className="hover:bg-surface-2/50 transition-colors">
                     <td className="px-6 py-4">
-                       <div className="text-sm font-medium text-ink">{t.name}</div>
+                      <Link to={`/smart-templates/${t.id}`} className="text-sm font-medium text-primary hover:underline">
+     {t.name}
+   </Link>
                        <div className="text-xs text-ink-subtle">{t.domain?.name} / {t.category?.name}</div>
                     </td>
                     <td className="px-6 py-4">

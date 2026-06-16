@@ -9,7 +9,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import java.util.List; 
 import org.example.projectrealizationservice.dto.smartdocs.SmartTemplateDTO;
-
+import org.example.projectrealizationservice.dto.smartdocs.PromptVersionDTO;
+import java.time.OffsetDateTime;
 import java.util.Map;
 
 @RestController
@@ -145,4 +146,48 @@ public class SmartDocController {
         return ResponseEntity.status(500).body("Greška pri brisanju: " + e.getMessage());
     }
    }
+
+
+   @GetMapping("/sections/{sectionId}/prompts")
+   @PreAuthorize("hasRole('MANAGER')")
+   public ResponseEntity<List<PromptVersionDTO>> getPromptHistory(@PathVariable Long sectionId) {
+    return ResponseEntity.ok(smartDocService.getPromptHistory(sectionId));
+   }
+
+   @PostMapping("/sections/{sectionId}/prompts")
+   @PreAuthorize("hasRole('MANAGER')")
+   public ResponseEntity<?> createNewVersion(
+        @PathVariable Long sectionId, 
+        @RequestBody Map<String, String> payload) {
+    try {
+        String newContent = payload.get("content");
+        smartDocService.createNewPromptVersion(sectionId, newContent);
+        return ResponseEntity.ok().build();
+    } catch (Exception e) {
+        return ResponseEntity.badRequest().body(e.getMessage());
+    }
+}
+
+   @PutMapping("/sections/{sectionId}/prompts/{versionId}/activate")
+   @PreAuthorize("hasRole('MANAGER')")
+   public ResponseEntity<?> activateVersion(
+        @PathVariable Long sectionId, 
+        @PathVariable Long versionId) {
+    try {
+        smartDocService.activateOldVersion(sectionId, versionId);
+        return ResponseEntity.ok().build();
+    } catch (Exception e) {
+        return ResponseEntity.badRequest().body(e.getMessage());
+    }
+  }
+
+  @GetMapping("/templates/{id}")
+@PreAuthorize("hasRole('MANAGER')")
+public ResponseEntity<SmartTemplateDTO> getTemplateById(@PathVariable Long id) {
+    try {
+        return ResponseEntity.ok(smartDocService.getTemplateById(id));
+    } catch (Exception e) {
+        return ResponseEntity.status(404).body(null);
+    }
+}
 }
