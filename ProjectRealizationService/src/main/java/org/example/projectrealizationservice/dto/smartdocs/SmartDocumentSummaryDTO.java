@@ -11,4 +11,5 @@ public class SmartDocumentSummaryDTO {
     private String templateName;
     private String status;
     private OffsetDateTime createdAt;
+    private Integer progress; 
 }

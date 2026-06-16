@@ -26,4 +26,7 @@ public class DocumentSection {
 
     @Column(columnDefinition = "TEXT")
     private String llmResult; 
+
+    @OneToOne(mappedBy = "section", cascade = CascadeType.ALL)
+    private SectionFeedback feedback;
 }

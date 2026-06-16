@@ -22,7 +22,7 @@ export function TemplateListPage() {
         <header className="mb-8 flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-semibold text-ink">Moji Šabloni</h1>
-            <p className="text-ink-subtle">Pregled i upravljanje pametnim šablonima za generisanje.</p>
+            <p className="text-ink-subtle">Analiza kvaliteta i upravljanje šablonima.</p>
           </div>
           <Link to="/smart-templates/new">
             <Button>+ Novi Šablon</Button>
@@ -36,18 +36,31 @@ export function TemplateListPage() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-surface-2 border-b border-hairline">
-                  <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-ink-muted">Naziv</th>
-                  <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-ink-muted">Oblast / Tip</th>
-                  <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-ink-muted">Datum</th>
-                  <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-ink-muted text-right">Sekcije</th>
+                  <th className="px-6 py-4 text-xs font-semibold uppercase text-ink-muted">Naziv / Oblast</th>
+                  <th className="px-6 py-4 text-xs font-semibold uppercase text-ink-muted">AI Rejting</th>
+                  <th className="px-6 py-4 text-xs font-semibold uppercase text-ink-muted">Datum</th>
+                  <th className="px-6 py-4 text-xs font-semibold uppercase text-ink-muted text-right">Sekcije</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-hairline">
                 {templates.map(t => (
                   <tr key={t.id} className="hover:bg-surface-2/50 transition-colors">
-                    <td className="px-6 py-4 text-sm font-medium text-ink">{t.domain?.name} / {t.category?.name}</td>
-                    <td className="px-6 py-4 text-sm text-ink-subtle">
-                      {t.domain.name} / {t.category.name}
+                    <td className="px-6 py-4">
+                       <div className="text-sm font-medium text-ink">{t.name}</div>
+                       <div className="text-xs text-ink-subtle">{t.domain?.name} / {t.category?.name}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm font-bold text-primary">
+                          {t.averageRating ? t.averageRating.toFixed(1) : '0.0'}
+                        </span>
+                        <div className="h-1.5 w-24 rounded-full bg-surface-3 overflow-hidden">
+                          <div 
+                            className="h-full bg-yellow-500 transition-all duration-1000" 
+                            style={{ width: `${(t.averageRating || 0) * 20}%` }} 
+                          />
+                        </div>
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-sm text-ink-muted">{formatDate(t.createdAt)}</td>
                     <td className="px-6 py-4 text-sm text-right font-mono text-primary">{t.sections?.length || 0}</td>
@@ -56,12 +69,7 @@ export function TemplateListPage() {
               </tbody>
             </table>
           ) : (
-            <div className="p-12 text-center">
-              <p className="text-ink-subtle">Još uvek niste kreirali nijedan šablon.</p>
-              <Link to="/smart-templates/new" className="mt-4 inline-block text-primary hover:underline text-sm">
-                Napravite svoj prvi šablon sada
-              </Link>
-            </div>
+            <div className="p-12 text-center text-ink-subtle">Nema kreiranih šablona.</div>
           )}
         </div>
       </div>

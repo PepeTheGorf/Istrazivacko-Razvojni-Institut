@@ -45,7 +45,9 @@ export interface DocumentSection {
   title: string;
   templateSectionId: number
   userInput: string      
-  llmResult?: string     
+  llmResult?: string  
+  rating?: number           
+  feedbackComment?: string   
 }
 
 export interface SmartDocument {
@@ -62,4 +64,5 @@ export interface SmartDocumentSummary {
   templateName: string
   status: string
   createdAt: string
+  progress: number 
 }
