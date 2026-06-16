@@ -180,4 +180,13 @@ public class SmartDocService {
 
     return generatedResult;
 }
+
+@Transactional("transactionManager")
+public void completeDocument(Long docId) {
+    GeneratedDocument doc = documentRepository.findById(docId)
+            .orElseThrow(() -> new RuntimeException("Dokument nije pronađen"));
+    doc.setStatus("COMPLETED");
+    documentRepository.save(doc);
+}
+
 }

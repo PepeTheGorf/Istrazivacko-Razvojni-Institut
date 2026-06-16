@@ -106,4 +106,16 @@ public class SmartDocController {
         return ResponseEntity.status(500).body("Greška pri generisanju: " + e.getMessage());
     }
   }
+
+@PostMapping("/documents/{id}/complete")
+@PreAuthorize("hasRole('TEAM_MEMBER')")
+public ResponseEntity<?> completeDocument(@PathVariable Long id) {
+    try {
+        smartDocService.completeDocument(id);
+        return ResponseEntity.ok().build();
+    } catch (Exception e) {
+        return ResponseEntity.status(500).body(e.getMessage());
+    }
+}
+
 }

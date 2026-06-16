@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { AppShell } from '../../components/layout/AppShell'
 import { TextArea } from '../../components/ui/TextArea'
 import { Button } from '../../components/ui/Button'
-import { updateSectionInput, generateSectionContent} from '../../api/smartDocs' 
+import { updateSectionInput, generateSectionContent, completeDocument} from '../../api/smartDocs' 
 import type { SmartDocument } from '../../types/smartDocs'
 import { apiFetch } from '../../api/client'
 
@@ -64,6 +64,16 @@ export function DocumentEditorPage() {
     setGeneratingId(null); 
   }
 };
+const handleComplete = async () => {
+  if (!window.confirm("Da li ste sigurni da želite da završite dokument? Nakon ovoga nećete moći da ga menjate.")) return;
+  
+  try {
+    await completeDocument(Number(docId));
+    navigate('/my-smart-docs');
+  } catch  {
+    alert("Greška pri završavanju dokumenta.");
+  }
+};
 
   if (!document) return <AppShell><div>Učitavanje...</div></AppShell>
 
@@ -109,12 +119,14 @@ export function DocumentEditorPage() {
           ))}
         </div>
 
-        <footer className="mt-12 border-t border-hairline pt-6">
-          <Button fullWidth onClick={() => navigate('/smart-docs')}
-            disabled={saving}>
-           {saving ? 'Čuvanje...' : 'Sačuvaj i zatvori'}
-          </Button>
-        </footer>
+        <footer className="mt-12 flex gap-4 border-t border-hairline pt-6">
+  <Button variant="secondary" onClick={() => navigate('/my-smart-docs')}>
+    Sačuvaj i izađi
+  </Button>
+  <Button className="flex-1" onClick={handleComplete} disabled={saving}>
+    Završi i finalizuj dokumentaciju
+  </Button>
+</footer>
       </div>
     </AppShell>
   )

@@ -53,3 +53,9 @@ export function generateSectionContent(sectionId: number): Promise<{ result: str
     method: 'POST',
   })
 }
+
+export function completeDocument(docId: number): Promise<void> {
+  return apiFetch<void>(`/smart-docs/documents/${docId}/complete`, {
+    method: 'POST',
+  })
+}

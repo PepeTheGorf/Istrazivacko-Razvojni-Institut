@@ -42,22 +42,32 @@ export function MySmartDocumentsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-hairline">
-                {docs.map(doc => (
-                  <tr key={doc.id} className="hover:bg-surface-2/50 transition-colors">
-                    <td className="px-6 py-4 text-sm font-medium text-ink">{doc.templateName}</td>
-                    <td className="px-6 py-4 text-sm text-ink-subtle">{formatDate(doc.createdAt)}</td>
-                    <td className="px-6 py-4 text-sm">
-                      <span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
-                        {doc.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <Button variant="secondary" onClick={() => navigate(`/smart-docs/${doc.id}`)}>
-                        Otvori Editor
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
+                 {docs.map(doc => (
+    <tr key={doc.id} className="hover:bg-surface-2/50 transition-colors">
+      <td className="px-6 py-4 text-sm font-medium text-ink">{doc.templateName}</td>
+      <td className="px-6 py-4 text-sm text-ink-subtle">{formatDate(doc.createdAt)}</td>
+      <td className="px-6 py-4 text-sm">
+        <span className={`rounded-full px-2 py-1 text-xs font-medium ${
+          doc.status === 'COMPLETED' 
+            ? 'bg-success/10 text-success' 
+            : 'bg-primary/10 text-primary'
+        }`}>
+          {doc.status}
+        </span>
+      </td>
+      <td className="px-6 py-4 text-right">
+        {doc.status === 'COMPLETED' ? (
+          <Button variant="secondary" onClick={() => navigate(`/smart-docs/${doc.id}/view`)}>
+            Pregledaj
+          </Button>
+        ) : (
+          <Button variant="primary" onClick={() => navigate(`/smart-docs/${doc.id}`)}>
+            Otvori Editor
+          </Button>
+        )}
+      </td>
+    </tr>
+  ))}
               </tbody>
             </table>
           ) : (
