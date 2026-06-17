@@ -3,6 +3,10 @@ spring:
     name: document-management-service
   cache:
     type: redis
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://document-postgres:5432/documents}
     username: ${SPRING_DATASOURCE_USERNAME:document}

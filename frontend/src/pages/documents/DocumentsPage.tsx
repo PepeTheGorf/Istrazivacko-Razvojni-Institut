@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type Dispatch, type FormEvent, type SetSt
 import { AdvancedSearchDialog, EMPTY_ADVANCED_FILTERS } from '../../components/AdvancedSearchDialog'
 import type { AdvancedFilters } from '../../components/AdvancedSearchDialog'
 import { TagDocumentsDialog } from '../../components/TagDocumentsDialog'
-import { createDocument, deleteDocument, fetchDocuments, updateDocument } from '../../api/documents'
+import { createDocument, deleteDocument, fetchDocuments, updateDocument, uploadDocument } from '../../api/documents'
 import { createDokumentTag, deleteDokumentTag, fetchDocumentTags } from '../../api/documentTags'
 import { fetchMetapodatakByDocument } from '../../api/metapodatak'
 import { fetchProjectsForSelection } from '../../api/projects'
@@ -163,6 +163,14 @@ export function DocumentsPage() {
   const [formValues, setFormValues] = useState<DocumentFormValues>(createEmptyValues())
   const [formError, setFormError] = useState<string | null>(null)
 
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
+  const [uploadFile, setUploadFile] = useState<File | null>(null)
+  const [uploadNaziv, setUploadNaziv] = useState('')
+  const [uploadTipDokumentaId, setUploadTipDokumentaId] = useState('')
+  const [uploadMetapodaci, setUploadMetapodaci] = useState<MetadataRow[]>([])
+  const [uploadSubmitting, setUploadSubmitting] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+
   const projectNameById = useMemo(
     () => new Map(projects.filter((project) => project.id).map((project) => [project.id as string, project.name])),
     [projects],
@@ -196,6 +204,13 @@ export function DocumentsPage() {
   const selectedMetadataOptions = useMemo(
     () => metadataOptionsForDocumentType(tipoviMetapodataka, formValues.tipDokumentaId),
     [tipoviMetapodataka, formValues.tipDokumentaId],
+  )
+
+  const uploadRequiredMetadata = useMemo(
+    () => tipoviMetapodataka.filter(
+      (item) => item.jeObavezan && (!item.tipDokumentaId || item.tipDokumentaId === uploadTipDokumentaId),
+    ),
+    [tipoviMetapodataka, uploadTipDokumentaId],
   )
 
   const selectedDocument = useMemo(
@@ -491,6 +506,55 @@ export function DocumentsPage() {
     setAdvancedFilters(EMPTY_ADVANCED_FILTERS)
   }
 
+  function closeUploadDialog() {
+    setUploadDialogOpen(false)
+    setUploadFile(null)
+    setUploadNaziv('')
+    setUploadTipDokumentaId('')
+    setUploadMetapodaci([])
+    setUploadError(null)
+    setUploadSubmitting(false)
+  }
+
+  function handleUploadTipChange(tipId: string) {
+    setUploadTipDokumentaId(tipId)
+    const required = tipoviMetapodataka.filter(
+      (item) => item.jeObavezan && (!item.tipDokumentaId || item.tipDokumentaId === tipId),
+    )
+    setUploadMetapodaci(required.map((item) => ({ tipMetapodatkaId: item.id, vrednost: '' })))
+  }
+
+  async function handleUploadSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!uploadFile) {
+      setUploadError('Izaberite fajl.')
+      return
+    }
+    const unfilled = uploadMetapodaci.filter((row) => !row.vrednost.trim())
+    if (unfilled.length > 0) {
+      setUploadError('Svi obavezni metapodaci moraju biti popunjeni.')
+      return
+    }
+    setUploadSubmitting(true)
+    setUploadError(null)
+    try {
+      await uploadDocument({
+        file: uploadFile,
+        naziv: uploadNaziv || undefined,
+        tipDokumentaId: uploadTipDokumentaId || undefined,
+        authorId: user ? String(user.id) : undefined,
+        authorName: currentAuthorLabel,
+        metapodaci: uploadMetapodaci.filter((row) => row.vrednost.trim()),
+      })
+      closeUploadDialog()
+      await loadAll()
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'Greška pri otpremanju dokumenta')
+    } finally {
+      setUploadSubmitting(false)
+    }
+  }
+
   function updateMetadataRow(index: number, patch: Partial<MetadataRow>) {
     setFormValues((previous) => ({
       ...previous,
@@ -576,9 +640,14 @@ export function DocumentsPage() {
           <div>
             <h1 className="m-0 text-2xl font-semibold text-ink">Dokumenti</h1>
           </div>
-          <Button icon="add" onClick={openCreateDialog}>
-            Novi dokument
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" onClick={() => setUploadDialogOpen(true)}>
+              Otpremi dokument
+            </Button>
+            <Button icon="add" onClick={openCreateDialog}>
+              Novi dokument
+            </Button>
+          </div>
         </div>
 
         {error ? (
@@ -891,6 +960,92 @@ export function DocumentsPage() {
             </div>
           </div>
         </aside>
+
+        {uploadDialogOpen ? (
+          <div className="fixed inset-0 z-40 overflow-y-auto bg-black/65 p-4">
+            <div className="mx-auto my-16 w-full max-w-md rounded-lg border border-hairline bg-surface-1 shadow-2xl">
+              <div className="flex items-center justify-between border-b border-hairline px-4 py-3">
+                <h2 className="m-0 text-xl font-semibold text-ink">Otpremi dokument</h2>
+                <Button variant="secondary" onClick={closeUploadDialog} disabled={uploadSubmitting}>
+                  Zatvori
+                </Button>
+              </div>
+              <form className="grid gap-4 p-4" onSubmit={(e) => void handleUploadSubmit(e)}>
+                {uploadError ? (
+                  <div className="rounded-md border border-error/35 bg-error/10 px-3 py-3 text-sm text-[#ffb4b4]">
+                    {uploadError}
+                  </div>
+                ) : null}
+
+                <div className="grid gap-1">
+                  <label className="text-[13px] font-medium text-ink-muted">Fajl *</label>
+                  <input
+                    type="file"
+                    accept=".pdf,.docx,.txt"
+                    disabled={uploadSubmitting}
+                    onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)}
+                    className="rounded-md border border-hairline bg-surface-1 px-3 py-2 text-sm text-ink file:mr-3 file:cursor-pointer file:rounded file:border-0 file:bg-surface-2 file:px-3 file:py-1 file:text-sm file:text-ink-muted hover:file:bg-surface-2/80 disabled:opacity-50"
+                  />
+                </div>
+
+                <TextInput
+                  label="Naziv dokumenta"
+                  name="uploadNaziv"
+                  disabled={uploadSubmitting}
+                  placeholder="Ostavi prazno da se koristi ime fajla"
+                  value={uploadNaziv}
+                  onChange={(e) => setUploadNaziv(e.target.value)}
+                />
+
+                <SelectField
+                  label="Tip dokumenta"
+                  name="uploadTipDokumentaId"
+                  disabled={uploadSubmitting}
+                  value={uploadTipDokumentaId}
+                  onChange={(e) => handleUploadTipChange(e.target.value)}
+                >
+                  <option value="">Izaberi tip dokumenta</option>
+                  {tipoviDokumenta.map((type) => (
+                    <option key={type.id} value={type.id}>
+                      {type.naziv}
+                    </option>
+                  ))}
+                </SelectField>
+
+                {uploadRequiredMetadata.length > 0 ? (
+                  <div className="grid gap-3 rounded-lg border border-hairline bg-surface-2 p-3">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-ink-muted">
+                      Obavezni metapodaci
+                    </div>
+                    {uploadRequiredMetadata.map((tip, index) => (
+                      <TextInput
+                        key={tip.id}
+                        label={`${tip.naziv} (${tip.tipPodatka}) *`}
+                        name={`uploadMeta-${tip.id}`}
+                        disabled={uploadSubmitting}
+                        value={uploadMetapodaci[index]?.vrednost ?? ''}
+                        onChange={(e) =>
+                          setUploadMetapodaci((prev) =>
+                            prev.map((row, i) => (i === index ? { ...row, vrednost: e.target.value } : row)),
+                          )
+                        }
+                      />
+                    ))}
+                  </div>
+                ) : null}
+
+                <div className="flex items-center justify-end gap-3 border-t border-hairline pt-4">
+                  <Button type="button" variant="secondary" onClick={closeUploadDialog} disabled={uploadSubmitting}>
+                    Otkazi
+                  </Button>
+                  <Button type="submit" disabled={uploadSubmitting || !uploadFile}>
+                    {uploadSubmitting ? 'Otpremanje...' : 'Otpremi'}
+                  </Button>
+                </div>
+              </form>
+            </div>
+          </div>
+        ) : null}
 
         <DocumentDialog
           open={dialogOpen}

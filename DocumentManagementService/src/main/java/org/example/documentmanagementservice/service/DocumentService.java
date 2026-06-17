@@ -2,6 +2,11 @@ package org.example.documentmanagementservice.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.text.PDFTextStripper;
+import org.apache.poi.xwpf.usermodel.XWPFDocument;
+import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.example.documentmanagementservice.dto.DokumentRequestDTO;
 import org.example.documentmanagementservice.dto.MetapodatakCreateDTO;
 import org.example.documentmanagementservice.model.Dokument;
@@ -21,13 +26,19 @@ import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.multipart.MultipartFile;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -234,6 +245,70 @@ public class DocumentService {
             log.error("Failed to verify project existence at {}", projectServiceUrl, ex);
             return true;
         }
+    }
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
+    @Transactional
+    public Dokument upload(MultipartFile file, String naziv, UUID tipDokumentaId, String authorId, String authorName, String metapodaciJson) {
+        String filename = file.getOriginalFilename() != null ? file.getOriginalFilename() : "document";
+        String resolvedNaziv = (naziv != null && !naziv.isBlank()) ? naziv.trim() : stripExtension(filename);
+
+        String sadrzaj;
+        try {
+            sadrzaj = extractText(file);
+        } catch (IOException ex) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST,
+                    "Failed to extract text from file: " + ex.getMessage()
+            );
+        }
+
+        List<MetapodatakCreateDTO> metapodaci = null;
+        if (metapodaciJson != null && !metapodaciJson.isBlank()) {
+            try {
+                metapodaci = OBJECT_MAPPER.readValue(metapodaciJson, new TypeReference<>() {});
+            } catch (IOException ex) {
+                throw new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.BAD_REQUEST,
+                        "Invalid metapodaci JSON: " + ex.getMessage()
+                );
+            }
+        }
+
+        DokumentRequestDTO request = new DokumentRequestDTO();
+        request.setNaslov(resolvedNaziv);
+        request.setAuthorId(authorId);
+        request.setAuthorName(authorName);
+        request.setSadrzaj(sadrzaj);
+        request.setTipDokumentaId(tipDokumentaId);
+        request.setMetapodaci(metapodaci);
+
+        return create(request);
+    }
+
+    private String extractText(MultipartFile file) throws IOException {
+        String filename = file.getOriginalFilename() != null ? file.getOriginalFilename().toLowerCase() : "";
+        try (InputStream in = file.getInputStream()) {
+            if (filename.endsWith(".pdf")) {
+                try (PDDocument pdf = Loader.loadPDF(in.readAllBytes())) {
+                    return new PDFTextStripper().getText(pdf);
+                }
+            } else if (filename.endsWith(".docx")) {
+                try (XWPFDocument docx = new XWPFDocument(in)) {
+                    return docx.getParagraphs().stream()
+                            .map(XWPFParagraph::getText)
+                            .collect(Collectors.joining("\n"));
+                }
+            } else {
+                return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+            }
+        }
+    }
+
+    private String stripExtension(String filename) {
+        int dot = filename.lastIndexOf('.');
+        return dot > 0 ? filename.substring(0, dot) : filename;
     }
 
     @Transactional
