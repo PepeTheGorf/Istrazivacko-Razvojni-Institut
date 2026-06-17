@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState, type Dispatch, type FormEvent, type SetStateAction } from 'react'
+import { AdvancedSearchDialog, EMPTY_ADVANCED_FILTERS } from '../../components/AdvancedSearchDialog'
+import type { AdvancedFilters } from '../../components/AdvancedSearchDialog'
+import { TagDocumentsDialog } from '../../components/TagDocumentsDialog'
 import { createDocument, deleteDocument, fetchDocuments, updateDocument } from '../../api/documents'
-import { searchDocuments as searchVectorDocuments } from '../../api/documentSearch'
-import { fetchDocumentTags } from '../../api/documentTags'
+import { createDokumentTag, deleteDokumentTag, fetchDocumentTags } from '../../api/documentTags'
 import { fetchMetapodatakByDocument } from '../../api/metapodatak'
 import { fetchProjectsForSelection } from '../../api/projects'
-import { fetchTags } from '../../api/tags'
+import { createTag, fetchTags } from '../../api/tags'
 import { fetchTipDokumenta } from '../../api/tipDokumenta'
 import { fetchTipMetapodataka } from '../../api/tipMetapodatka'
 import { useAuth } from '../../auth/AuthContext'
@@ -24,11 +26,6 @@ import type { TipMetapodatka, TipPodatka } from '../../types/tipMetapodatka'
 type DocumentMode = 'create' | 'edit'
 
 interface MetadataRow {
-  tipMetapodatkaId: string
-  vrednost: string
-}
-
-interface MetadataFilterRow {
   tipMetapodatkaId: string
   vrednost: string
 }
@@ -143,19 +140,20 @@ export function DocumentsPage() {
   const [selectedDocumentMetadata, setSelectedDocumentMetadata] = useState<Metapodatak[]>([])
   const [selectedDocumentMetadataLoading, setSelectedDocumentMetadataLoading] = useState(false)
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
-  const [selectedDocumentTypeFilterId, setSelectedDocumentTypeFilterId] = useState('')
-  const [authorFilter, setAuthorFilter] = useState('')
-  const [tagFilter, setTagFilter] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
-  const [searchResults, setSearchResults] = useState<Dokument[] | null>(null)
-  const [searchLoading, setSearchLoading] = useState(false)
-  const [metadataFilters, setMetadataFilters] = useState<MetadataFilterRow[]>([])
+  const [advancedSearchOpen, setAdvancedSearchOpen] = useState(false)
+  const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilters>(EMPTY_ADVANCED_FILTERS)
   const [projects, setProjects] = useState<Project[]>([])
   const [tags, setTags] = useState<Tag[]>([])
   const [tipoviDokumenta, setTipoviDokumenta] = useState<TipDokumenta[]>([])
   const [tipoviMetapodataka, setTipoviMetapodataka] = useState<TipMetapodatka[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  const [tagDialogOpen, setTagDialogOpen] = useState(false)
+  const [tagInput, setTagInput] = useState('')
+  const [tagSaving, setTagSaving] = useState(false)
+  const [tagError, setTagError] = useState<string | null>(null)
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [dialogMode, setDialogMode] = useState<DocumentMode>('create')
@@ -195,37 +193,6 @@ export function DocumentsPage() {
     [documents],
   )
 
-  const documentsByVectorId = useMemo(
-    () => new Map(documents.filter((document) => document.vectorDocumentId).map((document) => [document.vectorDocumentId as string, document])),
-    [documents],
-  )
-
-  const searchableMetadataOptions = useMemo(() => {
-    if (!selectedDocumentTypeFilterId) {
-      return tipoviMetapodataka
-    }
-
-    return tipoviMetapodataka.filter((item) => item.tipDokumentaId === selectedDocumentTypeFilterId)
-  }, [selectedDocumentTypeFilterId, tipoviMetapodataka])
-
-  const searchMetadataOptionIds = useMemo(
-    () => new Set(searchableMetadataOptions.map((item) => item.id)),
-    [searchableMetadataOptions],
-  )
-
-  const metadataRows = useMemo(
-    () => metadataFilters.filter((item) => item.tipMetapodatkaId || item.vrednost.trim()),
-    [metadataFilters],
-  )
-
-  const sourceDocuments = useMemo(() => {
-    if (searchQuery.trim()) {
-      return searchResults ?? []
-    }
-
-    return documents
-  }, [documents, searchQuery, searchResults])
-
   const selectedMetadataOptions = useMemo(
     () => metadataOptionsForDocumentType(tipoviMetapodataka, formValues.tipDokumentaId),
     [tipoviMetapodataka, formValues.tipDokumentaId],
@@ -237,56 +204,63 @@ export function DocumentsPage() {
   )
 
   const filteredDocuments = useMemo(() => {
-    const trimmedAuthorFilter = authorFilter.trim()
-    const trimmedTagFilter = tagFilter.trim()
-    const normalizedQuery = normalizeSearchText(searchQuery)
+    const q = normalizeSearchText(searchQuery)
+    const af = advancedFilters
 
-    return sourceDocuments.filter((document) => {
-      const selectedProject = selectedProjectId ? projects.find((project) => project.id === selectedProjectId) : null
-      const documentProjectName = document.projectName ?? projectNameById.get(document.projektId ?? '') ?? ''
+    return documents.filter((document) => {
       const documentMetadata = documentMetadataByDocumentId.get(document.id) ?? []
+      const tagNames = documentTagNamesByDocumentId.get(document.id) ?? []
+      const documentProjectName = document.projectName ?? projectNameById.get(document.projektId ?? '') ?? ''
 
+      // sidebar project filter
       if (selectedProjectId) {
+        const selectedProject = projects.find((p) => p.id === selectedProjectId)
         const matchesProject =
           document.projektId === selectedProjectId ||
           (selectedProject?.name ? documentProjectName === selectedProject.name : false)
         if (!matchesProject) return false
       }
 
-      if (selectedDocumentTypeFilterId && document.tipDokumentaId !== selectedDocumentTypeFilterId) {
-        return false
-      }
-
-      if (trimmedAuthorFilter) {
-        const authorCandidate = `${document.authorName ?? ''} ${document.authorId}`
-        if (!valueContains(authorCandidate, trimmedAuthorFilter)) return false
-      }
-
-      if (trimmedTagFilter) {
-        const tagNames = documentTagNamesByDocumentId.get(document.id) ?? []
-        if (!tagNames.some((tagName) => valueContains(tagName, trimmedTagFilter))) return false
-      }
-
-      if (normalizedQuery && !searchResults) {
+      // main search bar — matches title, tags, metadata values
+      if (q) {
         const searchableText = [
           document.naslov,
-          document.sadrzaj ?? '',
-          document.authorName ?? '',
-          document.authorId,
-          document.projectName ?? '',
-          document.projektId ?? '',
-          ...(documentTagNamesByDocumentId.get(document.id) ?? []),
-          ...documentMetadata.map((item) => `${tipMetapodatkaNameById.get(item.tipMetapodatkaId) ?? item.tipMetapodatkaId} ${item.vrednost}`),
+          ...tagNames,
+          ...documentMetadata.map((item) => item.vrednost),
         ].join(' ')
-
-        if (!valueContains(searchableText, normalizedQuery)) return false
+        if (!valueContains(searchableText, q)) return false
       }
 
-      for (const row of metadataRows) {
+      // advanced filters
+      if (af.title.trim() && !valueContains(document.naslov, af.title)) return false
+      if (af.author.trim()) {
+        const authorCandidate = `${document.authorName ?? ''} ${document.authorId}`
+        if (!valueContains(authorCandidate, af.author)) return false
+      }
+      if (af.tipDokumentaId && document.tipDokumentaId !== af.tipDokumentaId) return false
+      if (af.tag.trim()) {
+        if (!tagNames.some((n) => valueContains(n, af.tag))) return false
+      }
+      if (af.dateFrom) {
+        const docDate = document.createdAt ? new Date(document.createdAt) : null
+        if (!docDate || docDate < new Date(af.dateFrom)) return false
+      }
+      if (af.dateTo) {
+        const docDate = document.createdAt ? new Date(document.createdAt) : null
+        if (!docDate || docDate > new Date(af.dateTo + 'T23:59:59')) return false
+      }
+      if (af.projektId) {
+        const selectedProject = projects.find((p) => p.id === af.projektId)
+        const matchesProject =
+          document.projektId === af.projektId ||
+          (selectedProject?.name ? documentProjectName === selectedProject.name : false)
+        if (!matchesProject) return false
+      }
+      // advanced metadata filters
+      for (const row of af.metadataFilters) {
         if (!row.tipMetapodatkaId && !row.vrednost.trim()) continue
         const matchingMetadata = documentMetadata.filter((item) => item.tipMetapodatkaId === row.tipMetapodatkaId)
         if (!matchingMetadata.length) return false
-
         const metadataType = tipMetapodatkaById.get(row.tipMetapodatkaId)
         if (!matchingMetadata.some((item) => metadataValueMatches(metadataType?.tipPodatka, item.vrednost, row.vrednost))) {
           return false
@@ -296,18 +270,15 @@ export function DocumentsPage() {
       return true
     })
   }, [
-    authorFilter,
+    advancedFilters,
     documentMetadataByDocumentId,
     documentTagNamesByDocumentId,
-    metadataRows,
+    documents,
     projects,
-    searchQuery,
-    selectedDocumentTypeFilterId,
-    selectedProjectId,
-    sourceDocuments,
     projectNameById,
+    searchQuery,
+    selectedProjectId,
     tipMetapodatkaById,
-    tipMetapodatkaNameById,
   ])
 
   const currentAuthorLabel = user ? `${user.name} ${user.surname}` : 'Nijedan korisnik nije prijavljen'
@@ -366,82 +337,6 @@ export function DocumentsPage() {
     void loadAll()
   }, [])
 
-  useEffect(() => {
-    const query = searchQuery.trim()
-    if (!query) {
-      setSearchResults(null)
-      setSearchLoading(false)
-      return
-    }
-
-    let active = true
-    const timeoutId = window.setTimeout(() => {
-      setSearchLoading(true)
-
-      void (async () => {
-        try {
-          const response = await searchVectorDocuments({
-            query,
-            topK: 50,
-            docTypeId: selectedDocumentTypeFilterId || undefined,
-            projectId: selectedProjectId || undefined,
-          })
-
-          if (!active) return
-
-          const rankedDocuments: Dokument[] = response.results.flatMap((hit) => {
-            let document = documentsByVectorId.get(String(hit.id)) ?? documentsById.get(String(hit.id))
-
-            if (!document) {
-              document = documents.find((d) =>
-                String(d.vectorDocumentId) === String(hit.id) || String(d.id) === String(hit.id) ||
-                (hit.title && normalizeSearchText(d.naslov) === normalizeSearchText(String(hit.title)))
-              )
-            }
-
-            if (!document) return []
-
-            return [
-              {
-                ...document,
-                vectorDocumentId: String(hit.id),
-                tags: hit.tags ?? document.tags,
-                metadata: hit.metadata ?? document.metadata,
-                score: hit.score,
-                semanticScore: hit.semantic_score,
-                lexicalScore: hit.lexical_score,
-              },
-            ]
-          })
-
-          setSearchResults(rankedDocuments)
-        } catch (searchError) {
-          if (!active) return
-          setSearchResults([])
-          setError(searchError instanceof Error ? searchError.message : 'Neuspesna pretraga dokumenata')
-        } finally {
-          if (active) {
-            setSearchLoading(false)
-          }
-        }
-      })()
-    }, 300)
-
-    return () => {
-      active = false
-      window.clearTimeout(timeoutId)
-    }
-  }, [documentsById, searchQuery, selectedDocumentTypeFilterId, selectedProjectId])
-
-  useEffect(() => {
-    setMetadataFilters((current) =>
-      current.map((row) =>
-        row.tipMetapodatkaId && !searchMetadataOptionIds.has(row.tipMetapodatkaId)
-          ? { tipMetapodatkaId: '', vrednost: '' }
-          : row,
-      ),
-    )
-  }, [searchMetadataOptionIds])
 
   useEffect(() => {
     if (!selectedDocumentId) {
@@ -478,6 +373,8 @@ export function DocumentsPage() {
     setSelectedDocumentId(null)
     setSelectedDocumentMetadata([])
     setSelectedDocumentMetadataLoading(false)
+    setTagInput('')
+    setTagError(null)
   }
 
   function openCreateDialog() {
@@ -539,15 +436,59 @@ export function DocumentsPage() {
     setFormValues(createEmptyValues())
   }
 
+  async function addTagToDocument(tagName: string) {
+    if (!selectedDocumentId || !tagName.trim()) return
+    setTagSaving(true)
+    setTagError(null)
+    try {
+      const trimmed = tagName.trim()
+      let tag = tags.find((t) => t.naziv.toLowerCase() === trimmed.toLowerCase())
+      if (!tag) {
+        tag = await createTag(trimmed)
+        setTags((prev) => [...prev, tag!])
+      }
+      await createDokumentTag(selectedDocumentId, tag.id)
+      const updatedTagLinks = await fetchDocumentTags(selectedDocumentId)
+      const freshTag = tag
+      setTags((latestTags) => {
+        const allTags = latestTags.find((t) => t.id === freshTag.id)
+          ? latestTags
+          : [...latestTags, freshTag]
+        const resolvedNames = updatedTagLinks.map(
+          (link) => allTags.find((t) => t.id === link.tagId)?.naziv ?? link.tagId,
+        )
+        setDocumentTagNamesByDocumentId((prev) => new Map(prev).set(selectedDocumentId, resolvedNames))
+        return allTags
+      })
+      setTagInput('')
+    } catch (err) {
+      setTagError(err instanceof Error ? err.message : 'Greška pri dodavanju taga')
+    } finally {
+      setTagSaving(false)
+    }
+  }
+
+  async function removeTagFromDocument(tagName: string) {
+    if (!selectedDocumentId) return
+    setTagError(null)
+    try {
+      const tag = tags.find((t) => t.naziv === tagName)
+      if (!tag) return
+      await deleteDokumentTag(selectedDocumentId, tag.id)
+      setDocumentTagNamesByDocumentId((prev) => {
+        const updated = new Map(prev)
+        updated.set(selectedDocumentId, (prev.get(selectedDocumentId) ?? []).filter((n) => n !== tagName))
+        return updated
+      })
+    } catch (err) {
+      setTagError(err instanceof Error ? err.message : 'Greška pri uklanjanju taga')
+    }
+  }
+
   function clearAllFilters() {
     setSearchQuery('')
     setSelectedProjectId(null)
-    setSelectedDocumentTypeFilterId('')
-    setAuthorFilter('')
-    setTagFilter('')
-    setMetadataFilters([])
-    setSearchResults(null)
-    setSearchLoading(false)
+    setAdvancedFilters(EMPTY_ADVANCED_FILTERS)
   }
 
   function updateMetadataRow(index: number, patch: Partial<MetadataRow>) {
@@ -646,143 +587,45 @@ export function DocumentsPage() {
           </div>
         ) : null}
 
-        <section className="grid gap-4 rounded-lg border border-hairline bg-surface-1 p-4 shadow-sm">
-          <div className="grid gap-3 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]">
-            <TextInput
-              label="Vektorska pretraga"
-              name="documentSearch"
+        <div className="flex items-center gap-2">
+          <div className="flex flex-1 items-center gap-2 rounded-lg border border-hairline bg-surface-1 px-3 py-2 shadow-sm">
+            <span className="flex shrink-0 items-center justify-center text-ink-muted">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
+                <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" strokeWidth="1.5" />
+                <path d="M10.5 10.5L14 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </span>
+            <input
+              type="text"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Traži po naslovu, sadržaju, tagovima i metapodacima"
-            />
-
-            <SelectField
-              label="Tip dokumenta"
-              value={selectedDocumentTypeFilterId}
-              onChange={(event) => setSelectedDocumentTypeFilterId(event.target.value)}
-            >
-              <option value="">Svi tipovi</option>
-              {tipoviDokumenta.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.naziv}
-                </option>
-              ))}
-            </SelectField>
-
-            <TextInput
-              label="Autor"
-              name="authorFilter"
-              value={authorFilter}
-              onChange={(event) => setAuthorFilter(event.target.value)}
-              placeholder="Ime, prezime ili ID autora"
-            />
-
-            <TextInput
-              label="Tag"
-              name="tagFilter"
-              value={tagFilter}
-              onChange={(event) => setTagFilter(event.target.value)}
-              placeholder="deo naziva taga"
+              placeholder="Search..."
+              className="flex-1 bg-transparent py-1 text-sm text-ink placeholder:text-ink-tertiary focus:outline-none"
             />
           </div>
-
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-            <div className="grid gap-3 rounded-lg border border-hairline bg-surface-2 p-4">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <div className="text-sm font-semibold text-ink">Filteri po metapodacima</div>
-                  <div className="text-xs text-ink-subtle">
-                    {selectedDocumentTypeFilterId
-                      ? 'Prikazani su samo metapodaci za izabrani tip dokumenta.'
-                      : 'Prikazani su svi tipovi metapodataka.'}
-                  </div>
-                </div>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  icon="add"
-                  onClick={() =>
-                    setMetadataFilters((current) => [...current, { tipMetapodatkaId: '', vrednost: '' }])
-                  }
-                >
-                  Dodaj filter
-                </Button>
-              </div>
-
-              {metadataFilters.length ? (
-                <div className="grid gap-3">
-                  {metadataFilters.map((row, index) => (
-                    <div
-                      key={`metadata-filter-${index}`}
-                      className="grid gap-3 rounded-md border border-hairline bg-surface-1 p-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end"
-                    >
-                      <SelectField
-                        label="Metapodatak"
-                        value={row.tipMetapodatkaId}
-                        onChange={(event) =>
-                          setMetadataFilters((current) =>
-                            current.map((item, itemIndex) =>
-                              itemIndex === index
-                                ? { ...item, tipMetapodatkaId: event.target.value, vrednost: '' }
-                                : item,
-                            ),
-                          )
-                        }
-                      >
-                        <option value="">Izaberi metapodatak</option>
-                        {searchableMetadataOptions.map((item) => (
-                          <option key={item.id} value={item.id}>
-                            {item.naziv} ({item.tipPodatka})
-                          </option>
-                        ))}
-                      </SelectField>
-
-                      <TextInput
-                        label="Vrednost"
-                        value={row.vrednost}
-                        onChange={(event) =>
-                          setMetadataFilters((current) =>
-                            current.map((item, itemIndex) =>
-                              itemIndex === index ? { ...item, vrednost: event.target.value } : item,
-                            ),
-                          )
-                        }
-                        placeholder="Unesi vrednost"
-                        disabled={!row.tipMetapodatkaId}
-                      />
-
-                      <Button
-                        type="button"
-                        variant="delete"
-                        onClick={() =>
-                          setMetadataFilters((current) => current.filter((_, itemIndex) => itemIndex !== index))
-                        }
-                      >
-                        Ukloni
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="rounded-md border border-dashed border-hairline px-3 py-4 text-sm text-ink-subtle">
-                  Dodaj jedan ili više filtera po metapodacima.
-                </div>
-              )}
-            </div>
-
-            <div className="grid gap-3 self-start rounded-lg border border-hairline bg-surface-2 p-4">
-              <div className="text-sm font-semibold text-ink">Pregled</div>
-              <div className="text-sm text-ink-subtle">
-                {searchLoading
-                  ? 'Vector pretraga je u toku...'
-                  : `${filteredDocuments.length} dokument(a) u rezultatima`}
-              </div>
-              <Button type="button" variant="secondary" onClick={clearAllFilters}>
-                Očisti filtere
-              </Button>
-            </div>
-          </div>
-        </section>
+          <button
+            type="button"
+            onClick={() => setAdvancedSearchOpen(true)}
+            title="Advanced search"
+            className={`flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-hairline shadow-sm transition-colors hover:bg-surface-2 ${Object.values(advancedFilters).some(Boolean) ? 'bg-primary/15 text-primary border-primary/40' : 'bg-surface-1 text-ink-muted'}`}
+            aria-label="Advanced search"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+              <path d="M4 6h16M7 12h10M10 18h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            onClick={() => setTagDialogOpen(true)}
+            title="Tag documents"
+            className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-hairline bg-surface-1 shadow-sm text-ink-muted transition-colors hover:bg-surface-2 hover:text-ink"
+            aria-label="Tag documents"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+              <path d="M21.41 11.58l-9-9A2 2 0 0011 2H4a2 2 0 00-2 2v7a2 2 0 00.59 1.42l9 9a2 2 0 002.82 0l7-7a2 2 0 000-2.84zM7 9a2 2 0 110-4 2 2 0 010 4z" />
+            </svg>
+          </button>
+        </div>
 
         <div className="grid min-h-0 gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
           <aside className="rounded-lg border border-hairline bg-surface-1 p-4 lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-auto">
@@ -894,7 +737,7 @@ export function DocumentsPage() {
                 })
               ) : (
                 <div className="px-4 py-10 text-sm text-ink-subtle">
-                  {searchQuery.trim() || authorFilter.trim() || tagFilter.trim() || selectedDocumentTypeFilterId || metadataRows.length || selectedProjectId
+                  {searchQuery.trim() || Object.values(advancedFilters).some(Boolean) || selectedProjectId
                     ? 'Nema dokumenata za izabrane filtere.'
                     : 'Nema dokumenata.'}
                 </div>
@@ -947,17 +790,74 @@ export function DocumentsPage() {
 
                   <div className="rounded-md border border-hairline bg-surface-2 px-3 py-3">
                     <div className="text-xs font-medium uppercase tracking-wide text-ink-subtle">Tagovi</div>
-                    <div className="mt-2 flex flex-wrap gap-2">
+                    <div className="mt-2 flex flex-wrap gap-1.5">
                       {(documentTagNamesByDocumentId.get(selectedDocument.id) ?? []).length ? (
                         (documentTagNamesByDocumentId.get(selectedDocument.id) ?? []).map((tagName) => (
-                          <span key={`panel-${selectedDocument.id}-${tagName}`} className="rounded-full bg-surface-1 px-2 py-1 text-xs text-ink-subtle">
+                          <span
+                            key={`panel-${selectedDocument.id}-${tagName}`}
+                            className="group flex items-center gap-1 rounded-full bg-surface-1 px-2.5 py-1 text-xs text-ink-subtle"
+                          >
                             {tagName}
+                            <button
+                              type="button"
+                              onClick={() => void removeTagFromDocument(tagName)}
+                              className="ml-0.5 cursor-pointer text-ink-tertiary opacity-0 transition-opacity hover:text-error group-hover:opacity-100"
+                              aria-label={`Ukloni tag ${tagName}`}
+                            >
+                              ×
+                            </button>
                           </span>
                         ))
                       ) : (
                         <span className="text-sm text-ink-subtle">Nema tagova</span>
                       )}
                     </div>
+                    <div className="mt-3 flex items-center gap-1.5">
+                      <input
+                        type="text"
+                        value={tagInput}
+                        onChange={(e) => setTagInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') void addTagToDocument(tagInput)
+                          if (e.key === 'Escape') setTagInput('')
+                        }}
+                        placeholder="Tag..."
+                        disabled={tagSaving}
+                        className="min-w-0 flex-1 rounded-md border border-hairline bg-surface-1 px-2.5 py-1.5 text-sm text-ink placeholder:text-ink-tertiary focus:border-hairline-strong focus:outline-2 focus:outline-primary-focus/50 disabled:opacity-50"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => void addTagToDocument(tagInput)}
+                        disabled={tagSaving || !tagInput.trim()}
+                        className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border border-hairline bg-surface-1 text-ink-muted transition-colors hover:border-primary/50 hover:text-primary disabled:cursor-not-allowed disabled:opacity-40"
+                        aria-label="Dodaj tag"
+                      >
+                        {tagSaving ? (
+                          <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                          </svg>
+                        ) : (
+                          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
+                            <path d="M2 7l3.5 3.5L12 3" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setTagInput(''); setTagError(null) }}
+                        disabled={tagSaving}
+                        className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border border-hairline bg-surface-1 text-ink-muted transition-colors hover:border-error/50 hover:text-error disabled:cursor-not-allowed disabled:opacity-40"
+                        aria-label="Otkaži"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
+                          <path d="M10 2L2 10M2 2l8 8" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+                        </svg>
+                      </button>
+                    </div>
+                    {tagError && (
+                      <div className="mt-1.5 text-xs text-error">{tagError}</div>
+                    )}
                   </div>
 
                   <div className="rounded-md border border-hairline bg-surface-2 px-3 py-3">
@@ -1021,6 +921,21 @@ export function DocumentsPage() {
             }))
           }
           onUpdateMetadataRow={updateMetadataRow}
+        />
+
+        <TagDocumentsDialog
+          isOpen={tagDialogOpen}
+          onClose={() => setTagDialogOpen(false)}
+        />
+
+        <AdvancedSearchDialog
+          isOpen={advancedSearchOpen}
+          filters={advancedFilters}
+          projects={projects}
+          tipoviDokumenta={tipoviDokumenta}
+          tipoviMetapodataka={tipoviMetapodataka}
+          onApply={(f) => { setAdvancedFilters(f); setAdvancedSearchOpen(false) }}
+          onClose={() => setAdvancedSearchOpen(false)}
         />
       </div>
     </AppShell>
