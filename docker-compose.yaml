@@ -103,6 +103,19 @@ services:
       timeout: 5s
       retries: 5
 
+  project-realization-pgadmin:
+    image: dpage/pgadmin4:latest
+    depends_on:
+      project-realization-postgres:
+        condition: service_healthy
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    volumes:
+      - project_realization_pgadmin_data:/var/lib/pgadmin
+
   project-realization-service:
     build:
       context: ./ProjectRealizationService
@@ -111,17 +124,12 @@ services:
     depends_on:
       eureka-server:
         condition: service_healthy
-      neo4j:
-        condition: service_healthy
       project-realization-postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     environment:
       EUREKA_URL: http://eureka-server:8761/eureka/
-      SPRING_NEO4J_URI: bolt://neo4j:7687
-      SPRING_NEO4J_AUTHENTICATION_USERNAME: neo4j
-      SPRING_NEO4J_AUTHENTICATION_PASSWORD: password
       SPRING_DATASOURCE_URL: jdbc:postgresql://project-realization-postgres:5432/project_realization
       SPRING_DATASOURCE_USERNAME: project_realization
       SPRING_DATASOURCE_PASSWORD: project_realization
@@ -248,21 +256,6 @@ services:
       standalone:
         condition: service_healthy
 
-  neo4j:
-    image: neo4j:5
-    ports:
-      # - "7474:7474"  # Neo4j Browser UI (not required for services)
-      - "7687:7687"
-    environment:
-      NEO4J_AUTH: neo4j/password
-    volumes: # Mounts persistent storage or local folders into the container
-      - neo4j_data:/data
-    healthcheck:
-      test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "password", "RETURN 1"]
-      interval: 20s
-      timeout: 10s
-      retries: 5
-
   stakeholder-postgres:
     image: postgres:16
     environment:
@@ -280,9 +273,9 @@ services:
       retries: 5
 
 volumes:
-  neo4j_data: {}
   stakeholder_pg_data: {}
   project_realization_pg_data: {}
+  project_realization_pgadmin_data: {}
   influxdb_data: {}
   redis_data: {}
 
