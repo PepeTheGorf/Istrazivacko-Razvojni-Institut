@@ -1,10 +1,12 @@
 package org.example.projectrealizationservice.model;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -12,16 +14,18 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.OffsetDateTime;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
-@Table(name = "projects")
+@Table(name = "workflows")
 @Getter
 @Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Project {
+public class Workflow {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -32,12 +36,20 @@ public class Project {
 
     private String description;
 
-    @Column(name = "start_date")
-    private OffsetDateTime startDate;
-
-    @Column(name = "end_date")
-    private OffsetDateTime endDate;
-
     @Column(name = "creator_id")
     private Long creatorId;
+
+    @OneToMany(mappedBy = "workflow", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private Set<Phase> phases = new HashSet<>();
+
+    @OneToMany(mappedBy = "workflow", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private Set<TransitionCondition> transitionConditions = new HashSet<>();
+    
+    public Phase getLastPhase() {
+        return phases.stream()
+                .max(Comparator.comparingInt(Phase::getOrder))
+                .orElse(null);
+    }
 }

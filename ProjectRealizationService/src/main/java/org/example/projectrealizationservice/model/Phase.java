@@ -16,29 +16,27 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.OffsetDateTime;
-
 @Entity
-@Table(name = "task_assignments")
+@Table(name = "phases")
 @Getter
 @Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class TaskAssignment {
+public class Phase {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "task_id", nullable = false)
+    @JoinColumn(name = "workflow_id", nullable = false)
     @JsonIgnore
-    private Task task;
+    private Workflow workflow;
 
-    @Column(name = "assignee_id", nullable = false)
-    private Long assigneeId;
-    
-    @Column(name = "assigned_at")
-    private OffsetDateTime assignedAt;
+    @Column(nullable = false)
+    private String name;
+
+    @Column(name = "phase_order", nullable = false)
+    private int order;
 }

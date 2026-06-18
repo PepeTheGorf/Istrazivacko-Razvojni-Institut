@@ -1,4 +1,4 @@
-package org.example.projectrealizationservice.model.sql;
+package org.example.projectrealizationservice.model;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -29,6 +29,8 @@ public class TechnicalResource {
     private String name;
 
     private String description;
+    
+    private Integer quantity;
 
     @Column(name = "creator_id")
     private Long creatorId;
