@@ -1,4 +1,4 @@
-package org.example.projectrealizationservice.repository.sql;
+package org.example.projectrealizationservice.repository;
 
 import org.example.projectrealizationservice.model.TaskResourceAssignment;
 import org.springframework.data.jpa.repository.JpaRepository;

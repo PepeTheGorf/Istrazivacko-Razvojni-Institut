@@ -1,15 +1,15 @@
 package org.example.projectrealizationservice.repository;
 
-import org.example.projectrealizationservice.model.TechnicalResource;
+import org.example.projectrealizationservice.model.TransitionConditionType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 
 @Repository
-public interface TechnicalResourceRepository extends JpaRepository<TechnicalResource, Long> {
+public interface TransitionConditionTypeRepository extends JpaRepository<TransitionConditionType, Long> {
 
-    Optional<TechnicalResource> findByName(String name);
+    Optional<TransitionConditionType> findByName(String name);
 
     boolean existsByName(String name);
 }

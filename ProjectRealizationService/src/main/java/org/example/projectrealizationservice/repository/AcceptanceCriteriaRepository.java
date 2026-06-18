@@ -1,4 +1,4 @@
-package org.example.projectrealizationservice.repository.sql;
+package org.example.projectrealizationservice.repository;
 
 import org.example.projectrealizationservice.model.AcceptanceCriteria;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -15,8 +15,8 @@ public interface AcceptanceCriteriaRepository extends JpaRepository<AcceptanceCr
 
     @Query("""
         SELECT CASE
-            WHEN COUNT(ac) = SUM(CASE WHEN ac.completed = true THEN 1 ELSE 0 END)
-            THEN true
+            WHEN COUNT(ac) = 0 THEN true
+            WHEN SUM(CASE WHEN ac.completed = true THEN 1 ELSE 0 END) = COUNT(ac) THEN true
             ELSE false
         END
         FROM AcceptanceCriteria ac
