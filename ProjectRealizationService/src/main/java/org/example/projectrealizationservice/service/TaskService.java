@@ -1,7 +1,7 @@
 package org.example.projectrealizationservice.service;
 
-import org.example.projectrealizationservice.dto.ProjectTaskDTO;
-import org.example.projectrealizationservice.dto.TaskSummaryDTO;
+import org.example.projectrealizationservice.dto.*;
+import org.example.projectrealizationservice.dto.creation.TaskAssignmentDTO;
 import org.example.projectrealizationservice.dto.creation.TaskCreationDTO;
 
 import java.util.List;
@@ -9,11 +9,21 @@ import java.util.List;
 public interface TaskService {
     TaskSummaryDTO createTask(TaskCreationDTO taskCreation);
 
-    void updateTask(String taskId, TaskCreationDTO taskCreation);
+    void updateTask(Long taskId, TaskCreationDTO taskCreation);
 
-    void deleteTask(String taskId);
+    void deleteTask(Long taskId);
 
-    List<TaskSummaryDTO> getTasksByProjectId(String projectId);
+    List<TaskSummaryDTO> getTasksByProjectId(Long projectId);
+    
+    List<AssignedTaskSummaryDTO> getMyTasksByProjectId(Long projectId);
 
-    ProjectTaskDTO getTaskById(String taskId);
+    List<AssignedProjectSummaryDTO> getMyProjects();
+    
+    TaskTransitionsResponseDTO getTaskTransitions(Long taskId);
+
+    ProjectTaskDTO getTaskById(Long taskId);
+
+    void assignTaskToUser(TaskAssignmentDTO taskAssignmentDTO);
+
+    void moveTaskToNextPhase(Long taskId, Long phaseId);
 }

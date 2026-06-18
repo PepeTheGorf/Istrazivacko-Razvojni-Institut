@@ -9,12 +9,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class AssignedTaskSummaryDTO {
+public class AssignedProjectSummaryDTO {
     private Long id;
     private String name;
-    private String description;
-    private String phaseName;
-    private java.time.OffsetDateTime endDate;
-    private Long projectId;
-    private String projectName;
 }
