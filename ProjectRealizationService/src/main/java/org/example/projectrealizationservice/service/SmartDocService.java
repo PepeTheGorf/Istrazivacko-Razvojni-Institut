@@ -193,6 +193,10 @@ public class SmartDocService {
             }
         }
 
+        String activePrompt = ts.getActivePromptContent();
+        if (activePrompt == null || activePrompt.isBlank()) {
+        throw new RuntimeException("Sekcija nema aktivnu verziju prompta. Kontaktirajte menadžera.");
+}
         String generatedResult = aiService.generateText(
         ts.getActivePromptContent(), 
         contextBuilder.toString(), 

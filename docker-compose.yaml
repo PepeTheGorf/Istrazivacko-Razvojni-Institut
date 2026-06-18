@@ -150,6 +150,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      ollama:
+        condition: service_healthy
     environment:
       EUREKA_URL: http://eureka-server:8761/eureka/
       SPRING_DATASOURCE_URL: jdbc:postgresql://project-realization-postgres:5432/project_realization
@@ -161,6 +163,7 @@ services:
       JWT_SECRET: c3Rha2Vob2xkZXJzZXJ2aWNland0c2VjcmV0a2V5Zm9ydGgyNTZiaXRzMTIzNDU2Nzg5MA==
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      SPRING_AI_OLLAMA_BASE_URL: http://ollama:11434
     ports:
       - "9060:8080"
 
@@ -434,6 +437,26 @@ services:
     ports:
       - "9065:8080"
 
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
 volumes:
   neo4j_data: {}
   stakeholder_pg_data: {}
@@ -446,3 +469,4 @@ volumes:
   elasticsearch_data: {}
   cassandra_data: {}
   redis_data: {}
+  ollama_data: {}

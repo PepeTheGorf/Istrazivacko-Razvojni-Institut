@@ -1,13 +1,17 @@
 server:
   port: 8080
 
+ai:
+  service:
+    mode: real 
+    
 spring:
   ai:
-    openai:
-      api-key: ${OPENAI_API_KEY:tvoj_kljuc_ovde}
+    ollama:
+      base-url: http://ollama:11434
       chat:
-        options:
-          model: gpt-3.5-turbo
+        model: llama3
+        
   cache:
     type: redis
   neo4j:
