@@ -3,51 +3,75 @@ package org.example.projectrealizationservice.service.impl;
 import lombok.RequiredArgsConstructor;
 import org.example.projectrealizationservice.dto.ProblemReportDTO;
 import org.example.projectrealizationservice.dto.creation.ProblemReportCreationDTO;
+import org.example.projectrealizationservice.model.ProblemReport;
 import org.example.projectrealizationservice.model.ProblemStatus;
-import org.example.projectrealizationservice.model.sql.ProblemReport;
-import org.example.projectrealizationservice.repository.neo4j.TaskRepository;
-import org.example.projectrealizationservice.repository.sql.ProblemReportRepository;
+import org.example.projectrealizationservice.model.Role;
+import org.example.projectrealizationservice.model.Task;
+import org.example.projectrealizationservice.repository.ProblemReportRepository;
+import org.example.projectrealizationservice.repository.TaskRepository;
 import org.example.projectrealizationservice.security.ResourceAuthorization;
+import org.example.projectrealizationservice.security.SecurityUtils;
 import org.example.projectrealizationservice.service.ProblemReportService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class ProblemReportServiceImpl implements ProblemReportService {
 
     private final ProblemReportRepository problemReportRepository;
     private final TaskRepository taskRepository;
 
     @Override
-    public void createProblemReport(String taskId, ProblemReportCreationDTO problemReport) {
-        if (!taskRepository.existsById(taskId)) {
-            throw new RuntimeException("Task with that id does not exist!");
-        }
+    public void createProblemReport(Long taskId, ProblemReportCreationDTO problemReport) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new RuntimeException("Task with that id does not exist!"));
         if (problemReport.getProblemType() == null) {
-            throw new RuntimeException("problemType is required");
+            throw new RuntimeException("Problem type is required");
         }
         if (problemReport.getDescription() == null || problemReport.getDescription().isBlank()) {
-            throw new RuntimeException("description is required");
+            throw new RuntimeException("Description is required");
         }
 
         Long creatorId = ResourceAuthorization.requireCurrentUserId();
 
         problemReportRepository.save(ProblemReport.builder()
-                .taskId(taskId)
+                .task(task)
                 .creatorId(creatorId)
-                .reviewedById(problemReport.getReviewedById())
+                .reviewedById(null)
                 .description(problemReport.getDescription())
                 .problemType(problemReport.getProblemType())
-                .status(problemReport.getStatus() != null ? problemReport.getStatus() : ProblemStatus.OPEN)
+                .status(ProblemStatus.OPEN)
                 .build());
     }
 
     @Override
-    public void updateProblemReport(String problemReportId, ProblemReportCreationDTO problemReport) {
+    public void updateProblemReport(Long problemReportId, ProblemReportCreationDTO problemReport) {
         ProblemReport existing = findOrThrow(problemReportId);
-        ResourceAuthorization.assertCurrentUserIsOwner(existing.getCreatorId());
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        boolean isCreator = Objects.equals(existing.getCreatorId(), currentUserId);
+        boolean isManager = SecurityUtils.getCurrentRole() == Role.MANAGER;
+
+        if (!isCreator && !isManager) {
+            throw new RuntimeException("You do not have permission to update this problem report.");
+        }
+
+        if (isManager && !isCreator) {
+            if (problemReport.getStatus() != null) {
+                existing.setStatus(problemReport.getStatus());
+            }
+            if (problemReport.getReviewedById() != null) {
+                existing.setReviewedById(problemReport.getReviewedById());
+            } else if (problemReport.getStatus() != null && currentUserId != null) {
+                existing.setReviewedById(currentUserId);
+            }
+            problemReportRepository.save(existing);
+            return;
+        }
 
         if (problemReport.getReviewedById() != null) {
             existing.setReviewedById(problemReport.getReviewedById());
@@ -66,26 +90,34 @@ public class ProblemReportServiceImpl implements ProblemReportService {
     }
 
     @Override
-    public void deleteProblemReport(String problemReportId) {
+    public void deleteProblemReport(Long problemReportId) {
         ProblemReport existing = findOrThrow(problemReportId);
         ResourceAuthorization.assertCurrentUserIsOwner(existing.getCreatorId());
         problemReportRepository.delete(existing);
     }
 
     @Override
-    public ProblemReportDTO getProblemReportById(String problemReportId) {
+    public ProblemReportDTO getProblemReportById(Long problemReportId) {
         return ProblemReportDTO.toDTO(findOrThrow(problemReportId));
     }
 
     @Override
-    public List<ProblemReportDTO> getAllProblemsByTask(String taskId) {
-        return problemReportRepository.findByTaskId(taskId).stream()
+    public List<ProblemReportDTO> getAllProblemsByTask(Long taskId) {
+        return problemReportRepository.findByTask_Id(taskId).stream()
                 .map(ProblemReportDTO::toDTO)
                 .toList();
     }
 
-    private ProblemReport findOrThrow(String problemReportId) {
-        return problemReportRepository.findById(Long.parseLong(problemReportId))
+    @Override
+    public List<ProblemReportDTO> getMyProblemReports() {
+        Long creatorId = ResourceAuthorization.requireCurrentUserId();
+        return problemReportRepository.findByCreatorIdWithTaskOrderByReportedAtDesc(creatorId).stream()
+                .map(ProblemReportDTO::toDTO)
+                .toList();
+    }
+
+    private ProblemReport findOrThrow(Long problemReportId) {
+        return problemReportRepository.findById(problemReportId)
                 .orElseThrow(() -> new RuntimeException("ProblemReport with that id does not exist!"));
     }
 }
