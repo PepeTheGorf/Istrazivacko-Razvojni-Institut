@@ -31,6 +31,14 @@ public class TipMetapodatkaService {
     }
 
     @CacheEvict(value = "tip-metapodatka", allEntries = true)
+    public void delete(UUID id) {
+        if (!repository.existsById(id)) {
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "TipMetapodatka not found: " + id);
+        }
+        repository.deleteById(id);
+    }
+
+    @CacheEvict(value = "tip-metapodatka", allEntries = true)
     public TipMetapodatkaResponseDTO create(TipMetapodatkaRequestDTO request) {
         TipMetapodatka entity = TipMetapodatka.builder()
                 .naziv(request.getNaziv().trim())
