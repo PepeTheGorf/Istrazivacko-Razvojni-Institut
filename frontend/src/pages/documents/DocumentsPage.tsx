@@ -493,15 +493,6 @@ export function DocumentsPage() {
     setAdvancedFilters(EMPTY_ADVANCED_FILTERS)
   }
 
-  function updateMetadataRow(index: number, patch: Partial<MetadataRow>) {
-    setFormValues((previous) => ({
-      ...previous,
-      metapodaci: previous.metapodaci.map((item, itemIndex) =>
-        itemIndex === index ? { ...item, ...patch } : item,
-      ),
-    }))
-  }
-
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
@@ -904,25 +895,21 @@ export function DocumentsPage() {
           projects={projects}
           tipoviDokumenta={tipoviDokumenta}
           selectedMetadataOptions={selectedMetadataOptions}
-          tagNameById={tagNameById}
-          tipDokumentaNameById={tipDokumentaNameById}
           authorLabel={currentAuthorLabel}
           onClose={closeDialog}
           onSubmit={handleSubmit}
           onChange={setFormValues}
-          onAddMetadataRow={() =>
-            setFormValues((previous) => ({
-              ...previous,
-              metapodaci: [...previous.metapodaci, { tipMetapodatkaId: '', vrednost: '' }],
-            }))
+          onMetadataFieldChange={(tipMetapodatkaId, vrednost) =>
+            setFormValues((previous) => {
+              const exists = previous.metapodaci.some((r) => r.tipMetapodatkaId === tipMetapodatkaId)
+              return {
+                ...previous,
+                metapodaci: exists
+                  ? previous.metapodaci.map((r) => r.tipMetapodatkaId === tipMetapodatkaId ? { ...r, vrednost } : r)
+                  : [...previous.metapodaci, { tipMetapodatkaId, vrednost }],
+              }
+            })
           }
-          onRemoveMetadataRow={(index) =>
-            setFormValues((previous) => ({
-              ...previous,
-              metapodaci: previous.metapodaci.filter((_, itemIndex) => itemIndex !== index),
-            }))
-          }
-          onUpdateMetadataRow={updateMetadataRow}
         />
 
         <TagDocumentsDialog
@@ -955,15 +942,11 @@ interface DocumentDialogProps {
   projects: Project[]
   tipoviDokumenta: TipDokumenta[]
   selectedMetadataOptions: TipMetapodatka[]
-  tagNameById: Map<string, string>
-  tipDokumentaNameById: Map<string, string>
   authorLabel: string
   onClose: () => void
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
   onChange: Dispatch<SetStateAction<DocumentFormValues>>
-  onAddMetadataRow: () => void
-  onRemoveMetadataRow: (index: number) => void
-  onUpdateMetadataRow: (index: number, patch: Partial<MetadataRow>) => void
+  onMetadataFieldChange: (tipMetapodatkaId: string, vrednost: string) => void
 }
 
 function DocumentDialog({
@@ -976,15 +959,11 @@ function DocumentDialog({
   projects,
   tipoviDokumenta,
   selectedMetadataOptions,
-  tagNameById,
-  tipDokumentaNameById,
   authorLabel,
   onClose,
   onSubmit,
   onChange,
-  onAddMetadataRow,
-  onRemoveMetadataRow,
-  onUpdateMetadataRow,
+  onMetadataFieldChange,
 }: DocumentDialogProps) {
   if (!open) return null
 
@@ -1033,13 +1012,8 @@ function DocumentDialog({
               />
 
               <div className="grid gap-1 rounded-md border border-hairline bg-surface-1 px-3 py-2">
-                <span className="text-[13px] font-medium text-ink-muted">Author *</span>
-                <div className="text-sm text-ink">
-                  {authorLabel}
-                </div>
-                <div className="text-xs text-ink-subtle">
-                  Autor se automatski uzima iz prijavljene sesije.
-                </div>
+                <span className="text-[13px] font-medium text-ink-muted">Autor *</span>
+                <div className="text-sm text-ink">{authorLabel}</div>
               </div>
 
               <SelectField
@@ -1114,95 +1088,37 @@ function DocumentDialog({
                       </span>
                     ))
                   ) : (
-                    <span className="text-sm text-ink-subtle">Upisi tagove razdvojene razmacima.</span>
+                    <span className="text-sm text-ink-subtle">Upiši tagove razdvojene razmacima.</span>
                   )}
-                </div>
-                <div className="mt-2 text-xs text-ink-subtle">
-                  Ucitani tagovi sa backend-a: {tagsAsText(tagNameById)}
                 </div>
               </div>
 
               <div className="rounded-lg border border-hairline bg-surface-1 p-3">
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <div>
-                    <div className="text-sm font-semibold text-ink">Opcioni metapodaci</div>
-                    <div className="text-xs text-ink-subtle">
-                      Prvo izaberi tip dokumenta, zatim dodaj redove i odaberi tipove metapodataka koji mu pripadaju.
-                    </div>
-                  </div>
-                  <Button type="button" variant="secondary" icon="add" onClick={onAddMetadataRow} disabled={submitting || !values.tipDokumentaId}>
-                    Dodaj
-                  </Button>
+                <div className="mb-3">
+                  <div className="text-sm font-semibold text-ink">Metapodaci</div>
                 </div>
 
-                {!values.tipDokumentaId ? (
-                  <div className="rounded-md border border-dashed border-hairline px-3 py-4 text-sm text-ink-subtle">
-                    Izaberi tip dokumenta da ucitas njegove tipove metapodataka.
-                  </div>
-                ) : selectedMetadataOptions.length === 0 ? (
-                  <div className="rounded-md border border-dashed border-hairline px-3 py-4 text-sm text-ink-subtle">
-                    Za ovaj tip dokumenta nisu podeseni tipovi metapodataka.
-                  </div>
-                ) : values.metapodaci.length === 0 ? (
-                  <div className="rounded-md border border-dashed border-hairline px-3 py-4 text-sm text-ink-subtle">
-                    Jos nema redova metapodataka.
-                  </div>
-                ) : (
+                {!values.tipDokumentaId ? null : selectedMetadataOptions.length === 0 ? null : (
                   <div className="space-y-3">
-                    {values.metapodaci.map((row, index) => (
-                      <div key={`metadata-${index}`} className="rounded-md border border-hairline bg-surface-2 p-3">
-                        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
-                          <SelectField
-                            label="Tip metapodatka"
-                            name={`metadataType-${index}`}
+                    {selectedMetadataOptions.map((item) => {
+                      const row = values.metapodaci.find((r) => r.tipMetapodatkaId === item.id)
+                      return (
+                        <div key={item.id} className="grid gap-1">
+                          <label className="text-[13px] font-medium text-ink-muted">
+                            {item.naziv} <span className="text-ink-tertiary">({item.tipPodatka})</span>
+                          </label>
+                          <input
+                            type="text"
                             disabled={submitting}
-                            value={row.tipMetapodatkaId}
-                            onChange={(event) =>
-                              onUpdateMetadataRow(index, { tipMetapodatkaId: event.target.value })
-                            }
-                          >
-                            <option value="">Izaberi tip metapodatka</option>
-                            {selectedMetadataOptions.map((item) => (
-                              <option key={item.id} value={item.id}>
-                                {item.naziv} ({item.tipPodatka})
-                              </option>
-                            ))}
-                          </SelectField>
-
-                          <TextInput
-                            label="Vrednost"
-                            name={`metadataValue-${index}`}
-                            disabled={submitting}
-                            value={row.vrednost}
-                            onChange={(event) => onUpdateMetadataRow(index, { vrednost: event.target.value })}
+                            value={row?.vrednost ?? ''}
+                            onChange={(event) => onMetadataFieldChange(item.id, event.target.value)}
+                            className="rounded-md border border-hairline bg-surface-1 px-3 py-2 text-sm text-ink placeholder:text-ink-tertiary focus:border-hairline-strong focus:outline-2 focus:outline-primary-focus/50 disabled:opacity-50"
                           />
-
-                          <Button
-                            type="button"
-                            variant="delete"
-                            disabled={submitting}
-                            onClick={() => onRemoveMetadataRow(index)}
-                          >
-                            Ukloni
-                          </Button>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 )}
-              </div>
-
-              <div className="rounded-md border border-hairline bg-surface-1 px-3 py-3 text-sm text-ink-muted">
-                <div className="font-medium text-ink">Pregled</div>
-                <div className="mt-1 text-xs text-ink-subtle">
-                  Projekat: {projects.find((project) => project.id === values.projektId)?.name ?? 'N/A'}
-                </div>
-                <div className="mt-1 text-xs text-ink-subtle">
-                  Tip: {tipDokumentaNameById.get(values.tipDokumentaId) ?? 'N/A'}
-                </div>
-                <div className="mt-1 text-xs text-ink-subtle">
-                  Dostupnih tipova metapodataka: {selectedMetadataOptions.length}
-                </div>
               </div>
             </div>
           </div>
@@ -1219,12 +1135,6 @@ function DocumentDialog({
       </div>
     </div>
   )
-}
-
-function tagsAsText(tagNameById: Map<string, string>) {
-  const values = Array.from(tagNameById.values())
-  if (!values.length) return 'Tagovi jos nisu ucitani.'
-  return values.join(' • ')
 }
 
 export default DocumentsPage

@@ -64,30 +64,21 @@ export function AdvancedSearchDialog({
     setLocal((prev) => ({ ...prev, tipDokumentaId: id, metadataFilters: [] }))
   }
 
-  function addMetadataRow() {
-    setLocal((prev) => ({
-      ...prev,
-      metadataFilters: [...prev.metadataFilters, { tipMetapodatkaId: '', vrednost: '' }],
-    }))
-  }
-
-  function removeMetadataRow(index: number) {
-    setLocal((prev) => ({
-      ...prev,
-      metadataFilters: prev.metadataFilters.filter((_, i) => i !== index),
-    }))
-  }
-
-  function updateMetadataRow(index: number, patch: Partial<MetadataFilterRow>) {
-    setLocal((prev) => ({
-      ...prev,
-      metadataFilters: prev.metadataFilters.map((row, i) => i === index ? { ...row, ...patch } : row),
-    }))
+  function setMetadataField(tipMetapodatkaId: string, vrednost: string) {
+    setLocal((prev) => {
+      const exists = prev.metadataFilters.some((r) => r.tipMetapodatkaId === tipMetapodatkaId)
+      return {
+        ...prev,
+        metadataFilters: exists
+          ? prev.metadataFilters.map((r) => r.tipMetapodatkaId === tipMetapodatkaId ? { ...r, vrednost } : r)
+          : [...prev.metadataFilters, { tipMetapodatkaId, vrednost }],
+      }
+    })
   }
 
   const availableMetadata = local.tipDokumentaId
-    ? tipoviMetapodataka.filter((t) => t.tipDokumentaId === local.tipDokumentaId)
-    : tipoviMetapodataka
+    ? tipoviMetapodataka.filter((t) => !t.tipDokumentaId || t.tipDokumentaId === local.tipDokumentaId)
+    : []
 
   if (!isOpen) return null
 
@@ -165,79 +156,28 @@ export function AdvancedSearchDialog({
           </div>
 
           {/* Metapodaci */}
-          <div className="rounded-lg border border-hairline bg-surface-2 p-4">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <div>
-                <div className="text-sm font-semibold text-ink">Pretraga po metapodacima</div>
-                {!local.tipDokumentaId && (
-                  <div className="text-xs text-ink-subtle mt-0.5">
-                    Prvo izaberi tip dokumenta.
-                  </div>
-                )}
-              </div>
-              <Button
-                type="button"
-                variant="secondary"
-                icon="add"
-                onClick={addMetadataRow}
-                disabled={!local.tipDokumentaId || availableMetadata.length === 0}
-              >
-                Dodaj
-              </Button>
-            </div>
-
-            {!local.tipDokumentaId ? (
-              <div className="rounded-md border border-dashed border-hairline px-3 py-3 text-sm text-ink-subtle">
-                Izaberi tip dokumenta da bi mogao da pretražuješ po metapodacima.
-              </div>
-            ) : availableMetadata.length === 0 ? (
-              <div className="rounded-md border border-dashed border-hairline px-3 py-3 text-sm text-ink-subtle">
-                Za izabrani tip dokumenta nema dostupnih metapodataka.
-              </div>
-            ) : local.metadataFilters.length === 0 ? (
-              <div className="rounded-md border border-dashed border-hairline px-3 py-3 text-sm text-ink-subtle">
-                Dodaj red da pretražuješ po metapodacima.
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {local.metadataFilters.map((row, index) => (
-                  <div key={index} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-2 items-end">
-                    <div>
-                      <label className={labelCls}>Tip metapodatka</label>
-                      <select
-                        className={selectCls}
-                        value={row.tipMetapodatkaId}
-                        onChange={(e) => updateMetadataRow(index, { tipMetapodatkaId: e.target.value })}
-                      >
-                        <option value="">Izaberi</option>
-                        {availableMetadata.map((t) => (
-                          <option key={t.id} value={t.id}>{t.naziv}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className={labelCls}>Vrednost</label>
+          {availableMetadata.length > 0 && (
+            <div className="rounded-lg border border-hairline bg-surface-2 p-4">
+              <div className="mb-3 text-sm font-semibold text-ink">Pretraga po metapodacima</div>
+              <div className="space-y-3">
+                {availableMetadata.map((item) => {
+                  const row = local.metadataFilters.find((r) => r.tipMetapodatkaId === item.id)
+                  return (
+                    <div key={item.id} className="grid gap-1">
+                      <label className={labelCls}>
+                        {item.naziv} <span className="text-ink-tertiary">({item.tipPodatka})</span>
+                      </label>
                       <input
                         className={inputCls}
-                        value={row.vrednost}
-                        onChange={(e) => updateMetadataRow(index, { vrednost: e.target.value })}
+                        value={row?.vrednost ?? ''}
+                        onChange={(e) => setMetadataField(item.id, e.target.value)}
                       />
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => removeMetadataRow(index)}
-                      className="flex h-9 w-9 items-center justify-center rounded-md border border-hairline text-ink-muted hover:border-error/50 hover:text-error cursor-pointer"
-                      aria-label="Ukloni red"
-                    >
-                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
-                        <path d="M10 2L2 10M2 2l8 8" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
-                      </svg>
-                    </button>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Akcije */}
