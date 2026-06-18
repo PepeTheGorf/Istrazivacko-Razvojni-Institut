@@ -26,7 +26,7 @@ public class AcceptanceCriteriaController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<?> getById(@PathVariable String id) {
+    public ResponseEntity<?> getById(@PathVariable Long id) {
         try {
             return ResponseEntity.ok(acceptanceCriteriaService.getById(id));
         } catch (Exception e) {
@@ -35,9 +35,20 @@ public class AcceptanceCriteriaController {
     }
 
     @GetMapping
-    public ResponseEntity<?> getByTaskId(@RequestParam String taskId) {
+    public ResponseEntity<?> getByTaskId(@RequestParam Long taskId) {
         try {
             return ResponseEntity.ok(acceptanceCriteriaService.getByTaskId(taskId));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+    
+    @PutMapping("/{id}/solve")
+    @PreAuthorize("hasRole('TEAM_MEMBER')")
+    public ResponseEntity<?> solve(@PathVariable Long id) {
+        try {
+            acceptanceCriteriaService.solve(id);
+            return ResponseEntity.ok().build();
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
@@ -45,7 +56,7 @@ public class AcceptanceCriteriaController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('MANAGER')")
-    public ResponseEntity<?> update(@PathVariable String id, @RequestBody AcceptanceCriteriaCreationDTO dto) {
+    public ResponseEntity<?> update(@PathVariable Long id, @RequestBody AcceptanceCriteriaCreationDTO dto) {
         try {
             acceptanceCriteriaService.update(id, dto);
             return ResponseEntity.ok().build();
@@ -56,7 +67,7 @@ public class AcceptanceCriteriaController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('MANAGER')")
-    public ResponseEntity<?> delete(@PathVariable String id) {
+    public ResponseEntity<?> delete(@PathVariable Long id) {
         try {
             acceptanceCriteriaService.delete(id);
             return ResponseEntity.ok().build();

@@ -28,7 +28,7 @@ public class ProjectController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
-    
+
     @GetMapping("/all")
     public List<ProjectDTO> getAllProjects() {
         Long creatorId = SecurityUtils.getCurrentUserId();
@@ -36,14 +36,14 @@ public class ProjectController {
     }
 
     @GetMapping("/{projectId}")
-    public ProjectDTO getProjectById(@PathVariable String projectId) {
+    public ProjectDTO getProjectById(@PathVariable Long projectId) {
         Long creatorId = SecurityUtils.getCurrentUserId();
         return projectService.getProjectById(projectId, creatorId);
     }
     
     @PutMapping("/{projectId}")
     @PreAuthorize("hasRole('MANAGER')")
-    public ResponseEntity<?> updateProject(@PathVariable String projectId, @RequestBody ProjectDTO project) {
+    public ResponseEntity<?> updateProject(@PathVariable Long projectId, @RequestBody ProjectDTO project) {
         try {
             Long creatorId = SecurityUtils.getCurrentUserId();
             projectService.updateProject(projectId, project, creatorId);
@@ -55,7 +55,7 @@ public class ProjectController {
 
     @DeleteMapping("/{projectId}")
     @PreAuthorize("hasRole('MANAGER')")
-    public ResponseEntity<?> deleteProject(@PathVariable String projectId) {
+    public ResponseEntity<?> deleteProject(@PathVariable Long projectId) {
         try {
             Long creatorId = SecurityUtils.getCurrentUserId();
             projectService.deleteProject(projectId, creatorId);

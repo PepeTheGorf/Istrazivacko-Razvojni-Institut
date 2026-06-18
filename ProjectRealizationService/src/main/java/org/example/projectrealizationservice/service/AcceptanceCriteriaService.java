@@ -8,11 +8,13 @@ import java.util.List;
 public interface AcceptanceCriteriaService {
     void create(AcceptanceCriteriaCreationDTO dto);
 
-    AcceptanceCriteriaDTO getById(String id);
+    AcceptanceCriteriaDTO getById(Long id);
 
-    List<AcceptanceCriteriaDTO> getByTaskId(String taskId);
+    List<AcceptanceCriteriaDTO> getByTaskId(Long taskId);
 
-    void update(String id, AcceptanceCriteriaCreationDTO dto);
+    void update(Long id, AcceptanceCriteriaCreationDTO dto);
 
-    void delete(String id);
+    void delete(Long id);
+    
+    void solve(Long id);
 }

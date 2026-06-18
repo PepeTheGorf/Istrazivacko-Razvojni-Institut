@@ -7,13 +7,13 @@ import java.util.List;
 public interface ProjectService {
     void createProject(ProjectDTO project, Long creatorId);
 
-    void deleteProject(String projectId, Long creatorId);
+    void deleteProject(Long projectId, Long creatorId);
 
-    void updateProject(String projectId, ProjectDTO project, Long creatorId);
+    void updateProject(Long projectId, ProjectDTO project, Long creatorId);
 
     ProjectDTO getProjectByName(String name, Long creatorId);
 
-    ProjectDTO getProjectById(String projectId, Long creatorId);
+    ProjectDTO getProjectById(Long projectId, Long creatorId);
 
     List<ProjectDTO> findAll(Long creatorId);
 }
