@@ -68,7 +68,7 @@ export function ProjectFormPage() {
     }
 
     const payload: Project = {
-      ...(mode === 'edit' ? { id: projectId } : null),
+      ...(mode === 'edit' && projectId ? { id: Number(projectId) } : {}),
       name: name.trim(),
       description: description.trim(),
       startDate: toIsoDateOrUndefined(startDate),

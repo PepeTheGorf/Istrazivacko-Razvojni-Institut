@@ -1,8 +1,31 @@
-import type { Workflow } from './workflow'
+import type { Workflow, WorkflowPhase } from './workflow'
+
+export interface TaskResourceAssignment {
+  resourceId: number
+  name: string
+  description?: string
+  assignedQuantity: number
+  availableQuantity: number
+}
+
+export interface TaskPhaseTransition {
+  toPhaseId: number
+  toPhaseName: string
+  routeExists: boolean
+  conditionsMet: boolean
+  requirements: Array<{ id: number; name: string; description?: string; met: boolean }>
+}
+
+export interface TaskTransitionsResponse {
+  currentPhaseId?: number
+  currentPhaseName?: string
+  workflowPhases: WorkflowPhase[]
+  transitions: TaskPhaseTransition[]
+}
 
 export interface AcceptanceCriterion {
-  id?: string
-  taskId?: string
+  id?: number
+  taskId?: number
   name: string
   description?: string
   completed?: boolean
@@ -10,7 +33,7 @@ export interface AcceptanceCriterion {
 }
 
 export interface ProjectTask {
-  id?: string
+  id?: number
   name: string
   description?: string
   phaseName?: string
@@ -18,14 +41,15 @@ export interface ProjectTask {
   endDate?: string
   creatorId?: number
   assigneeId?: number
+  assigneeIds?: number[]
   workflow?: Workflow
-  technicalResources?: Array<{ id?: string; name?: string; description?: string }>
+  technicalResources?: TaskResourceAssignment[]
   acceptanceCriteria?: AcceptanceCriterion[]
   subTasks?: ProjectTask[]
 }
 
 export interface TaskSummary {
-  id?: string
+  id?: number
   name: string
   description?: string
   phaseName?: string
@@ -34,13 +58,18 @@ export interface TaskSummary {
   subTasks?: TaskSummary[]
 }
 
+export interface AssignedProjectSummary {
+  id: number
+  name: string
+}
+
 export interface AssignedTaskSummary {
-  id?: string
+  id?: number
   name: string
   description?: string
   phaseName?: string
   endDate?: string
-  projectId?: string
+  projectId?: number
   projectName?: string
 }
 
@@ -48,15 +77,20 @@ export interface TaskCreationPayload {
   name: string
   description?: string
   endDate?: string
-  projectId: string
+  projectId: number
   assigneeId?: number
   creatorId?: number
-  parentTaskId?: string
-  workflowId?: string
+  parentTaskId?: number
+  workflowId?: number
+}
+
+export interface TaskAssignmentPayload {
+  taskId: number
+  userId: number
 }
 
 export interface AcceptanceCriteriaPayload {
-  taskId: string
+  taskId: number
   name: string
   description?: string
   creatorId?: number

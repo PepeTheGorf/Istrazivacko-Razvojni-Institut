@@ -22,8 +22,6 @@ interface FlatTaskItem {
   depth: number
 }
 
-type ViewMode = 'TREE' | 'PHASE'
-
 function normalize(value?: string): string {
   return value?.trim().toLowerCase() ?? ''
 }
@@ -113,12 +111,6 @@ function ChevronIcon({ expanded }: { expanded: boolean }) {
       />
     </svg>
   )
-}
-
-function hierarchyLabel(depth: number): string {
-  if (depth <= 0) return 'zadatak'
-  if (depth === 1) return 'podzadatak'
-  return 'pod-podzadatak'
 }
 
 function TaskNode({
@@ -225,11 +217,9 @@ function TaskNode({
 export function TaskTree({ tasks, projectId }: TaskTreeProps) {
   const [search, setSearch] = useState('')
   const [phaseFilter, setPhaseFilter] = useState('ALL')
-  const [viewMode, setViewMode] = useState<ViewMode>('TREE')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [collapsedTaskKeys, setCollapsedTaskKeys] = useState<Set<string>>(new Set())
-  const [collapsedPhases, setCollapsedPhases] = useState<Set<string>>(new Set())
 
   const query = search.trim().toLowerCase()
   const phaseOptions = useMemo(
@@ -244,15 +234,6 @@ export function TaskTree({ tasks, projectId }: TaskTreeProps) {
     [tasks, query, phaseFilter, dateFrom, dateTo],
   )
   const filteredCount = useMemo(() => countAllTasks(filteredTree), [filteredTree])
-  const groupedByPhase = useMemo(() => {
-    const groups = flattenTasks(filteredTree).reduce<Record<string, FlatTaskItem[]>>((acc, item) => {
-      const key = item.task.phaseName || 'Bez faze'
-      if (!acc[key]) acc[key] = []
-      acc[key].push(item)
-      return acc
-    }, {})
-    return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b, 'sr'))
-  }, [filteredTree])
 
   function toggleTask(nodeKey: string) {
     setCollapsedTaskKeys((prev) => {
@@ -263,22 +244,13 @@ export function TaskTree({ tasks, projectId }: TaskTreeProps) {
     })
   }
 
-  function togglePhase(phase: string) {
-    setCollapsedPhases((prev) => {
-      const next = new Set(prev)
-      if (next.has(phase)) next.delete(phase)
-      else next.add(phase)
-      return next
-    })
-  }
-
   if (tasks.length === 0) {
     return <p className="m-0 text-sm text-ink-subtle">Još nema zadataka na projektu.</p>
   }
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 rounded-lg border border-hairline bg-surface-2 p-3 md:grid-cols-5">
+      <div className="grid gap-3 rounded-lg border border-hairline bg-surface-2 p-3 md:grid-cols-4">
         <label className="grid gap-1 md:col-span-2">
           <span className="text-[11px] font-medium tracking-wide text-ink-muted uppercase">Pretraga</span>
           <input
@@ -303,18 +275,6 @@ export function TaskTree({ tasks, projectId }: TaskTreeProps) {
                 {phase}
               </option>
             ))}
-          </select>
-        </label>
-
-        <label className="grid gap-1">
-          <span className="text-[11px] font-medium tracking-wide text-ink-muted uppercase">Prikaz</span>
-          <select
-            value={viewMode}
-            onChange={(event) => setViewMode(event.target.value as ViewMode)}
-            className="min-h-10 rounded-md border border-hairline bg-surface-1 px-3 text-sm text-ink focus:border-hairline-strong focus:outline-2 focus:outline-primary-focus/50"
-          >
-            <option value="TREE">Hijerarhijski</option>
-            <option value="PHASE">Grupisano po fazi</option>
           </select>
         </label>
 
@@ -352,7 +312,7 @@ export function TaskTree({ tasks, projectId }: TaskTreeProps) {
         </p>
       ) : null}
 
-      {filteredCount > 0 && viewMode === 'TREE' ? (
+      {filteredCount > 0 ? (
         <div className="task-thread">
           {filteredTree.map((task, index) => (
             <TaskNode
@@ -364,72 +324,6 @@ export function TaskTree({ tasks, projectId }: TaskTreeProps) {
               collapsedTaskKeys={collapsedTaskKeys}
               onToggleTask={toggleTask}
             />
-          ))}
-        </div>
-      ) : null}
-
-      {filteredCount > 0 && viewMode === 'PHASE' ? (
-        <div className="space-y-3">
-          {groupedByPhase.map(([phase, items]) => (
-            <article key={phase} className="overflow-hidden rounded-lg border border-hairline bg-surface-2">
-              <header>
-                <button
-                  type="button"
-                  onClick={() => togglePhase(phase)}
-                  className="flex w-full items-center justify-between border-b border-hairline px-3 py-2 text-left hover:bg-surface-3"
-                >
-                  <div className="flex items-center gap-2">
-                    <ChevronIcon expanded={!collapsedPhases.has(phase)} />
-                    <h3 className="m-0 text-sm font-semibold text-ink">{phase}</h3>
-                  </div>
-                  <span className="rounded-full border border-hairline px-2 py-0.5 text-[11px] text-ink-muted">
-                    {items.length}
-                  </span>
-                </button>
-              </header>
-              <div
-                className={`overflow-hidden transition-all duration-250 ease-out ${!collapsedPhases.has(phase) ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}
-              >
-                <div className="space-y-1 p-2">
-                  {items.map(({ task, depth }) => {
-                    const taskHref = task.id ? `/projects/${projectId}/tasks/${task.id}` : undefined
-                    const content = (
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="m-0 truncate text-sm font-medium text-ink">{task.name}</p>
-                          {task.description?.trim() ? (
-                            <p className="m-0 truncate text-xs text-ink-subtle">{task.description}</p>
-                          ) : null}
-                        </div>
-                        <div className="shrink-0 text-right">
-                          <p className="m-0 text-[11px] text-ink-muted">{hierarchyLabel(depth)}</p>
-                          {task.endDate ? (
-                            <p className="m-0 text-[11px] text-ink-subtle">{formatDate(task.endDate)}</p>
-                          ) : null}
-                        </div>
-                      </div>
-                    )
-
-                    return taskHref ? (
-                      <Link
-                        key={`${phase}-${task.id ?? task.name}-${depth}`}
-                        to={taskHref}
-                        className="block rounded-md border border-transparent px-2 py-1.5 transition-colors hover:border-hairline hover:bg-surface-1"
-                      >
-                        {content}
-                      </Link>
-                    ) : (
-                      <article
-                        key={`${phase}-${task.id ?? task.name}-${depth}`}
-                        className="rounded-md px-2 py-1.5"
-                      >
-                        {content}
-                      </article>
-                    )
-                  })}
-                </div>
-              </div>
-            </article>
           ))}
         </div>
       ) : null}

@@ -1,19 +1,29 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { fetchTechnicalResources } from '../../../api/technicalResources'
 import { Button } from '../../../components/ui/Button'
 import { SelectField } from '../../../components/ui/SelectField'
 import { TextArea } from '../../../components/ui/TextArea'
 import { TextInput } from '../../../components/ui/TextInput'
+import type { TechnicalResource } from '../../../types/technicalResource'
 import type { Workflow } from '../../../types/workflow'
+import type { TeamMember } from '../../../types/user'
+import { teamMemberLabel } from '../../../lib/teamMemberLabel'
 
 export interface TaskFormValues {
   name: string
   description: string
   endDate: string
   workflowId: string
+  assigneeId: string
   acceptanceCriteria: Array<{
-    id?: string
+    id?: number
     name: string
     description: string
+  }>
+  resourceAssignments: Array<{
+    resourceId: number
+    name: string
+    quantity: number
   }>
 }
 
@@ -23,6 +33,8 @@ interface TaskFormProps {
   submitting: boolean
   canManage: boolean
   workflows: Workflow[]
+  teamMembers?: TeamMember[]
+  loadingTeamMembers?: boolean
   initialValues?: TaskFormValues
   onSubmit: (values: TaskFormValues) => Promise<void>
   onCancel?: () => void
@@ -34,7 +46,9 @@ const EMPTY_VALUES: TaskFormValues = {
   description: '',
   endDate: '',
   workflowId: '',
+  assigneeId: '',
   acceptanceCriteria: [],
+  resourceAssignments: [],
 }
 
 export function TaskForm({
@@ -43,6 +57,8 @@ export function TaskForm({
   submitting,
   canManage,
   workflows,
+  teamMembers = [],
+  loadingTeamMembers = false,
   initialValues,
   onSubmit,
   onCancel,
@@ -50,6 +66,10 @@ export function TaskForm({
 }: TaskFormProps) {
   const [values, setValues] = useState<TaskFormValues>(initialValues ?? EMPTY_VALUES)
   const [error, setError] = useState<string | null>(null)
+  const [catalog, setCatalog] = useState<TechnicalResource[]>([])
+  const [loadingCatalog, setLoadingCatalog] = useState(false)
+  const [selectedResourceId, setSelectedResourceId] = useState('')
+  const [resourceQuantity, setResourceQuantity] = useState('1')
 
   const title = useMemo(() => (mode === 'create' ? 'Novi zadatak' : 'Izmena zadatka'), [mode])
 
@@ -57,9 +77,68 @@ export function TaskForm({
     setValues(initialValues ?? EMPTY_VALUES)
   }, [initialValues])
 
+  useEffect(() => {
+    if (mode !== 'create' || !canManage) return
+    let active = true
+    setLoadingCatalog(true)
+    void fetchTechnicalResources()
+      .then((items) => {
+        if (active) setCatalog(items)
+      })
+      .finally(() => {
+        if (active) setLoadingCatalog(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [canManage, mode])
+
+  const assignedResourceIds = useMemo(
+    () => new Set(values.resourceAssignments.map((item) => item.resourceId)),
+    [values.resourceAssignments],
+  )
+
+  const availableResources = useMemo(
+    () => catalog.filter((item) => item.id != null && !assignedResourceIds.has(item.id)),
+    [assignedResourceIds, catalog],
+  )
+
+  const selectedResource = availableResources.find((item) => String(item.id) === selectedResourceId)
+  const maxResourceQuantity = selectedResource?.quantity ?? 0
+  const parsedResourceQuantity = Number(resourceQuantity)
+  const resourceQuantityInvalid =
+    !Number.isFinite(parsedResourceQuantity) ||
+    parsedResourceQuantity <= 0 ||
+    parsedResourceQuantity > maxResourceQuantity
+
+  function addResourceAssignment() {
+    if (!selectedResource?.id || resourceQuantityInvalid) {
+      setError(
+        maxResourceQuantity === 0
+          ? 'Izabrani resurs nema dostupne količine.'
+          : `Unesite količinu između 1 i ${maxResourceQuantity}.`,
+      )
+      return
+    }
+    setValues((prev) => ({
+      ...prev,
+      resourceAssignments: [
+        ...prev.resourceAssignments,
+        {
+          resourceId: selectedResource.id!,
+          name: selectedResource.name,
+          quantity: parsedResourceQuantity,
+        },
+      ],
+    }))
+    setSelectedResourceId('')
+    setResourceQuantity('1')
+    setError(null)
+  }
+
   function updateCriterion(
     index: number,
-    patch: Partial<{ id?: string; name: string; description: string }>,
+    patch: Partial<{ id?: number; name: string; description: string }>,
   ) {
     setValues((prev) => ({
       ...prev,
@@ -157,6 +236,25 @@ export function TaskForm({
           ))}
         </SelectField>
 
+        {mode === 'create' ? (
+          <SelectField
+            label="Član tima"
+            name="assigneeId"
+            disabled={!canManage || submitting || loadingTeamMembers}
+            value={values.assigneeId}
+            onChange={(event) => setValues((prev) => ({ ...prev, assigneeId: event.target.value }))}
+          >
+            <option value="">
+              {loadingTeamMembers ? 'Učitavanje članova…' : 'Bez dodeljenog člana'}
+            </option>
+            {teamMembers.map((member) => (
+              <option key={member.id} value={member.id}>
+                {teamMemberLabel(member)}
+              </option>
+            ))}
+          </SelectField>
+        ) : null}
+
         <div className="rounded-md border border-hairline bg-surface-2 p-3">
           <div className="mb-2 flex items-center justify-between gap-3">
             <h3 className="m-0 text-sm font-semibold text-ink">Acceptance criteria</h3>
@@ -227,6 +325,102 @@ export function TaskForm({
             )}
           </div>
         </div>
+
+        {mode === 'create' ? (
+          <div className="rounded-md border border-hairline bg-surface-2 p-3">
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <h3 className="m-0 text-sm font-semibold text-ink">Tehnički resursi</h3>
+            </div>
+
+            {values.resourceAssignments.length > 0 ? (
+              <ul className="m-0 mb-3 flex list-none flex-col gap-2 p-0">
+                {values.resourceAssignments.map((resource) => (
+                  <li
+                    key={resource.resourceId}
+                    className="flex items-center justify-between gap-3 rounded-md border border-hairline bg-surface-1 px-3 py-2"
+                  >
+                    <div>
+                      <p className="m-0 text-sm font-medium text-ink">{resource.name}</p>
+                      <p className="m-0 mt-1 text-xs text-ink-subtle">
+                        Količina: {resource.quantity}
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="delete"
+                      icon="delete"
+                      disabled={!canManage || submitting}
+                      onClick={() =>
+                        setValues((prev) => ({
+                          ...prev,
+                          resourceAssignments: prev.resourceAssignments.filter(
+                            (item) => item.resourceId !== resource.resourceId,
+                          ),
+                        }))
+                      }
+                    >
+                      Ukloni
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="m-0 mb-3 text-sm text-ink-subtle">Nema dodatih resursa.</p>
+            )}
+
+            <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_120px_auto] md:items-end">
+              <SelectField
+                label="Dodaj resurs"
+                name="pendingResourceId"
+                disabled={loadingCatalog || submitting || availableResources.length === 0}
+                value={selectedResourceId}
+                onChange={(event) => {
+                  setSelectedResourceId(event.target.value)
+                  setResourceQuantity('1')
+                }}
+              >
+                <option value="">
+                  {loadingCatalog
+                    ? 'Učitavanje resursa…'
+                    : availableResources.length === 0
+                      ? 'Nema dostupnih resursa'
+                      : 'Izaberite resurs'}
+                </option>
+                {availableResources.map((resource) => (
+                  <option key={resource.id} value={resource.id}>
+                    {resource.name} (dostupno: {resource.quantity ?? 0})
+                  </option>
+                ))}
+              </SelectField>
+
+              <TextInput
+                label={selectedResource ? `Količina (dostupno: ${maxResourceQuantity})` : 'Količina'}
+                name="pendingResourceQuantity"
+                type="number"
+                min={1}
+                max={maxResourceQuantity > 0 ? maxResourceQuantity : undefined}
+                disabled={!selectedResourceId || submitting}
+                value={resourceQuantity}
+                onChange={(event) => setResourceQuantity(event.target.value)}
+              />
+
+              <Button
+                type="button"
+                variant="secondary"
+                icon="add"
+                disabled={
+                  loadingCatalog ||
+                  submitting ||
+                  !selectedResourceId ||
+                  resourceQuantityInvalid
+                }
+                onClick={addResourceAssignment}
+              >
+                Dodaj
+              </Button>
+            </div>
+          </div>
+        ) : null}
 
         <div className="flex flex-wrap gap-3">
           <Button type="submit" icon={mode === 'create' ? 'add' : 'edit'} disabled={submitting}>

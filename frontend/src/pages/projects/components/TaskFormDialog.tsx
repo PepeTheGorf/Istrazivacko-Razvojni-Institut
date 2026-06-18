@@ -1,6 +1,7 @@
 import { Button } from '../../../components/ui/Button'
 import { TaskForm, type TaskFormValues } from './TaskForm'
 import type { Workflow } from '../../../types/workflow'
+import type { TeamMember } from '../../../types/user'
 
 interface TaskFormDialogProps {
   open: boolean
@@ -10,6 +11,8 @@ interface TaskFormDialogProps {
   submitting: boolean
   canManage: boolean
   workflows: Workflow[]
+  teamMembers?: TeamMember[]
+  loadingTeamMembers?: boolean
   initialValues?: TaskFormValues
   createSubmitLabel?: string
   onClose: () => void
@@ -24,6 +27,8 @@ export function TaskFormDialog({
   submitting,
   canManage,
   workflows,
+  teamMembers,
+  loadingTeamMembers,
   initialValues,
   createSubmitLabel,
   onClose,
@@ -50,6 +55,8 @@ export function TaskFormDialog({
             submitting={submitting}
             canManage={canManage}
             workflows={workflows}
+            teamMembers={teamMembers}
+            loadingTeamMembers={loadingTeamMembers}
             initialValues={initialValues}
             createSubmitLabel={createSubmitLabel}
             onSubmit={onSubmit}

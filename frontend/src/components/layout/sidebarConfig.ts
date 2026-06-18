@@ -17,7 +17,7 @@ export const MANAGER_SIDEBAR_SECTIONS: SidebarSection[] = [
   },
   {
     title: 'Resursi',
-    items: [],
+    items: [{ to: '/reported-problems', label: 'Prijavljeni problemi' }],
   },
 ]
 
@@ -25,6 +25,10 @@ export const TEAM_MEMBER_SIDEBAR_SECTIONS: SidebarSection[] = [
   {
     title: 'Zadaci',
     items: [{ to: '/my-tasks', label: 'Moji zadaci' }],
+  },
+  {
+    title: 'Resursi',
+    items: [{ to: '/my-reported-problems', label: 'Prijavljeni problemi' }],
   },
 ]
 
@@ -35,6 +39,6 @@ export const ADMINISTRATOR_SIDEBAR_SECTIONS: SidebarSection[] = [
   },
   {
     title: 'Resursi',
-    items: [],
+    items: [{ to: '/technical-resources', label: 'Tehnički resursi' }],
   },
 ]

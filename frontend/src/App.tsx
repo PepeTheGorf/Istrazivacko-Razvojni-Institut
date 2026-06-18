@@ -9,10 +9,13 @@ import { ProjectFormPage } from './pages/projects/ProjectFormPage'
 import { ProjectsPage } from './pages/projects/ProjectsPage'
 import { TaskDetailsPage } from './pages/projects/TaskDetailsPage'
 import { MyTaskDetailsPage } from './pages/teamMemberTasks/MyTaskDetailsPage'
+import { MyReportedProblemsPage } from './pages/teamMemberTasks/MyReportedProblemsPage'
 import { MyTasksPage } from './pages/teamMemberTasks/MyTasksPage'
 import { WorkflowCreateWizardPage } from './pages/workflowCreate/WorkflowCreateWizardPage'
 import { WorkflowEditWizardPage } from './pages/workflows/WorkflowEditWizardPage'
 import { WorkflowsPage } from './pages/workflows/WorkflowsPage'
+import { ReportedProblemsPage } from './pages/reportedProblems/ReportedProblemsPage'
+import { TechnicalResourcesPage } from './pages/technicalResources/TechnicalResourcesPage'
 
 function App() {
   return (
@@ -32,17 +35,20 @@ function App() {
         <Route element={<ProtectedRoute allowedRoles={['TEAM_MEMBER']} />}>
           <Route path="/my-tasks" element={<MyTasksPage />} />
           <Route path="/my-tasks/tasks/:taskId" element={<MyTaskDetailsPage />} />
+          <Route path="/my-reported-problems" element={<MyReportedProblemsPage />} />
         </Route>
 
         <Route element={<ProtectedRoute allowedRoles={['MANAGER']} />}>
           <Route path="/projects/new" element={<ProjectFormPage />} />
           <Route path="/projects/:projectId/edit" element={<ProjectFormPage />} />
+          <Route path="/reported-problems" element={<ReportedProblemsPage />} />
         </Route>
 
         <Route element={<ProtectedRoute allowedRoles={['ADMINISTRATOR']} />}>
           <Route path="/workflows" element={<WorkflowsPage />} />
           <Route path="/workflows/new" element={<WorkflowCreateWizardPage />} />
           <Route path="/workflows/:workflowId/edit" element={<WorkflowEditWizardPage />} />
+          <Route path="/technical-resources" element={<TechnicalResourcesPage />} />
         </Route>
 
         <Route path="/" element={<Navigate to="/login" replace />} />

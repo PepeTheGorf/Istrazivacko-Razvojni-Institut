@@ -1,14 +1,10 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AppShell } from '../../components/layout/AppShell'
-import {
-  MOCK_PHASE_COLUMNS,
-  MOCK_PROJECT_NAME,
-  MOCK_TASK_ID,
-  type MockPhaseColumn,
-  type MockTaskCard,
-  type MockTaskStatus,
-} from './myTasksMocks'
+import { formatDate } from '../../lib/formatDate'
+import type { AssignedTaskSummary } from '../../types/task'
+import { useMyTasksPage } from './hooks/useMyTasksPage'
+import { groupTasksByPhase, type PhaseColumn } from './utils/groupTasksByPhase'
 
 function ChevronIcon({ expanded }: { expanded: boolean }) {
   return (
@@ -29,14 +25,19 @@ function ChevronIcon({ expanded }: { expanded: boolean }) {
   )
 }
 
-function TaskCard({ task }: { task: MockTaskCard }) {
+function TaskCard({ task }: { task: AssignedTaskSummary }) {
+  if (!task.id) return null
+
   return (
     <Link
-      to={`/my-tasks/tasks/${MOCK_TASK_ID}`}
+      to={`/my-tasks/tasks/${task.id}`}
       className="block min-w-[220px] flex-1 rounded-lg border border-hairline-strong bg-surface-2 px-4 py-3 transition-colors hover:border-hairline hover:bg-surface-3"
     >
-      <h4 className="m-0 text-sm font-medium text-ink">{task.title}</h4>
-      <p className="m-0 mt-2 text-xs text-error">Rok završetka: {task.dueDate}</p>
+      <h4 className="m-0 text-sm font-medium text-ink">{task.name}</h4>
+      {task.description?.trim() ? (
+        <p className="m-0 mt-1 line-clamp-2 text-xs text-ink-subtle">{task.description}</p>
+      ) : null}
+      <p className="m-0 mt-2 text-xs text-error">Rok završetka: {formatDate(task.endDate)}</p>
     </Link>
   )
 }
@@ -46,7 +47,7 @@ function PhaseSection({
   collapsed,
   onToggle,
 }: {
-  column: MockPhaseColumn
+  column: PhaseColumn
   collapsed: boolean
   onToggle: () => void
 }) {
@@ -75,9 +76,7 @@ function PhaseSection({
       >
         <div className="flex flex-wrap gap-3 px-4 py-3">
           {column.tasks.length > 0 ? (
-            column.tasks.map((task, index) => (
-              <TaskCard key={`${task.id}-${index}`} task={task} />
-            ))
+            column.tasks.map((task) => <TaskCard key={task.id} task={task} />)
           ) : (
             <p className="m-0 px-1 py-2 text-sm text-ink-subtle">Nema zadataka u ovoj fazi.</p>
           )}
@@ -88,37 +87,41 @@ function PhaseSection({
 }
 
 export function MyTasksPage() {
-  const [projectFilter, setProjectFilter] = useState(MOCK_PROJECT_NAME)
+  const { projects, selectedProjectId, setSelectedProjectId, tasks, loading, loadingTasks, error } =
+    useMyTasksPage()
+
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'ALL' | MockTaskStatus>('ALL')
-  const [collapsedPhases, setCollapsedPhases] = useState<Set<MockTaskStatus>>(() => {
-    const initial = new Set<MockTaskStatus>()
-    MOCK_PHASE_COLUMNS.forEach((column) => {
-      if (!column.defaultExpanded) initial.add(column.id)
-    })
-    return initial
-  })
+  const [phaseFilter, setPhaseFilter] = useState<'ALL' | string>('ALL')
+  const [collapsedPhases, setCollapsedPhases] = useState<Set<string>>(new Set())
+
+  const phaseColumns = useMemo(() => groupTasksByPhase(tasks), [tasks])
+
+  const phaseOptions = useMemo(
+    () => phaseColumns.map((column) => column.title),
+    [phaseColumns],
+  )
 
   const visibleColumns = useMemo(() => {
     const q = search.trim().toLowerCase()
-    return MOCK_PHASE_COLUMNS.map((column) => {
-      if (statusFilter !== 'ALL' && column.id !== statusFilter) {
-        return { ...column, tasks: [] }
-      }
-      const tasks = column.tasks.filter((task) => {
-        const projectMatch = projectFilter === MOCK_PROJECT_NAME
-        const searchMatch =
-          !q ||
-          task.title.toLowerCase().includes(q) ||
-          task.projectName.toLowerCase().includes(q) ||
-          column.title.toLowerCase().includes(q)
-        return projectMatch && searchMatch
+    return phaseColumns
+      .map((column) => {
+        if (phaseFilter !== 'ALL' && column.id !== phaseFilter) {
+          return { ...column, tasks: [] }
+        }
+        const filteredTasks = column.tasks.filter((task) => {
+          if (!q) return true
+          return (
+            task.name.toLowerCase().includes(q) ||
+            (task.description?.toLowerCase().includes(q) ?? false) ||
+            column.title.toLowerCase().includes(q)
+          )
+        })
+        return { ...column, tasks: filteredTasks }
       })
-      return { ...column, tasks }
-    }).filter((column) => statusFilter === 'ALL' || column.id === statusFilter)
-  }, [search, projectFilter, statusFilter])
+      .filter((column) => phaseFilter === 'ALL' || column.id === phaseFilter)
+  }, [phaseColumns, phaseFilter, search])
 
-  function togglePhase(phaseId: MockTaskStatus) {
+  function togglePhase(phaseId: string) {
     setCollapsedPhases((prev) => {
       const next = new Set(prev)
       if (next.has(phaseId)) next.delete(phaseId)
@@ -127,23 +130,43 @@ export function MyTasksPage() {
     })
   }
 
+  const isLoading = loading || loadingTasks
+
   return (
     <AppShell>
       <div className="mx-auto grid max-w-6xl gap-6">
         <header>
           <h1 className="m-0 text-3xl font-semibold tracking-tight text-ink">Moji zadaci</h1>
+          <p className="m-0 mt-2 text-sm text-ink-subtle">
+            Zadaci dodeljeni vama, grupisani po fazama radnog toka.
+          </p>
         </header>
+
+        {error ? (
+          <p className="m-0 rounded-md border border-error/35 bg-error/10 px-3 py-3 text-sm text-[#ffb4b4]">
+            {error}
+          </p>
+        ) : null}
 
         <section className="rounded-xl border border-hairline bg-surface-1 p-4 md:p-5">
           <div className="grid gap-4 md:grid-cols-3">
             <label className="grid gap-1">
               <span className="text-[13px] font-medium tracking-wide text-ink-muted uppercase">Projekat</span>
               <select
-                value={projectFilter}
-                onChange={(event) => setProjectFilter(event.target.value)}
+                value={selectedProjectId}
+                onChange={(event) => setSelectedProjectId(event.target.value)}
+                disabled={loading || projects.length === 0}
                 className="min-h-11 rounded-md border border-hairline bg-surface-2 px-3 text-sm text-ink focus:border-hairline-strong focus:outline-2 focus:outline-primary-focus/50"
               >
-                <option value={MOCK_PROJECT_NAME}>{MOCK_PROJECT_NAME}</option>
+                {projects.length === 0 ? (
+                  <option value="">Nema dodeljenih projekata</option>
+                ) : (
+                  projects.map((project) => (
+                    <option key={project.id} value={project.id}>
+                      {project.name}
+                    </option>
+                  ))
+                )}
               </select>
             </label>
 
@@ -161,32 +184,49 @@ export function MyTasksPage() {
             </label>
 
             <label className="grid gap-1">
-              <span className="text-[13px] font-medium tracking-wide text-ink-muted uppercase">Filteri</span>
+              <span className="text-[13px] font-medium tracking-wide text-ink-muted uppercase">Faza</span>
               <select
-                value={statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value as 'ALL' | MockTaskStatus)}
+                value={phaseFilter}
+                onChange={(event) => setPhaseFilter(event.target.value)}
                 className="min-h-11 rounded-md border border-hairline bg-surface-2 px-3 text-sm text-ink focus:border-hairline-strong focus:outline-2 focus:outline-primary-focus/50"
               >
-                <option value="ALL">Svi statusi</option>
-                <option value="TODO">To Do</option>
-                <option value="IN_PROGRESS">In Progress</option>
-                <option value="IN_REVIEW">In Review</option>
-                <option value="DONE">Done</option>
+                <option value="ALL">Sve faze</option>
+                {phaseOptions.map((phase) => (
+                  <option key={phase} value={phase}>
+                    {phase}
+                  </option>
+                ))}
               </select>
             </label>
           </div>
         </section>
 
-        <section className="grid gap-4">
-          {visibleColumns.map((column) => (
-            <PhaseSection
-              key={column.id}
-              column={column}
-              collapsed={collapsedPhases.has(column.id)}
-              onToggle={() => togglePhase(column.id)}
-            />
-          ))}
-        </section>
+        {isLoading ? (
+          <section className="rounded-xl border border-hairline bg-surface-1 p-5">
+            <p className="m-0 text-sm text-ink-subtle">Učitavanje…</p>
+          </section>
+        ) : projects.length === 0 ? (
+          <section className="rounded-xl border border-hairline bg-surface-1 p-5">
+            <p className="m-0 text-sm text-ink-subtle">
+              Trenutno nemate dodeljenih zadataka na projektima.
+            </p>
+          </section>
+        ) : visibleColumns.length === 0 ? (
+          <section className="rounded-xl border border-hairline bg-surface-1 p-5">
+            <p className="m-0 text-sm text-ink-subtle">Nema zadataka za izabrane filtere.</p>
+          </section>
+        ) : (
+          <section className="grid gap-4">
+            {visibleColumns.map((column) => (
+              <PhaseSection
+                key={column.id}
+                column={column}
+                collapsed={collapsedPhases.has(column.id)}
+                onToggle={() => togglePhase(column.id)}
+              />
+            ))}
+          </section>
+        )}
       </div>
     </AppShell>
   )

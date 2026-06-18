@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { fetchWorkflows, updateWorkflow } from '../../api/workflows'
+import { fetchWorkflowById, updateWorkflow } from '../../api/workflows'
 import { AppShell } from '../../components/layout/AppShell'
 import { WorkflowFormWizard } from '../../components/workflow/WorkflowFormWizard'
 import { resolveWorkflowPhases } from '../../lib/workflowPhases'
@@ -23,12 +23,7 @@ export function WorkflowEditWizardPage() {
     setLoading(true)
     setError(null)
     try {
-      const list = await fetchWorkflows()
-      const found = list.find((w) => w.id === workflowId)
-      if (!found) {
-        setError('Tok rada nije pronađen.')
-        return
-      }
+      const found = await fetchWorkflowById(Number(workflowId))
       setWorkflow(found)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Učitavanje toka rada nije uspelo')
@@ -59,6 +54,7 @@ export function WorkflowEditWizardPage() {
             name: workflow.name,
             description: workflow.description ?? '',
             phases: resolveWorkflowPhases(workflow),
+            transitionConditions: workflow.transitionConditions ?? [],
           }}
           onCancel={() => navigate('/workflows')}
           onSubmit={async (payload) => {
