@@ -472,9 +472,11 @@ export function DocumentsPage() {
     if (!selectedDocumentId) return
     setTagError(null)
     try {
-      const tag = tags.find((t) => t.naziv === tagName)
-      if (!tag) return
-      await deleteDokumentTag(selectedDocumentId, tag.id)
+      // tagName may be a raw UUID when the tag wasn't in the fetched tags list
+      const tag = tags.find((t) => t.naziv === tagName) ?? tags.find((t) => t.id === tagName)
+      const tagId = tag?.id ?? (tagName.match(/^[0-9a-f-]{36}$/i) ? tagName : null)
+      if (!tagId) return
+      await deleteDokumentTag(selectedDocumentId, tagId)
       setDocumentTagNamesByDocumentId((prev) => {
         const updated = new Map(prev)
         updated.set(selectedDocumentId, (prev.get(selectedDocumentId) ?? []).filter((n) => n !== tagName))
@@ -926,6 +928,7 @@ export function DocumentsPage() {
         <TagDocumentsDialog
           isOpen={tagDialogOpen}
           onClose={() => setTagDialogOpen(false)}
+          onApplied={() => void loadAll()}
         />
 
         <AdvancedSearchDialog

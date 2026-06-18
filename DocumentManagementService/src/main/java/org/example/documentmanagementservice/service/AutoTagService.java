@@ -62,8 +62,18 @@ public class AutoTagService {
 
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
 
-        @SuppressWarnings("unchecked")
-        Map<String, Object> response = restTemplate.postForObject(vectorSearchUrl, entity, Map.class);
+        Map<String, Object> response;
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> raw = restTemplate.postForObject(vectorSearchUrl, entity, Map.class);
+            response = raw;
+        } catch (Exception ex) {
+            log.error("Vector search service unavailable at {}: {}", vectorSearchUrl, ex.getMessage());
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE,
+                    "Servis za pretragu trenutno nije dostupan. Proverite da li je vector-database-service pokrenut."
+            );
+        }
 
         // Milvus returns INT64 ids — look up each one in Postgres via vectorDocumentId
         List<UUID> documentIds = new ArrayList<>();

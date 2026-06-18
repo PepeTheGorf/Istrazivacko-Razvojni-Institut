@@ -5,11 +5,12 @@ import { Button } from './ui/Button'
 interface TagDocumentsDialogProps {
   isOpen: boolean
   onClose: () => void
+  onApplied?: () => void
 }
 
 type DialogState = 'initial' | 'results' | 'empty'
 
-export function TagDocumentsDialog({ isOpen, onClose }: TagDocumentsDialogProps) {
+export function TagDocumentsDialog({ isOpen, onClose, onApplied }: TagDocumentsDialogProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchLoading, setSearchLoading] = useState(false)
   const [applyLoading, setApplyLoading] = useState(false)
@@ -97,7 +98,7 @@ export function TagDocumentsDialog({ isOpen, onClose }: TagDocumentsDialogProps)
       setSuccessMessage(
         `Uspešno označeno ${response.taggedDocumentCount} dokumenata tagovima: ${response.appliedTags.join(', ')}`,
       )
-      setTimeout(() => onClose(), 1800)
+      setTimeout(() => { onApplied?.(); onClose() }, 1800)
     } catch (err) {
       setApplyError(err instanceof Error ? err.message : 'Primena tagova nije uspela')
     } finally {

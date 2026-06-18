@@ -9,6 +9,7 @@ import org.example.documentmanagementservice.model.Tag;
 import org.example.documentmanagementservice.repository.DokumentRepository;
 import org.example.documentmanagementservice.repository.TagRepository;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -49,6 +50,7 @@ public class DocumentService {
     private String projectServiceUrl;
 
     @Transactional
+    @CacheEvict(value = "tag", allEntries = true)
     public Dokument create(DokumentRequestDTO request) {
         UUID resolvedProjectId = resolveProjectId(request.getProjektId());
 
@@ -124,6 +126,7 @@ public class DocumentService {
     }
 
     @Transactional
+    @CacheEvict(value = "tag", allEntries = true)
     public Dokument update(java.util.UUID id, DokumentRequestDTO request) {
         UUID resolvedProjectId = resolveProjectId(request.getProjektId());
 
@@ -207,8 +210,8 @@ public class DocumentService {
             } else {
                 @SuppressWarnings("unchecked")
                 java.util.Map<String, Object> resp = restTemplate.postForObject(vectorServiceUrl, new HttpEntity<>(payload, jsonHeaders()), java.util.Map.class);
-                if (resp != null && resp.containsKey("inserted_ids")) {
-                    Object idsObj = resp.get("inserted_ids");
+                if (resp != null && (resp.containsKey("ids") || resp.containsKey("inserted_ids"))) {
+                    Object idsObj = resp.containsKey("ids") ? resp.get("ids") : resp.get("inserted_ids");
                     if (idsObj instanceof java.util.List<?> idsList && !idsList.isEmpty()) {
                         Object first = idsList.get(0);
                         existing.setVectorDocumentId(first == null ? null : first.toString());
