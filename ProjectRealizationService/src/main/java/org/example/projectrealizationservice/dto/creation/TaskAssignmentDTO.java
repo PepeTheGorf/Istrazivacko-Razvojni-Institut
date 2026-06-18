@@ -9,9 +9,8 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class TechnicalResourceCreationDTO {
-    private String name;
-    private String description;
-    private Integer quantity;
-    private Long creatorId;
+public class TaskAssignmentDTO {
+    private Long userId;
+    private Long taskId;
+    private String roleName;
 }

@@ -10,8 +10,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class AcceptanceCriteriaCreationDTO {
-    private String taskId;
+    private Long taskId;
     private String name;
     private String description;
-    private Long creatorId;
 }

@@ -13,7 +13,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ProjectTaskDTO {
-    private String id;
+    private Long id;
     private String name;
     private String description;
     private String phaseName;
@@ -21,9 +21,10 @@ public class ProjectTaskDTO {
     private OffsetDateTime endDate;
     private Long creatorId;
     private Long assigneeId;
+    private List<Long> assigneeIds;
 
     private WorkflowDTO workflow;
-    private List<TechnicalResourceDTO> technicalResources;
+    private List<TaskResourceAssignmentDTO> technicalResources;
     private List<AcceptanceCriteriaDTO> acceptanceCriteria;
     private List<ProjectTaskDTO> subTasks;
 }

@@ -5,8 +5,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.OffsetDateTime;
-
 @Data
 @Builder
 @NoArgsConstructor
@@ -14,8 +12,9 @@ import java.time.OffsetDateTime;
 public class TaskCreationDTO {
     private String name;
     private String description;
-    private OffsetDateTime endDate;
-    private String projectId;
-    private Long creatorId;
+    private Long projectId;
+    private Long parentTaskId;
+    private Long workflowId;
     private Long assigneeId;
+    private java.time.OffsetDateTime endDate;
 }

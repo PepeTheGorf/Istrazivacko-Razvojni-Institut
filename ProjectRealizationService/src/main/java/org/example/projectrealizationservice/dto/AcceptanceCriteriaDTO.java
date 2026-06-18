@@ -4,14 +4,14 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.example.projectrealizationservice.model.sql.AcceptanceCriteria;
+import org.example.projectrealizationservice.model.AcceptanceCriteria;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class AcceptanceCriteriaDTO {
-    private String id;
+    private Long id;
     private String name;
     private String description;
     private boolean completed;
@@ -19,7 +19,7 @@ public class AcceptanceCriteriaDTO {
 
     public static AcceptanceCriteriaDTO toDto(AcceptanceCriteria acceptanceCriteria) {
         return AcceptanceCriteriaDTO.builder()
-                .id(String.valueOf(acceptanceCriteria.getId()))
+                .id(acceptanceCriteria.getId())
                 .name(acceptanceCriteria.getName())
                 .description(acceptanceCriteria.getDescription())
                 .completed(acceptanceCriteria.isCompleted())

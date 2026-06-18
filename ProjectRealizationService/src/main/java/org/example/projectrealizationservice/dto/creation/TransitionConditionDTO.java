@@ -5,13 +5,14 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class TechnicalResourceCreationDTO {
-    private String name;
-    private String description;
-    private Integer quantity;
-    private Long creatorId;
+public class TransitionConditionDTO {
+    private String from;
+    private String to;
+    private List<Long> transitionTypeId;
 }

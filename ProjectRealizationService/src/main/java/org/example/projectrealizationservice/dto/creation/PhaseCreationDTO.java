@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class PhaseCreationDTO {
+    private Long id;
     private String name;
     private int order;
 }
