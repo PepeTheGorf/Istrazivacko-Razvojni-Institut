@@ -58,7 +58,7 @@ export function TagDocumentsDialog({ isOpen, onClose, onApplied }: TagDocumentsD
     setApplyError(null)
 
     try {
-      const response = await searchDocumentsForTagging({ prompt: query, similarityThreshold: 0.30 })
+      const response = await searchDocumentsForTagging({ prompt: query, similarityThreshold: 0.60 })
       if (response.count === 0) {
         setDialogState('empty')
         setFoundDocumentIds([])

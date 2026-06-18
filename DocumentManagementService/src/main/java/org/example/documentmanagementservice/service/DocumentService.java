@@ -1,7 +1,14 @@
 package org.example.documentmanagementservice.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.text.PDFTextStripper;
+import org.apache.poi.xwpf.usermodel.XWPFDocument;
+import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.example.documentmanagementservice.dto.DokumentRequestDTO;
 import org.example.documentmanagementservice.dto.MetapodatakCreateDTO;
 import org.example.documentmanagementservice.model.Dokument;
@@ -13,6 +20,7 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -22,13 +30,18 @@ import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -100,11 +113,13 @@ public class DocumentService {
         // Call vector service synchronously and persist returned vector id when available
         try {
             var payload = new java.util.HashMap<String, Object>();
+            String rawContent = dokument.getSadrzaj() != null ? dokument.getSadrzaj() : "";
+            String truncatedContent = rawContent.length() > 65000 ? rawContent.substring(0, 65000) : rawContent;
             payload.put("title", dokument.getNaslov());
             payload.put("author_id", dokument.getAuthorId().toString());
-            payload.put("content", dokument.getSadrzaj());
-            payload.put("project_id", request.getProjektId() == null || request.getProjektId().isBlank() ? null : request.getProjektId().trim());
-            payload.put("doc_type_id", dokument.getTipDokumentaId() == null ? null : dokument.getTipDokumentaId().toString());
+            payload.put("content", truncatedContent);
+            payload.put("project_id", request.getProjektId() == null || request.getProjektId().isBlank() ? "" : request.getProjektId().trim());
+            payload.put("doc_type_id", dokument.getTipDokumentaId() == null ? "" : dokument.getTipDokumentaId().toString());
 
             @SuppressWarnings("unchecked")
             Map<String, Object> resp = restTemplate.postForObject(vectorServiceUrl, new HttpEntity<>(payload, jsonHeaders()), Map.class);
@@ -185,11 +200,13 @@ public class DocumentService {
         // propagate to vector service: if we already have vector id, PUT; otherwise POST and persist returned id
         try {
             var payload = new java.util.HashMap<String, Object>();
+            String rawContentUpdate = existing.getSadrzaj() != null ? existing.getSadrzaj() : "";
+            String truncatedContentUpdate = rawContentUpdate.length() > 65000 ? rawContentUpdate.substring(0, 65000) : rawContentUpdate;
             payload.put("title", existing.getNaslov());
             payload.put("author_id", existing.getAuthorId().toString());
-            payload.put("content", existing.getSadrzaj());
-            payload.put("project_id", request.getProjektId() == null || request.getProjektId().isBlank() ? null : request.getProjektId().trim());
-            payload.put("doc_type_id", existing.getTipDokumentaId() == null ? null : existing.getTipDokumentaId().toString());
+            payload.put("content", truncatedContentUpdate);
+            payload.put("project_id", request.getProjektId() == null || request.getProjektId().isBlank() ? "" : request.getProjektId().trim());
+            payload.put("doc_type_id", existing.getTipDokumentaId() == null ? "" : existing.getTipDokumentaId().toString());
 
             if (existing.getVectorDocumentId() != null) {
                 String url = vectorServiceUrl + "/" + existing.getVectorDocumentId();
@@ -331,6 +348,66 @@ public class DocumentService {
                     "Project id must be a UUID or numeric project id"
             );
         }
+    }
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
+    @Transactional
+    public Dokument upload(MultipartFile file, String naziv, UUID tipDokumentaId, String projektId, String projectName, String authorId, String authorName, String metapodaciJson) {
+        String filename = file.getOriginalFilename() != null ? file.getOriginalFilename() : "document";
+        String resolvedNaziv = (naziv != null && !naziv.isBlank()) ? naziv.trim() : stripExtension(filename);
+
+        String sadrzaj;
+        try {
+            sadrzaj = extractText(file);
+        } catch (IOException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Failed to extract text from file: " + ex.getMessage());
+        }
+
+        List<MetapodatakCreateDTO> metapodaci = null;
+        if (metapodaciJson != null && !metapodaciJson.isBlank()) {
+            try {
+                metapodaci = OBJECT_MAPPER.readValue(metapodaciJson, new TypeReference<>() {});
+            } catch (IOException ex) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid metapodaci JSON: " + ex.getMessage());
+            }
+        }
+
+        DokumentRequestDTO request = new DokumentRequestDTO();
+        request.setNaslov(resolvedNaziv);
+        request.setAuthorId(authorId);
+        request.setAuthorName(authorName);
+        request.setSadrzaj(sadrzaj);
+        request.setTipDokumentaId(tipDokumentaId);
+        request.setProjektId(projektId);
+        request.setProjectName(projectName);
+        request.setMetapodaci(metapodaci);
+
+        return create(request);
+    }
+
+    private String extractText(MultipartFile file) throws IOException {
+        String filename = file.getOriginalFilename() != null ? file.getOriginalFilename().toLowerCase() : "";
+        try (InputStream in = file.getInputStream()) {
+            if (filename.endsWith(".pdf")) {
+                try (PDDocument pdf = Loader.loadPDF(in.readAllBytes())) {
+                    return new PDFTextStripper().getText(pdf);
+                }
+            } else if (filename.endsWith(".docx")) {
+                try (XWPFDocument docx = new XWPFDocument(in)) {
+                    return docx.getParagraphs().stream()
+                            .map(XWPFParagraph::getText)
+                            .collect(Collectors.joining("\n"));
+                }
+            } else {
+                return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+            }
+        }
+    }
+
+    private String stripExtension(String filename) {
+        int dot = filename.lastIndexOf('.');
+        return dot > 0 ? filename.substring(0, dot) : filename;
     }
 
     private String normalizeOptionalText(String value) {
