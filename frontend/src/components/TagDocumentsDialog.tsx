@@ -1,21 +1,24 @@
 import { useEffect, useRef, useState } from 'react'
 import { autoTagDocuments, searchDocumentsForTagging } from '../api/autoTag'
+import type { Dokument } from '../types/document'
 import { Button } from './ui/Button'
 
 interface TagDocumentsDialogProps {
   isOpen: boolean
   onClose: () => void
   onApplied?: () => void
+  documents?: Dokument[]
 }
 
 type DialogState = 'initial' | 'results' | 'empty'
 
-export function TagDocumentsDialog({ isOpen, onClose, onApplied }: TagDocumentsDialogProps) {
+export function TagDocumentsDialog({ isOpen, onClose, onApplied, documents = [] }: TagDocumentsDialogProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchLoading, setSearchLoading] = useState(false)
   const [applyLoading, setApplyLoading] = useState(false)
   const [dialogState, setDialogState] = useState<DialogState>('initial')
   const [foundDocumentIds, setFoundDocumentIds] = useState<string[]>([])
+  const [selectedDocumentIds, setSelectedDocumentIds] = useState<Set<string>>(new Set())
   const [suggestedTagName, setSuggestedTagName] = useState('')
   const [additionalTagsText, setAdditionalTagsText] = useState('')
   const [searchError, setSearchError] = useState<string | null>(null)
@@ -30,6 +33,7 @@ export function TagDocumentsDialog({ isOpen, onClose, onApplied }: TagDocumentsD
       setApplyLoading(false)
       setDialogState('initial')
       setFoundDocumentIds([])
+      setSelectedDocumentIds(new Set())
       setSuggestedTagName('')
       setAdditionalTagsText('')
       setSearchError(null)
@@ -62,8 +66,10 @@ export function TagDocumentsDialog({ isOpen, onClose, onApplied }: TagDocumentsD
       if (response.count === 0) {
         setDialogState('empty')
         setFoundDocumentIds([])
+        setSelectedDocumentIds(new Set())
       } else {
         setFoundDocumentIds(response.documentIds)
+        setSelectedDocumentIds(new Set(response.documentIds))
         setSuggestedTagName(response.suggestedTagName)
         setDialogState('results')
       }
@@ -74,9 +80,30 @@ export function TagDocumentsDialog({ isOpen, onClose, onApplied }: TagDocumentsD
     }
   }
 
+  function toggleDocument(id: string) {
+    setSelectedDocumentIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
+
+  function toggleAll() {
+    if (selectedDocumentIds.size === foundDocumentIds.length) {
+      setSelectedDocumentIds(new Set())
+    } else {
+      setSelectedDocumentIds(new Set(foundDocumentIds))
+    }
+  }
+
   async function handleApplyTags() {
     const mainTag = suggestedTagName.trim()
-    if (!mainTag || foundDocumentIds.length === 0) return
+    const activeIds = Array.from(selectedDocumentIds)
+    if (!mainTag || activeIds.length === 0) return
 
     const extra = additionalTagsText
       .split(',')
@@ -93,7 +120,7 @@ export function TagDocumentsDialog({ isOpen, onClose, onApplied }: TagDocumentsD
     try {
       const response = await autoTagDocuments({
         tagNames: allTags,
-        documentIds: foundDocumentIds,
+        documentIds: activeIds,
       })
       setSuccessMessage(
         `Uspešno označeno ${response.taggedDocumentCount} dokumenata tagovima: ${response.appliedTags.join(', ')}`,
@@ -112,7 +139,7 @@ export function TagDocumentsDialog({ isOpen, onClose, onApplied }: TagDocumentsD
 
   const canApply =
     dialogState === 'results' &&
-    foundDocumentIds.length > 0 &&
+    selectedDocumentIds.size > 0 &&
     suggestedTagName.trim().length > 0 &&
     !applyLoading
 
@@ -216,16 +243,48 @@ export function TagDocumentsDialog({ isOpen, onClose, onApplied }: TagDocumentsD
           {/* State: results */}
           {dialogState === 'results' && (
             <>
-              {/* Info bar */}
+              {/* Info bar with toggle all */}
               <div className="flex items-center justify-between rounded-md bg-surface-2 px-4 py-2.5">
                 <span className="text-sm text-ink">
                   Pronađeno{' '}
                   <span className="font-semibold text-primary">{foundDocumentIds.length}</span>{' '}
-                  {foundDocumentIds.length === 1 ? 'dokument' : 'dokumenata'} koji odgovaraju upitu
+                  {foundDocumentIds.length === 1 ? 'dokument' : 'dokumenata'}
                 </span>
-                <span className="text-xs text-ink-muted">
-                  {foundDocumentIds.length} odabrano za tagovanje
-                </span>
+                <button
+                  type="button"
+                  onClick={toggleAll}
+                  className="cursor-pointer text-xs text-primary hover:underline"
+                >
+                  {selectedDocumentIds.size === foundDocumentIds.length ? 'Odaberi nijedan' : 'Odaberi sve'}
+                </button>
+              </div>
+
+              {/* Document list */}
+              <div className="max-h-48 overflow-y-auto rounded-md border border-hairline bg-surface-2">
+                {foundDocumentIds.map((id) => {
+                  const doc = documents.find((d) => d.id === id)
+                  const isSelected = selectedDocumentIds.has(id)
+                  return (
+                    <label
+                      key={id}
+                      className="flex cursor-pointer items-center gap-3 border-b border-hairline px-3 py-2.5 last:border-b-0 hover:bg-surface-1"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleDocument(id)}
+                        className="h-4 w-4 shrink-0 accent-primary"
+                      />
+                      <span className="min-w-0 flex-1 truncate text-sm text-ink">
+                        {doc?.naslov ?? id}
+                      </span>
+                    </label>
+                  )
+                })}
+              </div>
+
+              <div className="text-xs text-ink-muted">
+                {selectedDocumentIds.size} od {foundDocumentIds.length} odabrano za tagovanje
               </div>
 
               {/* Suggested tag */}

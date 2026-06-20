@@ -1099,6 +1099,7 @@ export function DocumentsPage() {
           isOpen={tagDialogOpen}
           onClose={() => setTagDialogOpen(false)}
           onApplied={() => void loadAll()}
+          documents={documents}
         />
 
         <AdvancedSearchDialog

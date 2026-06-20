@@ -31,7 +31,7 @@ export async function searchDocumentsForTagging(
     method: 'POST',
     body: JSON.stringify({
       prompt: request.prompt,
-      similarityThreshold: request.similarityThreshold ?? 0.30,
+      similarityThreshold: request.similarityThreshold ?? 0.60,
     }),
   })
 }
