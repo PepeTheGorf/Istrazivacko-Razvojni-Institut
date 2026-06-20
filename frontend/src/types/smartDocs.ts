@@ -60,6 +60,7 @@ export interface DocumentSection {
 
 export interface SmartDocument {
   id: number
+  name: string
   templateId: number
   templateName?: string
   researcherId: number

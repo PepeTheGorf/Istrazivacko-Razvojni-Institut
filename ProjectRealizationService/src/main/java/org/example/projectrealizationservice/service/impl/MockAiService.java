@@ -3,9 +3,11 @@ package org.example.projectrealizationservice.service.impl;
 import org.springframework.context.annotation.Primary;
 import org.example.projectrealizationservice.service.AiService;
 import org.springframework.stereotype.Service;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
 @Service
-@Primary 
+//@Primary, kad nisam dodao ovu dole anotaciju ovo je bilo
+@ConditionalOnProperty(name = "ai.service.mode", havingValue = "mock")
 public class MockAiService implements AiService {
 
     @Override

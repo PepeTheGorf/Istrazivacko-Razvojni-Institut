@@ -20,6 +20,8 @@ public class GeneratedDocument {
     private Long researcherId; 
     private OffsetDateTime createdAt;
     private String status; 
+    private String description;
+    private String name;
 
     @OneToMany(mappedBy = "document", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<DocumentSection> sections;

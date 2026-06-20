@@ -90,7 +90,6 @@ export function DocumentEditorPage() {
 
   if (!document) return <AppShell><div>Učitavanje...</div></AppShell>
 
-  // Progres računamo ovde, jer smo sigurni da 'document' nije null
   const totalSections = document.sections.length
   const generatedSections = document.sections.filter(s => !!s.llmResult).length
   const progress = Math.round((generatedSections / totalSections) * 100)
@@ -106,6 +105,7 @@ export function DocumentEditorPage() {
         <header className="mb-6 flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-semibold text-ink">Popunjavanje dokumentacije</h1>
+            <h2 className="text-lg font-medium text-ink-subtle">{document.name}</h2>
             <p className="text-sm text-ink-subtle">Šablon: {document.templateName}</p>
           </div>
           <div className="flex gap-3">

@@ -75,12 +75,14 @@ public class SmartDocService {
     }
 
     @Transactional("transactionManager")
-    public GeneratedDocument createDocumentFromTemplate(Long templateId, Long researcherId) {
+    public GeneratedDocument createDocumentFromTemplate(Long templateId, Long researcherId, String name, String description) {
         SmartTemplate template = templateRepository.findById(templateId)
                 .orElseThrow(() -> new RuntimeException("Šablon nije pronađen"));
 
         GeneratedDocument doc = GeneratedDocument.builder()
                 .template(template)
+                .name(name)
+                .description(description)
                 .researcherId(researcherId)
                 .status("DRAFT")
                 .createdAt(OffsetDateTime.now())
@@ -193,6 +195,10 @@ public class SmartDocService {
             }
         }
 
+        String activePrompt = ts.getActivePromptContent();
+        if (activePrompt == null || activePrompt.isBlank()) {
+        throw new RuntimeException("Sekcija nema aktivnu verziju prompta. Kontaktirajte menadžera.");
+}
         String generatedResult = aiService.generateText(
         ts.getActivePromptContent(), 
         contextBuilder.toString(), 
