@@ -90,7 +90,6 @@ export function DocumentEditorPage() {
 
   if (!document) return <AppShell><div>Učitavanje...</div></AppShell>
 
-  // Progres računamo ovde, jer smo sigurni da 'document' nije null
   const totalSections = document.sections.length
   const generatedSections = document.sections.filter(s => !!s.llmResult).length
   const progress = Math.round((generatedSections / totalSections) * 100)
