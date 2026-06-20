@@ -105,6 +105,7 @@ export function DocumentEditorPage() {
         <header className="mb-6 flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-semibold text-ink">Popunjavanje dokumentacije</h1>
+            <h2 className="text-lg font-medium text-ink-subtle">{document.name}</h2>
             <p className="text-sm text-ink-subtle">Šablon: {document.templateName}</p>
           </div>
           <div className="flex gap-3">
