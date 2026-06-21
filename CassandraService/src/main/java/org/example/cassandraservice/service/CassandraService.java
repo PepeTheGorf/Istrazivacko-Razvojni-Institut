@@ -19,12 +19,28 @@ public class CassandraService {
 
     private final String KEY = "prompt_analytics";
 
-    //CRUD - llm_requests_by_researcher
     @CacheEvict(value = "requestsCountByResearcher", allEntries = true)
-    public void insertLlmRequest(String resId, Instant ts, UUID id, String status) {
+    public UUID insertLlmRequest(String resId, String status) {
+        UUID id = UUID.randomUUID();
+        Instant ts = Instant.now();
         String q = "INSERT INTO " + KEY + ".llm_requests_by_researcher " +
                    "(researcher_id, request_timestamp, request_id, status) VALUES (?,?,?,?)";
         cqlSession.execute(cqlSession.prepare(q).bind(resId, ts, id, status));
+        return id;
+    }
+
+    @CacheEvict(value = "requestsCountByResearcher", allEntries = true)
+    public void deleteLlmRequestById(String resId, UUID requestId) {
+        String q = "DELETE FROM " + KEY + ".llm_requests_by_researcher " +
+                   "WHERE researcher_id = ? AND request_id = ? IF EXISTS";
+        String find = "SELECT request_timestamp FROM " + KEY +
+                      ".llm_requests_by_researcher WHERE researcher_id = ? AND request_id = ? ALLOW FILTERING";
+        ResultSet rs = cqlSession.execute(cqlSession.prepare(find).bind(resId, requestId));
+        Row row = rs.one();
+        if (row != null) {
+            Instant ts = row.getInstant("request_timestamp");
+            deleteLlmRequest(resId, ts, requestId);
+        }
     }
 
     public List<Map<String, Object>> getLlmRequestsByResearcher(String resId) {
@@ -73,12 +89,12 @@ public class CassandraService {
         return results;
     }
 
-    //CRUD - feedbacks_by_field
-
-    public void insertFeedback(String field, UUID id, int rating) {
+    public UUID insertFeedback(String field, int rating) {
+        UUID id = UUID.randomUUID();
         String q = "INSERT INTO " + KEY + ".feedbacks_by_field " +
                    "(research_field, feedback_id, rating) VALUES (?,?,?)";
         cqlSession.execute(cqlSession.prepare(q).bind(field, id, rating));
+        return id;
     }
 
     public List<Map<String, Object>> getFeedbacksByField(String field) {
@@ -107,8 +123,6 @@ public class CassandraService {
                    "WHERE research_field = ? AND feedback_id = ?";
         cqlSession.execute(cqlSession.prepare(q).bind(field, feedbackId));
     }
-
-    //CRUD - regenerations_by_section
 
     public void insertRegeneration(String secId, UUID id, String resId) {
         String q = "INSERT INTO " + KEY + ".regenerations_by_section " +
@@ -143,8 +157,6 @@ public class CassandraService {
         cqlSession.execute(cqlSession.prepare(q).bind(secId, regenId));
     }
 
-    //CRUD - document_status_by_date
-
     public void insertDocStatus(LocalDate date, String status, String docId) {
         String q = "INSERT INTO " + KEY + ".document_status_by_date " +
                    "(document_date, current_status, document_id) VALUES (?,?,?)";
@@ -164,7 +176,6 @@ public class CassandraService {
     }
 
     public void updateDocStatus(LocalDate date, String oldStatus, String newStatus, String docId) {
-        // U Cassandri PRIMARY KEY nije menjiv — brišemo stari slog i upisujemo novi
         String del = "DELETE FROM " + KEY + ".document_status_by_date " +
                      "WHERE document_date = ? AND current_status = ? AND document_id = ?";
         cqlSession.execute(cqlSession.prepare(del).bind(date, oldStatus, docId));
@@ -179,8 +190,6 @@ public class CassandraService {
                    "WHERE document_date = ? AND current_status = ? AND document_id = ?";
         cqlSession.execute(cqlSession.prepare(q).bind(date, status, docId));
     }
-
-    //CRUD - prompt_usage_by_template
 
     public void insertPromptUsage(String tempId, UUID id, float eff) {
         String q = "INSERT INTO " + KEY + ".prompt_usage_by_template " +
@@ -215,8 +224,6 @@ public class CassandraService {
         cqlSession.execute(cqlSession.prepare(q).bind(tempId, usageId));
     }
 
-    //UPIT 1 (Agregacija) — Broj zahteva po istrazivacu.
-  
     @Cacheable(value = "requestsCountByResearcher")
     public Map<String, Long> query1_CountRequestsByResearcher() {
         String q = "SELECT researcher_id, COUNT(*) as total FROM " + KEY +
@@ -227,8 +234,6 @@ public class CassandraService {
         return res;
     }
 
-    //UPIT 2 (Agregacija) — Prosecna ocena po naucnom polju.
-     
     @Cacheable(value = "avgRatingByField")
     public Map<String, Double> query2_AvgRatingByField() {
        String q = "SELECT research_field, AVG(rating) as avg_rating FROM " + KEY +
@@ -250,8 +255,6 @@ public class CassandraService {
     return res;
     }
 
-    //UPIT 3 (Agregacija) — Broj regeneracija po sekciji.
-
     @Cacheable(value = "regenCountBySection")
     public Map<String, Long> query3_CountRegensBySection() {
         String q = "SELECT section_id, COUNT(*) as total FROM " + KEY +
@@ -262,9 +265,6 @@ public class CassandraService {
         return res;
     }
 
-   
-     //UPIT 4 (Uslovni prikaz) — Dokumenti za specifican datum i status.
-     
     @Cacheable(value = "docsByDateStatus", key = "#date.toString() + '_' + #status")
     public List<String> query4_GetDocsByDateAndStatus(LocalDate date, String status) {
         String q = "SELECT document_id FROM " + KEY +
@@ -275,8 +275,6 @@ public class CassandraService {
         return docs;
     }
 
-    //UPIT 5 (Uslovni prikaz) — Sve effectiveness vrednosti za odredjeni prompt template.
-     
     @Cacheable(value = "promptUsageByTemplate", key = "#templateId + '_effectiveness'")
     public List<Float> query5_GetEffectivenessByTemplate(String templateId) {
         String q = "SELECT effectiveness FROM " + KEY +

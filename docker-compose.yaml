@@ -164,6 +164,9 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       SPRING_AI_OLLAMA_BASE_URL: http://ollama:11434
+      CASSANDRA_SERVICE_URL: http://cassandra-service:8080
+      VECTOR_DATABASE_SERVICE_URL: http://vector-database-service:8000
+      AI_SERVICE_MODE: mock
     ports:
       - "9060:8080"
 
@@ -403,9 +406,11 @@ services:
       CASSANDRA_BROADCAST_ADDRESS: cassandra
       CASSANDRA_RPC_ADDRESS: cassandra
       CASSANDRA_SEEDS: cassandra
+      MAX_HEAP_SIZE: "256M"
+      HEAP_NEWSIZE: "64M"
     ports:
       - "9042:9042"
-      - "7000:7000"
+      # - "7000:7000"  # inter-node port, ne treba lokalno
     healthcheck:
       test: ["CMD", "nodetool", "status"]
       interval: 30s
@@ -413,6 +418,10 @@ services:
       retries: 3
     volumes:
       - cassandra_data:/var/lib/cassandra
+    deploy:
+      resources:
+        limits:
+          memory: 750M
 
   cassandra-service:
     build:
@@ -449,13 +458,13 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
+    # deploy:  # GPU nije dostupan lokalno
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
 
 volumes:
   neo4j_data: {}

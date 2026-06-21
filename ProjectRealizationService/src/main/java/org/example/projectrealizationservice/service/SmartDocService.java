@@ -1,9 +1,14 @@
 package org.example.projectrealizationservice.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.example.projectrealizationservice.dto.smartdocs.*;
 import org.example.projectrealizationservice.model.sql.smartdocs.*;
 import org.example.projectrealizationservice.repository.sql.smartdocs.*;
+import org.example.projectrealizationservice.saga.smartdoc.SmartDocSagaContext;
+import org.example.projectrealizationservice.saga.smartdoc.SmartDocSagaInstance;
+import org.example.projectrealizationservice.saga.smartdoc.SmartDocSagaOrchestrator;
+import org.example.projectrealizationservice.saga.smartdoc.SmartDocSagaState;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -11,6 +16,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class SmartDocService {
@@ -24,6 +30,7 @@ public class SmartDocService {
     private final AiService aiService;
     private final PromptVersionRepository promptVersionRepository;
     private final TemplateSectionRepository templateSectionRepository;
+    private final SmartDocSagaOrchestrator sagaOrchestrator;
 
     @Transactional("transactionManager")
     public void createTemplate(TemplateCreationDTO dto, Long creatorId) {
@@ -75,14 +82,12 @@ public class SmartDocService {
     }
 
     @Transactional("transactionManager")
-    public GeneratedDocument createDocumentFromTemplate(Long templateId, Long researcherId, String name, String description) {
+    public GeneratedDocument createDocumentFromTemplate(Long templateId, Long researcherId) {
         SmartTemplate template = templateRepository.findById(templateId)
                 .orElseThrow(() -> new RuntimeException("Šablon nije pronađen"));
 
         GeneratedDocument doc = GeneratedDocument.builder()
                 .template(template)
-                .name(name)
-                .description(description)
                 .researcherId(researcherId)
                 .status("DRAFT")
                 .createdAt(OffsetDateTime.now())
@@ -206,6 +211,21 @@ public class SmartDocService {
 );
         currentSection.setLlmResult(generatedResult);
         documentSectionRepository.save(currentSection);
+
+        SmartDocSagaContext context = SmartDocSagaContext.builder()
+                .researcherId(doc.getResearcherId().toString())
+                .sectionTitle(ts.getTitle())
+                .generatedContent(generatedResult)
+                .categoryName(doc.getTemplate().getCategory().getName())
+                .domainName(doc.getTemplate().getDomain().getName())
+                .templateName(doc.getTemplate().getName())
+                .build();
+
+        SmartDocSagaInstance sagaInstance = sagaOrchestrator.startGenerateSaga(context);
+        if (sagaInstance.getState() == SmartDocSagaState.FAILED) {
+            log.error("[SmartDocService] Generate saga FAILED za sectionId={}", sectionId);
+        }
+
         return generatedResult;
     }
 
@@ -226,6 +246,24 @@ public class SmartDocService {
         feedback.setRating(rating);
         feedback.setComment(comment);
         feedbackRepository.save(feedback);
+
+        String domainName = section.getDocument().getTemplate().getDomain().getName();
+        String sectionTitle = section.getTemplateSection().getTitle();
+
+        SmartDocSagaContext context = SmartDocSagaContext.builder()
+                .researcherId(section.getDocument().getResearcherId().toString())
+                .sectionTitle(sectionTitle)
+                .feedbackComment(comment != null ? comment : "")
+                .rating(rating)
+                .domainName(domainName)
+                .categoryName(section.getDocument().getTemplate().getCategory().getName())
+                .templateName(section.getDocument().getTemplate().getName())
+                .build();
+
+        SmartDocSagaInstance sagaInstance = sagaOrchestrator.startFeedbackSaga(context);
+        if (sagaInstance.getState() == SmartDocSagaState.FAILED) {
+            log.error("[SmartDocService] Feedback saga FAILED za sectionId={}", sectionId);
+        }
     }
 
     @Transactional(value = "transactionManager", readOnly = true)
