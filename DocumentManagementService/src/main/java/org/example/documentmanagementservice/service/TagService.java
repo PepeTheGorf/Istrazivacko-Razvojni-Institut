@@ -33,10 +33,10 @@ public class TagService {
 
     @CacheEvict(value = "tag", allEntries = true)
     public TagResponseDTO create(TagRequestDTO request) {
-        Tag entity = Tag.builder()
-                .naziv(request.getNaziv().trim())
-                .build();
-        return TagResponseDTO.fromEntity(repository.save(entity));
+        String naziv = request.getNaziv().trim();
+        return repository.findByNazivIgnoreCase(naziv)
+                .map(TagResponseDTO::fromEntity)
+                .orElseGet(() -> TagResponseDTO.fromEntity(repository.save(Tag.builder().naziv(naziv).build())));
     }
 
     @CacheEvict(value = "tag", allEntries = true)

@@ -223,7 +223,23 @@ class DocumentManagementService:
         if cached is not None:
             return cached
 
-        results = self.search_documents_iterator(query=query, top_k=top_k, page_size=max(top_k * 4, 50), filter_expr=filter_expr)
+        # Use Milvus ANN index for accurate semantic search, then enrich with lexical score
+        query_vector = embedding_service.encode_text_one(query)
+        query_tokens = _tokenize(_normalize_text(query))
+        ann_hits = document_repository.search([query_vector], top_k=top_k, filter_expr=filter_expr)[0]
+        results = []
+        for hit in ann_hits:
+            semantic_score = float(hit.get("score", 0.0))
+            lexical_tokens = _document_search_tokens(hit)
+            overlap = len(query_tokens & lexical_tokens)
+            lexical_score = overlap / max(len(query_tokens), 1)
+            score = (0.75 * semantic_score) + (0.25 * lexical_score)
+            enriched = {k: v for k, v in hit.items() if k != "content_embedding"}
+            enriched["semantic_score"] = round(semantic_score, 4)
+            enriched["lexical_score"] = round(lexical_score, 4)
+            enriched["score"] = round(score, 4)
+            results.append(enriched)
+        results.sort(key=lambda item: item.get("score", 0.0), reverse=True)
         set_json(self.SEARCH_NAMESPACE, cache_key, results)
         return results
 
@@ -239,23 +255,20 @@ class DocumentManagementService:
 
         query_vector = embedding_service.encode_text_one(query)
         query_tokens = _tokenize(_normalize_text(query))
-        results: list[dict] = []
+        all_scored: list[dict] = []
         for row in _DocumentRowIterator(filter_expr=filter_expr, page_size=page_size):
             semantic_score = _cosine(query_vector, row.get("content_embedding", embedding_service.zero_vector()))
             lexical_tokens = _document_search_tokens(row)
             overlap = len(query_tokens & lexical_tokens)
             lexical_score = overlap / max(len(query_tokens), 1)
             score = (0.75 * semantic_score) + (0.25 * lexical_score)
-            enriched = dict(row)
-            enriched.pop("content_embedding", None)
+            enriched = {k: v for k, v in row.items() if k != "content_embedding"}
             enriched["semantic_score"] = round(semantic_score, 4)
             enriched["lexical_score"] = round(lexical_score, 4)
             enriched["score"] = round(score, 4)
-            results.append(enriched)
-            if len(results) >= top_k:
-                break
-        results.sort(key=lambda item: item.get("score", 0.0), reverse=True)
-        cached_results = results[:top_k]
+            all_scored.append(enriched)
+        all_scored.sort(key=lambda item: item.get("score", 0.0), reverse=True)
+        cached_results = all_scored[:top_k]
         set_json(self.SEARCH_NAMESPACE, cache_key, cached_results)
         return cached_results
 

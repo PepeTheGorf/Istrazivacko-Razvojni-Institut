@@ -6,8 +6,8 @@ from pydantic import BaseModel
 class DocumentCreate(BaseModel):
     title: str
     author_id: str
-    doc_type_id: str
-    project_id: str
+    doc_type_id: Optional[str] = None
+    project_id: Optional[str] = None
     folder_id: Optional[str] = None
     content: str
     tags: Optional[List[str]] = []

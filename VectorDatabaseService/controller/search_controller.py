@@ -1,8 +1,49 @@
 from fastapi import APIRouter, Query
+from pydantic import BaseModel
 
 from service.document_management_service import document_management_service
 
 router = APIRouter(prefix="/api/v1/search", tags=["search"])
+
+
+class SearchRequest(BaseModel):
+    query: str
+    top_k: int = 100
+    threshold: float = 0.30
+
+
+@router.post("/documents")
+def search_documents_post(body: SearchRequest) -> dict:
+    results = document_management_service.search_documents(
+        query=body.query, top_k=body.top_k, filter_expr=""
+    )
+    filtered = [
+        {"document_id": r["id"], "score": r.get("score", 0.0)}
+        for r in results
+        if r.get("score", 0.0) >= body.threshold
+    ]
+    return {"results": filtered}
+
+
+@router.get("/debug")
+def search_debug(query: str, top_k: int = Query(default=10, ge=1, le=50)) -> dict:
+    """Dev-only endpoint: returns raw scores with no threshold filtering."""
+    results = document_management_service.search_documents(query=query, top_k=top_k, filter_expr="")
+    return {
+        "query": query,
+        "count": len(results),
+        "results": [
+            {
+                "id": r.get("id"),
+                "title": r.get("title", ""),
+                "score": r.get("score", 0.0),
+                "semantic_score": r.get("semantic_score", 0.0),
+                "lexical_score": r.get("lexical_score", 0.0),
+                "content_preview": (r.get("content") or "")[:200],
+            }
+            for r in results
+        ],
+    }
 
 
 @router.get("/documents")
