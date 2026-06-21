@@ -1,11 +1,11 @@
 {
   "title": "InfluxDB - Realizacija projekata",
   "uid": "influxdb-project-realization",
-  "version": 5,
+  "version": 15,
   "schemaVersion": 36,
   "refresh": "",
   "timezone": "browser",
-  "time": { "from": "now-30d", "to": "now" },
+  "time": { "from": "now-7d", "to": "now" },
   "timepicker": {
     "hidden": false,
     "refresh_intervals": ["5s", "10s", "30s", "1m", "5m", "15m", "30m", "1h", "2h", "1d"],
@@ -23,32 +23,6 @@
         "refresh": 1,
         "sort": 1,
         "current": { "text": "project-1", "value": "project-1" }
-      },
-      {
-        "name": "fromPhase",
-        "label": "Izlazna faza",
-        "type": "custom",
-        "query": "All, BACKLOG, IN_PROGRESS, REVIEW, DONE",
-        "options": [
-          { "text": "Sve", "value": "All", "selected": true },
-          { "text": "BACKLOG", "value": "BACKLOG", "selected": false },
-          { "text": "IN_PROGRESS", "value": "IN_PROGRESS", "selected": false },
-          { "text": "REVIEW", "value": "REVIEW", "selected": false },
-          { "text": "DONE", "value": "DONE", "selected": false }
-        ],
-        "current": { "text": "Sve", "value": "All" }
-      },
-      {
-        "name": "minDuration",
-        "label": "Min. trajanje (s)",
-        "type": "textbox",
-        "current": { "text": "3600", "value": "3600" }
-      },
-      {
-        "name": "maxDuration",
-        "label": "Max. trajanje (s)",
-        "type": "textbox",
-        "current": { "text": "86400", "value": "86400" }
       }
     ]
   },
@@ -62,91 +36,67 @@
     },
     {
       "id": 1,
-      "title": "Prelazi faza za projekat (opcioni filter po fazi)",
-      "description": "Prosta sekcija: dobavljanje slogova iz baze, filter: projekat + izlazna faza.",
+      "title": "Prosta sekcija 1 - tranzicije trajanja od 1 do 5 dana",
+      "description": "Dobavljanje task_phase_transitions slogova za izabrani projekat gde je durationSeconds izmedju 1 i 5 dana.",
       "type": "table",
-      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 1 },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 1 },
       "datasource": { "type": "influxdb", "uid": "influxdb" },
       "targets": [
         {
           "refId": "A",
-          "query": "from(bucket: \"project-analytics\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"task_phase_transitions\")\n  |> filter(fn: (r) => r[\"_field\"] == \"durationSeconds\")\n  |> filter(fn: (r) => r[\"projectName\"] == \"${project}\")\n  |> filter(fn: (r) => r[\"fromPhase\"] == \"${fromPhase}\" or \"${fromPhase}\" == \"All\")\n  |> keep(columns: [\"_time\", \"taskId\", \"fromPhase\", \"toPhase\", \"userId\", \"_value\"])\n  |> sort(columns: [\"_time\"], desc: true)\n  |> limit(n: 100)"
+          "resultFormat": "table",
+          "query": "from(bucket: \"project-analytics\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"task_phase_transitions\")\n  |> filter(fn: (r) => r[\"_field\"] == \"durationSeconds\")\n  |> filter(fn: (r) => r[\"projectName\"] == \"${project}\")\n  |> filter(fn: (r) => r[\"_value\"] >= 86400 and r[\"_value\"] <= 432000)\n  |> group(columns: [])\n  |> keep(columns: [\"_time\", \"projectName\", \"taskId\", \"fromPhase\", \"toPhase\", \"_value\"])\n  |> rename(columns: {_time: \"Vreme\", projectName: \"Projekat\", taskId: \"Task\", fromPhase: \"Od faze\", toPhase: \"Do faze\", _value: \"Trajanje (s)\"})"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "custom": { "align": "auto", "cellOptions": { "type": "auto" } }
-        },
-        "overrides": [
-          {
-            "matcher": { "id": "byName", "options": "_time" },
-            "properties": [{ "id": "displayName", "value": "Vreme" }]
-          },
-          {
-            "matcher": { "id": "byName", "options": "_value" },
-            "properties": [
-              { "id": "displayName", "value": "Trajanje" },
-              { "id": "unit", "value": "s" }
-            ]
-          }
-        ]
+          "custom": { "align": "auto", "cellOptions": { "type": "auto" }, "inspect": false }
+        }
       },
       "options": {
-        "cellHeight": "sm",
         "showHeader": true,
-        "footer": { "show": false }
+        "cellHeight": "sm",
+        "footer": { "show": false, "reducer": ["sum"], "countRows": false }
       }
     },
     {
       "id": 2,
-      "title": "Prelazi u opsegu trajanja (min–max sekundi)",
-      "description": "Prosta sekcija: slogovi filtrirani po trajanju u prelazu.",
+      "title": "Prosta sekcija 2 - tranzicije sa 15 do 30 story poena",
+      "description": "Dobavljanje task_phase_transitions slogova za izabrani projekat gde je broj story poena izmedju 15 i 30.",
       "type": "table",
-      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 1 },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 11 },
       "datasource": { "type": "influxdb", "uid": "influxdb" },
       "targets": [
         {
           "refId": "A",
-          "query": "from(bucket: \"project-analytics\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"task_phase_transitions\")\n  |> filter(fn: (r) => r[\"_field\"] == \"durationSeconds\")\n  |> filter(fn: (r) => r[\"projectName\"] == \"${project}\")\n  |> filter(fn: (r) => r[\"_value\"] >= ${minDuration})\n  |> filter(fn: (r) => r[\"_value\"] <= ${maxDuration})\n  |> keep(columns: [\"_time\", \"taskId\", \"fromPhase\", \"toPhase\", \"userId\", \"_value\"])\n  |> sort(columns: [\"_value\"], desc: true)\n  |> limit(n: 100)"
+          "resultFormat": "table",
+          "query": "from(bucket: \"project-analytics\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"task_phase_transitions\")\n  |> filter(fn: (r) => r[\"_field\"] == \"storyPoints\")\n  |> filter(fn: (r) => r[\"projectName\"] == \"${project}\")\n  |> filter(fn: (r) => r[\"_value\"] >= 15 and r[\"_value\"] <= 30)\n  |> group(columns: [])\n  |> keep(columns: [\"_time\", \"projectName\", \"taskId\", \"fromPhase\", \"toPhase\", \"_value\"])\n  |> rename(columns: {_time: \"Vreme\", projectName: \"Projekat\", taskId: \"Task\", fromPhase: \"Od faze\", toPhase: \"Do faze\", _value: \"Story poeni\"})"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "custom": { "align": "auto", "cellOptions": { "type": "auto" } }
-        },
-        "overrides": [
-          {
-            "matcher": { "id": "byName", "options": "_time" },
-            "properties": [{ "id": "displayName", "value": "Vreme" }]
-          },
-          {
-            "matcher": { "id": "byName", "options": "_value" },
-            "properties": [
-              { "id": "displayName", "value": "Trajanje" },
-              { "id": "unit", "value": "s" }
-            ]
-          }
-        ]
+          "custom": { "align": "auto", "cellOptions": { "type": "auto" }, "inspect": false }
+        }
       },
       "options": {
-        "cellHeight": "sm",
         "showHeader": true,
-        "footer": { "show": false }
+        "cellHeight": "sm",
+        "footer": { "show": false, "reducer": ["sum"], "countRows": false }
       }
     },
     {
       "id": 200,
       "title": "Složena sekcija",
       "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 11 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 21 },
       "collapsed": false
     },
     {
       "id": 3,
-      "title": "Prosečno trajanje po fazi",
-      "description": "Slozena sekcija: agregacija mean(durationSeconds) grupisano po fromPhase",
+      "title": "Složena sekcija — prosečno trajanje po fazi",
+      "description": "Složen upit: mean(durationSeconds) grupisano po fromPhase.",
       "type": "barchart",
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 12 },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 22 },
       "datasource": { "type": "influxdb", "uid": "influxdb" },
       "targets": [
         {
