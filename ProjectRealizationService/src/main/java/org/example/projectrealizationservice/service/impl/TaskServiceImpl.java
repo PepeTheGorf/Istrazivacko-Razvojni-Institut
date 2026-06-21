@@ -7,15 +7,19 @@ import org.example.projectrealizationservice.dto.creation.TaskCreationDTO;
 import org.example.projectrealizationservice.mapper.TaskViewMapper;
 import org.example.projectrealizationservice.model.*;
 import org.example.projectrealizationservice.repository.*;
+import org.example.projectrealizationservice.saga.PhaseTransitionSagaContext;
+import org.example.projectrealizationservice.saga.PhaseTransitionSagaOrchestrator;
 import org.example.projectrealizationservice.security.ResourceAuthorization;
 import org.example.projectrealizationservice.security.SecurityUtils;
 import org.example.projectrealizationservice.service.TaskService;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.Comparator;
 import java.util.List;
@@ -40,6 +44,8 @@ public class TaskServiceImpl implements TaskService {
     private final CacheManager cacheManager;
     
     private final TransitionConditionEvaluatorImpl transitionConditionEvaluator;
+
+    private final ObjectProvider<PhaseTransitionSagaOrchestrator> sagaOrchestratorProvider;
 
     @Override
     @CacheEvict(value = "tasks-summary", key = "#taskCreation.projectId")
@@ -263,9 +269,37 @@ public class TaskServiceImpl implements TaskService {
             throw new RuntimeException("Transition conditions not met for moving task to the next phase.");
         }
 
+        OffsetDateTime previousChangeDate = task.getPhaseChangeDate();
+        String fromPhaseName = currentPhase.getName();
+
         task.setPhase(phase);
         task.setPhaseChangeDate(OffsetDateTime.now());
         taskRepository.save(task);
+
+        startPhaseTransitionSaga(task, fromPhaseName, phase.getName(), previousChangeDate);
+    }
+
+    private void startPhaseTransitionSaga(Task task, String fromPhase, String toPhase, OffsetDateTime previousChangeDate) {
+        PhaseTransitionSagaOrchestrator orchestrator = sagaOrchestratorProvider.getIfAvailable();
+        if (orchestrator == null) {
+            return;
+        }
+
+        long durationSeconds = previousChangeDate != null
+                ? Duration.between(previousChangeDate, OffsetDateTime.now()).getSeconds()
+                : 0L;
+
+        PhaseTransitionSagaContext context = PhaseTransitionSagaContext.builder()
+                .taskId(String.valueOf(task.getId()))
+                .taskName(task.getName())
+                .projectName(task.getProject() != null ? task.getProject().getName() : null)
+                .assigneeId(SecurityUtils.getCurrentUserId())
+                .fromPhase(fromPhase)
+                .toPhase(toPhase)
+                .durationSeconds(durationSeconds)
+                .build();
+
+        orchestrator.start(context);
     }
 
     private Task findAccessibleTaskOrThrow(Long taskId) {
