@@ -36,6 +36,11 @@ public class CassandraController {
         cassandraService.deleteFeedback(field, feedbackId);
     }
 
+    @GetMapping("/llm-requests")
+    public List<Map<String, Object>> getLlmRequestsByResearcher(@RequestParam String researcherId) {
+        return cassandraService.getLlmRequestsByResearcher(researcherId);
+    }
+
     @GetMapping("/analytics/requests-count")
     public Map<String, Long> getCountByResearcher() {
         return cassandraService.query1_CountRequestsByResearcher();
