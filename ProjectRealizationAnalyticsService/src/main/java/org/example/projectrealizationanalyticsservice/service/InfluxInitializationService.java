@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class InfluxInitializationService {
 
-    public static final boolean shouldSeed = false;
+    public static final boolean shouldSeed = true;
     public static final int seedRecordCount = 10000;
 
     private final InfluxDataSeederService dataSeederService;

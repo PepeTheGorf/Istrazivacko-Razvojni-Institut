@@ -45,7 +45,7 @@ public class InfluxService {
         influxDBClient.getWriteApiBlocking().writePoint(bucket, influxOrg, point);
     }
 
-    @Cacheable(value = "analytics:phase-flow", key = "#projectName + ':' + #rangeType")
+    @Cacheable(value = "analytics:phase-transitions", key = "#projectName + ':' + #rangeType")
     public List<PhaseTransitionEvent> getTransitionsBetweenPhases(String projectName, RangeType rangeType) {
         OffsetDateTime now = OffsetDateTime.now();
         TimeRange range = rangeType.toTimeRange(now);
@@ -94,7 +94,7 @@ public class InfluxService {
                 |> group(columns: ["fromPhase"])
                 |> window(every: %s)
                 |> mean(column: "_value")
-                |> sort(columns: ["fromPhase", "_time"], desc: false)
+                |> sort(columns: ["_time"], desc: false)
                 """.formatted(range.getFrom(), range.getTo(), projectName, window);
         return mapFluxRecords(influxDBClient.getQueryApi(), fluxQuery, projectName, true);
     }
