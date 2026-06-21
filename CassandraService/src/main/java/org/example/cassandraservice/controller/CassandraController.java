@@ -41,6 +41,11 @@ public class CassandraController {
         return cassandraService.getLlmRequestsByResearcher(researcherId);
     }
 
+    @GetMapping("/feedbacks")
+    public List<Map<String, Object>> getFeedbacksByField(@RequestParam String field) {
+        return cassandraService.getFeedbacksByField(field);
+    }
+
     @GetMapping("/analytics/requests-count")
     public Map<String, Long> getCountByResearcher() {
         return cassandraService.query1_CountRequestsByResearcher();
