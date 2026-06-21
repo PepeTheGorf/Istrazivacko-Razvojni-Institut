@@ -10,4 +10,6 @@ import java.util.List;
 public interface TaskResourceAssignmentRepository extends JpaRepository<TaskResourceAssignment, Long> {
 
     List<TaskResourceAssignment> findByTask_Id(Long taskId);
+
+    List<TaskResourceAssignment> findByTechnicalResource_Id(Long technicalResourceId);
 }

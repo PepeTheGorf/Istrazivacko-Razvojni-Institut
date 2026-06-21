@@ -65,4 +65,6 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     List<org.example.projectrealizationservice.model.Project> findProjectsForAssignee(@Param("userId") Long userId);
 
     boolean existsByPhase_Id(Long phaseId);
+
+    boolean existsByWorkflow_Id(Long workflowId);
 }

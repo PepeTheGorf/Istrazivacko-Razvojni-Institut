@@ -123,6 +123,8 @@ public class TechnicalResourceServiceImpl implements TechnicalResourceService {
     public void deleteTechnicalResource(Long technicalResourceId) {
         TechnicalResource existing = technicalResourceRepository.findById(technicalResourceId)
                 .orElseThrow(() -> new RuntimeException("Technical resource with that id does not exist!"));
+        taskResourceAssignmentRepository.deleteAll(
+                taskResourceAssignmentRepository.findByTechnicalResource_Id(technicalResourceId));
         technicalResourceRepository.delete(existing);
     }
 }

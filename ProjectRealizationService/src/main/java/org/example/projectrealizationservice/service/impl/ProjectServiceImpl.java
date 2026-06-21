@@ -6,6 +6,7 @@ import org.example.projectrealizationservice.model.Project;
 import org.example.projectrealizationservice.repository.ProjectRepository;
 import org.example.projectrealizationservice.security.SecurityUtils;
 import org.example.projectrealizationservice.service.ProjectService;
+import org.example.projectrealizationservice.service.TaskService;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
@@ -20,6 +21,7 @@ import java.util.Objects;
 public class ProjectServiceImpl implements ProjectService {
 
     private final ProjectRepository projectRepository;
+    private final TaskService taskService;
 
     @Override
     @CacheEvict(value = "projects", key = "#creatorId")
@@ -42,6 +44,7 @@ public class ProjectServiceImpl implements ProjectService {
     @CacheEvict(value = "projects", key = "#creatorId")
     public void deleteProject(Long projectId, Long creatorId) {
         Project project = findAccessibleProjectOrThrow(projectId, creatorId);
+        taskService.deleteTasksForProject(projectId);
         projectRepository.delete(project);
     }
 

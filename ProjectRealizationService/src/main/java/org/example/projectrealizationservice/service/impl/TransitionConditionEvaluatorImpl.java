@@ -32,10 +32,8 @@ public class TransitionConditionEvaluatorImpl implements TransitionConditionEval
     @Override
     public boolean evaluateCondition(TransitionCondition transitionCondition, Task task) {
         return switch (transitionCondition.getTransitionType().getName()) {
-            case "Zadatak dodeljen korisniku" ->
-                    taskAssignmentRepository.existsByTaskAndAssigneeId(task, SecurityUtils.getCurrentUserId());
-            case "Svi kriterijumi prihvatanja ispunjeni" ->
-                    Boolean.TRUE.equals(acceptanceCriteriaRepository.allAcceptanceCriteriaMetByTaskId(task.getId()));
+            case "Zadatak dodeljen korisniku" -> taskAssignmentRepository.existsByTaskAndAssigneeId(task, SecurityUtils.getCurrentUserId());
+            case "Svi kriterijumi prihvatanja ispunjeni" -> acceptanceCriteriaRepository.allAcceptanceCriteriaMetByTaskId(task.getId());
             case "Svi podzadaci završeni" -> allSubtasksCompleted(task);
             case "Nema otvorenih problema" -> problemReportRepository.countUnresolvedProblems(task) == 0;
             case "Zadatak u roku" -> task.getEndDate().isAfter(OffsetDateTime.now());
@@ -51,7 +49,7 @@ public class TransitionConditionEvaluatorImpl implements TransitionConditionEval
     
     private boolean allSubtasksCompleted(Task task) {
         Queue<Task> subtasks = new LinkedList<>(taskRepository.findSubtasksByParentTaskId(task.getId()));
-
+        
         while (!subtasks.isEmpty()) {
             Task currentTask = subtasks.poll();
 

@@ -98,14 +98,29 @@ public class TaskServiceImpl implements TaskService {
     public void deleteTask(Long taskId) {
         Task existing = findAccessibleTaskOrThrow(taskId);
         ResourceAuthorization.assertCurrentUserIsOwner(existing.getCreatorId());
+        deleteTaskCascade(taskId);
+        evictProjectTasksCache(existing);
+    }
+
+    @Override
+    public void deleteTasksForProject(Long projectId) {
+        List<Task> rootTasks = taskRepository.findRootTasksByProjectId(projectId);
+        for (Task rootTask : rootTasks) {
+            deleteTaskCascade(rootTask.getId());
+        }
+        Objects.requireNonNull(cacheManager.getCache("tasks-summary")).evict(projectId);
+    }
+
+    private void deleteTaskCascade(Long taskId) {
+        for (Task subtask : taskRepository.findSubtasksByParentTaskId(taskId)) {
+            deleteTaskCascade(subtask.getId());
+        }
 
         acceptanceCriteriaRepository.deleteAll(acceptanceCriteriaRepository.findByTask_Id(taskId));
         taskAssignmentRepository.deleteAll(taskAssignmentRepository.findByTask_Id(taskId));
         taskResourceAssignmentRepository.deleteAll(taskResourceAssignmentRepository.findByTask_Id(taskId));
         problemReportRepository.deleteAll(problemReportRepository.findByTask_Id(taskId));
-        taskRepository.delete(existing);
-
-        evictProjectTasksCache(existing);
+        taskRepository.deleteById(taskId);
     }
     
     @Override

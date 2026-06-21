@@ -164,6 +164,9 @@ public class WorkflowServiceImpl implements WorkflowService {
     public void deleteWorkflow(Long workflowId) {
         Workflow existing = workflowRepository.findByIdWithPhases(workflowId)
                 .orElseThrow(() -> new RuntimeException("Workflow with that id does not exist!"));
+        if (taskRepository.existsByWorkflow_Id(workflowId)) {
+            throw new RuntimeException("Cannot delete workflow because tasks are using it.");
+        }
         workflowRepository.delete(existing);
     }
 

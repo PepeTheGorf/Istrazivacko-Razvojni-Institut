@@ -13,6 +13,8 @@ public interface TaskService {
 
     void deleteTask(Long taskId);
 
+    void deleteTasksForProject(Long projectId);
+
     List<TaskSummaryDTO> getTasksByProjectId(Long projectId);
     
     List<AssignedTaskSummaryDTO> getMyTasksByProjectId(Long projectId);
