@@ -10,6 +10,7 @@ import org.example.projectrealizationservice.saga.graph.repository.PhaseTransiti
 import org.example.projectrealizationservice.saga.graph.repository.TaskNodeRepository;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -17,6 +18,7 @@ import java.util.UUID;
 @Service
 @Profile("!test")
 @RequiredArgsConstructor
+@Transactional(transactionManager = "neo4jTransactionManager")
 public class TaskGraphService {
 
     private final TaskNodeRepository taskNodeRepository;

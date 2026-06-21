@@ -50,7 +50,8 @@ public class PhaseTransitionSagaOrchestrator {
                 context.getFromPhase(),
                 context.getToPhase(),
                 context.getAssigneeId(),
-                context.getDurationSeconds());
+                context.getDurationSeconds(),
+                5L);
 
         try {
             rabbitTemplate.convertAndSend(SagaRabbitMQConfig.EXCHANGE, SagaRabbitMQConfig.COMMAND_KEY, command);
