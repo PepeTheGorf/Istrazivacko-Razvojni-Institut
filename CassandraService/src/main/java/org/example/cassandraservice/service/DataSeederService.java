@@ -2,19 +2,19 @@ package org.example.cassandraservice.service;
 
 import com.datastax.oss.driver.api.core.CqlSession;
 import net.datafaker.Faker;
-import org.springframework.beans.factory.annotation.Autowired;
+//import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
-import org.springframework.stereotype.Service;
+//import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
 
 
-@Service
+//@Service
 public class DataSeederService {
 
- @Autowired
+ //@Autowired
     private CqlSession cqlSession;
 
     @EventListener(ApplicationReadyEvent.class)

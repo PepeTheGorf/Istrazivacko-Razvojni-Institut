@@ -39,7 +39,7 @@ public class MilvusInitializationService {
                 .withCollectionName(FEEDBACK_COLLECTION).build());
 
         if (getCollectionCount(TEMPLATE_COLLECTION) < 10000) {
-            dataSeederService.seedData();
+            //dataSeederService.seedData();
         } else {
             System.out.println("Podaci već postoje (10.000+), preskačem seeding.");
         }

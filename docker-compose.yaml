@@ -116,9 +116,10 @@ services:
         condition: service_healthy
     ports:
       - "3000:3000"
-    environment:
+    environment: 
       GF_SECURITY_ADMIN_PASSWORD: admin
       GF_PATHS_PROVISIONING: /etc/grafana/provisioning
+      GF_INSTALL_PLUGINS: hadatwi-cassandra-datasource
 
   project-realization-postgres:
     image: postgres:16
@@ -258,15 +259,15 @@ services:
       - etcd
       - minio
 
-  # attu:  # Milvus UI — optional, disabled for lighter local stack
-  #   image: zilliz/attu:v2.4
-  #   container_name: attu
-  #   environment:
-  #     MILVUS_URL: standalone:19530
-  #   ports:
-  #     - "8090:3000"
-  #   depends_on:
-  #     - standalone
+  attu:  # Milvus UI — optional, disabled for lighter local stack
+     image: zilliz/attu:v2.4
+     container_name: attu
+     environment:
+       MILVUS_URL: standalone:19530
+     ports:
+       - "8090:3000"
+     depends_on:
+       - standalone
 
   vector-database-service:
     build:

@@ -43,4 +43,17 @@ public class CassandraController {
     public List<Float> getTemplateEffectiveness(@PathVariable String id) {
         return cassandraService.query5_GetEffectivenessByTemplate(id);
     }
+
+    @PostMapping("/llm-request")
+    public void insertLlmRequest(@RequestParam String resId, @RequestParam String status){
+        cassandraService.insertLlmRequest(resId, java.time.Instant.now(), UUID.randomUUID(), status);
+    }
+    @PostMapping("/feedback")
+    public void insertFeedback(@RequestParam String field,  @RequestParam int rating){
+        cassandraService.insertFeedback(field, UUID.randomUUID(), rating);
+    }
+    @DeleteMapping("/llm-request/{resId}/{timestamp}/{requestId}")
+    public void deleteLlmRequest(@PathVariable String resId, @PathVariable String timestamp, @PathVariable java.util.UUID requestId) {
+        cassandraService.deleteLlmRequest(resId, java.time.Instant.parse(timestamp), requestId);
+    }
 }

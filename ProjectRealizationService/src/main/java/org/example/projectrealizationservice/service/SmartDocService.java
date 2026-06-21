@@ -7,6 +7,9 @@ import org.example.projectrealizationservice.repository.sql.smartdocs.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.example.projectrealizationservice.client.CassandraClient; 
+import org.example.projectrealizationservice.client.MilvusClient;
+
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -24,6 +27,8 @@ public class SmartDocService {
     private final AiService aiService;
     private final PromptVersionRepository promptVersionRepository;
     private final TemplateSectionRepository templateSectionRepository;
+    private final CassandraClient cassandraClient;
+    private final MilvusClient milvusClient;
 
     @Transactional("transactionManager")
     public void createTemplate(TemplateCreationDTO dto, Long creatorId) {
@@ -75,14 +80,12 @@ public class SmartDocService {
     }
 
     @Transactional("transactionManager")
-    public GeneratedDocument createDocumentFromTemplate(Long templateId, Long researcherId, String name, String description) {
+    public GeneratedDocument createDocumentFromTemplate(Long templateId, Long researcherId) {
         SmartTemplate template = templateRepository.findById(templateId)
                 .orElseThrow(() -> new RuntimeException("Šablon nije pronađen"));
 
         GeneratedDocument doc = GeneratedDocument.builder()
                 .template(template)
-                .name(name)
-                .description(description)
                 .researcherId(researcherId)
                 .status("DRAFT")
                 .createdAt(OffsetDateTime.now())
@@ -206,6 +209,19 @@ public class SmartDocService {
 );
         currentSection.setLlmResult(generatedResult);
         documentSectionRepository.save(currentSection);
+
+        try {
+        cassandraClient.insertLlmRequest(doc.getResearcherId().toString(), "SUCCESS");
+
+        String categoryName = doc.getTemplate().getCategory().getName();
+        milvusClient.createTemplate(generatedResult, categoryName);
+
+        } catch (Exception e) {
+        currentSection.setLlmResult("GREŠKA U INDEKSIRANJU: " + e.getMessage());
+        documentSectionRepository.save(currentSection);
+        throw new RuntimeException("Saga neuspela: Podaci nisu sačuvani u NoSQL bazama.");
+        }
+
         return generatedResult;
     }
 
@@ -226,6 +242,17 @@ public class SmartDocService {
         feedback.setRating(rating);
         feedback.setComment(comment);
         feedbackRepository.save(feedback);
+
+        try {
+        String domainName = section.getDocument().getTemplate().getDomain().getName();
+        
+        cassandraClient.insertFeedback(domainName, rating);
+
+        milvusClient.createFeedback(comment, domainName, rating);
+
+    } catch (Exception e) {
+        System.err.println("NoSQL Feedback Sync Failed: " + e.getMessage());
+    }
     }
 
     @Transactional(value = "transactionManager", readOnly = true)
