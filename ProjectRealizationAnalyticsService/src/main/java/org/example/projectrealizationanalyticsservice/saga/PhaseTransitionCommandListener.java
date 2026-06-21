@@ -34,6 +34,7 @@ public class PhaseTransitionCommandListener {
             event.setToPhase(command.getToPhase());
             event.setUserId(command.getUserId());
             event.setDurationInPreviousPhase(command.getDurationSeconds());
+            event.setStoryPoints(command.getStoryPoints());
 
             phaseTransitionService.transferTaskPhase(event);
 

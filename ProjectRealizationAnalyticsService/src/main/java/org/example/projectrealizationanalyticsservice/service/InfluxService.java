@@ -41,6 +41,7 @@ public class InfluxService {
                 .addTag("taskId", phaseTransitionEvent.getTaskId())
                 .addTag("userId", String.valueOf(phaseTransitionEvent.getUserId()))
                 .addField("durationSeconds", phaseTransitionEvent.getDurationInPreviousPhase())
+                .addField("storyPoints", phaseTransitionEvent.getStoryPoints())
                 .time(Instant.now(), WritePrecision.S);
         influxDBClient.getWriteApiBlocking().writePoint(bucket, influxOrg, point);
     }

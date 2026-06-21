@@ -18,5 +18,6 @@ public class PhaseTransitionEvent {
     private String toPhase;
     private Long userId;
     private long durationInPreviousPhase;
+    private long storyPoints;
     private Instant windowStart;
 }

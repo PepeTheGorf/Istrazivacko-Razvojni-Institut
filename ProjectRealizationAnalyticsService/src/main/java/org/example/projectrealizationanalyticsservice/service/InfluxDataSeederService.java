@@ -62,6 +62,7 @@ public class InfluxDataSeederService {
                     .addTag("taskId", "task-" + (random.nextInt(120) + 1))
                     .addTag("userId", String.valueOf(random.nextInt(50) + 1))
                     .addField("durationSeconds", 300L + random.nextInt(86_400))
+                    .addField("storyPoints", 5L + random.nextInt(36))
                     .time(timestamp, WritePrecision.MS);
 
             batch.add(point);

@@ -18,4 +18,5 @@ public class RecordPhaseTransitionCommand {
     private String toPhase;
     private Long userId;
     private long durationSeconds;
+    private long storyPoints;
 }
