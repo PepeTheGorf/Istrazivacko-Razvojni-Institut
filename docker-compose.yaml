@@ -87,6 +87,23 @@ services:
     ports:
       - "9063:8080"
 
+  grafana:
+    image: grafana/grafana:10.4.2
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - grafana_storage:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      influxdb:
+        condition: service_healthy
+
   project-realization-postgres:
     image: postgres:16
     environment:
@@ -278,4 +295,5 @@ volumes:
   project_realization_pgadmin_data: {}
   influxdb_data: {}
   redis_data: {}
+  grafana_storage: {}
 
