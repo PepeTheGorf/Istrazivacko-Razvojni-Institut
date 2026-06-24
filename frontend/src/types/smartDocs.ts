@@ -14,6 +14,9 @@ export interface PromptVersion {
   versionNumber: number
   active: boolean
   createdAt: string
+  averageRating?: number
+  feedbackCount?: number
+  feedbackComments?: string[]
 }
 
 export interface TemplateSection {
@@ -54,6 +57,7 @@ export interface DocumentSection {
   templateSectionId: number
   userInput: string      
   llmResult?: string  
+  refinedResult?: string
   rating?: number           
   feedbackComment?: string   
 }

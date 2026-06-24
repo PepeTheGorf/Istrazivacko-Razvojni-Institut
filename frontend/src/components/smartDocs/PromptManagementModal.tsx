@@ -105,7 +105,8 @@ export function PromptManagementModal({ isOpen, onClose, sectionId, sectionTitle
               <thead className="bg-surface-3 border-b border-hairline text-ink-muted">
                 <tr>
                   <th className="px-4 py-2">v.</th>
-                  <th className="px-4 py-2">Tekst (isečak)</th>
+                  <th className="px-4 py-2">Tekst (isječak)</th>
+                  <th className="px-4 py-2">Ocena (Prosek)</th>
                   <th className="px-4 py-2">Datum</th>
                   <th className="px-4 py-2 text-right">Akcija</th>
                 </tr>
@@ -114,7 +115,23 @@ export function PromptManagementModal({ isOpen, onClose, sectionId, sectionTitle
                 {history.map(v => (
                   <tr key={v.id} className={v.active ? "bg-primary/5" : "hover:bg-surface-3/50"}>
                     <td className="px-4 py-3 font-bold text-ink">{v.versionNumber}</td>
-                    <td className="px-4 py-3 text-ink-subtle truncate max-w-[250px]">{v.content}</td>
+                    <td className="px-4 py-3 text-ink-subtle truncate max-w-[200px]">{v.content}</td>
+                    <td className="px-4 py-3">
+                         <div className="flex flex-col">
+                           <span className={`font-bold ${v.averageRating! >= 4 ? 'text-green-600' : 'text-orange-500'}`}>
+                               {v.averageRating?.toFixed(1)} / 5.0
+                           </span>
+                               {v.feedbackComments && v.feedbackComments.length > 0 && (
+                    <button 
+                       title={v.feedbackComments.join('\n\n')}
+                       className="text-[10px] text-primary underline text-left"
+                       onClick={() => alert("KOMENTARI KORISNIKA:\n\n" + v.feedbackComments?.join('\n---\n'))}>
+                       Vidi {v.feedbackCount} komentara
+                    </button>
+                    )}
+                     </div>
+                   </td>
+
                     <td className="px-4 py-3 text-ink-subtle">{formatDate(v.createdAt)}</td>
                     <td className="px-4 py-3 text-right">
                       {v.active ? (

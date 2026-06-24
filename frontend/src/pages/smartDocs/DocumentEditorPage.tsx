@@ -3,17 +3,23 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { AppShell } from '../../components/layout/AppShell'
 import { TextArea } from '../../components/ui/TextArea'
 import { Button } from '../../components/ui/Button'
-import { updateSectionInput, generateSectionContent, completeDocument, saveSectionFeedback } from '../../api/smartDocs' 
+import { 
+  updateSectionInput, 
+  generateSectionContent, 
+  completeDocument, 
+  saveSectionFeedback,
+  updateRefinedResult 
+} from '../../api/smartDocs' 
 import type { SmartDocument } from '../../types/smartDocs'
 import { apiFetch } from '../../api/client'
 import { Breadcrumbs } from '../../components/ui/Breadcrumbs'
 import { ProgressBar } from '../../components/ui/ProgressBar'
+import { cn } from '../../lib/cn' 
 
 export function DocumentEditorPage() {
   const { docId } = useParams<{ docId: string }>()
   const navigate = useNavigate()
   const [document, setDocument] = useState<SmartDocument | null>(null)
-  const [saving, setSaving] = useState(false)
   const [generatingId, setGeneratingId] = useState<number | null>(null)
 
   useEffect(() => {
@@ -31,19 +37,32 @@ export function DocumentEditorPage() {
   }, [docId])
 
   const handleUpdateSection = async (sectionId: number, text: string) => {
-    setSaving(true)
     try {
       await updateSectionInput(sectionId, text)
-      if (document) {
-        const newSections = document.sections.map(s => 
-          s.id === sectionId ? { ...s, userInput: text } : s
-        )
-        setDocument({ ...document, sections: newSections })
-      }
+      setDocument(prev => {
+        if (!prev) return null
+        return {
+          ...prev,
+          sections: prev.sections.map(s => s.id === sectionId ? { ...s, userInput: text } : s)
+        }
+      })
     } catch {
-       console.error("Greška pri čuvanju sekcije")
-    } finally {
-      setSaving(false)
+       console.error("Greška pri čuvanju ulaza")
+    }
+  }
+
+  const handleRefinedChange = async (sectionId: number, text: string) => {
+    try {
+      await updateRefinedResult(sectionId, text)
+      setDocument(prev => {
+        if (!prev) return null
+        return {
+          ...prev,
+          sections: prev.sections.map(s => s.id === sectionId ? { ...s, refinedResult: text } : s)
+        }
+      })
+    } catch (err) {
+      console.error("Greška pri čuvanju izmena teksta:", err)
     }
   }
 
@@ -52,10 +71,16 @@ export function DocumentEditorPage() {
     try {
       const response = await generateSectionContent(sectionId)
       if (document) {
-        const updatedSections = document.sections.map(s => 
-          s.id === sectionId ? { ...s, llmResult: response.result } : s
-        )
-        setDocument({ ...document, sections: updatedSections })
+        setDocument({
+          ...document,
+          sections: document.sections.map(s => 
+            s.id === sectionId ? { 
+              ...s, 
+              llmResult: s.llmResult || response.result, 
+              refinedResult: response.result 
+            } : s
+          )
+        })
       }
     } catch {
       alert("Nije uspelo generisanje teksta.")
@@ -64,8 +89,14 @@ export function DocumentEditorPage() {
     }
   }
 
+  const handleUndo = async (sectionId: number, original: string) => {
+    if (window.confirm("Poništiti vaše izmene i vratiti na originalni AI predlog?")) {
+      await handleRefinedChange(sectionId, original)
+    }
+  }
+
   const handleComplete = async () => {
-    if (!window.confirm("Da li ste sigurni da želite da završite? Nakon ovoga nema izmena.")) return
+    if (!window.confirm("Finalizacijom dokumenta onemogućavate dalje izmene. Nastaviti?")) return
     try {
       await completeDocument(Number(docId))
       navigate('/my-smart-docs')
@@ -78,17 +109,30 @@ export function DocumentEditorPage() {
     try {
       await saveSectionFeedback(sectionId, rating, comment)
       if (document) {
-        const updated = document.sections.map(s => 
-          s.id === sectionId ? { ...s, rating, feedbackComment: comment } : s
-        )
-        setDocument({ ...document, sections: updated })
+        setDocument({
+          ...document,
+          sections: document.sections.map(s => 
+            s.id === sectionId ? { ...s, rating, feedbackComment: comment } : s
+          )
+        })
       }
     } catch {
       alert("Greška pri čuvanju ocene.")
     }
   }
 
-  if (!document) return <AppShell><div>Učitavanje...</div></AppShell>
+  // Prvo proveravamo da li je dokument učitan pre bilo kakve logike
+  if (!document) {
+    return <AppShell><div className="p-8 text-center text-ink-subtle">Učitavanje editora...</div></AppShell>
+  }
+
+  // Validacija feedbacka: svaka generisana sekcija mora imati ocenu i komentar
+  const allFeedbackProvided = document.sections.every(section => {
+    if (!section.llmResult) return true; 
+    const hasRating = section.rating && section.rating > 0;
+    const hasComment = section.feedbackComment && section.feedbackComment.trim().length > 0;
+    return hasRating && hasComment;
+  });
 
   const totalSections = document.sections.length
   const generatedSections = document.sections.filter(s => !!s.llmResult).length
@@ -96,90 +140,150 @@ export function DocumentEditorPage() {
 
   return (
     <AppShell>
-      <div className="mx-auto max-w-4xl">
+      <div className="mx-auto max-w-6xl">
         <Breadcrumbs items={[
-          { label: 'Moja Dokumentacija', to: '/my-smart-docs' },
-          { label: 'Editor' }
+          { label: 'Moja dokumentacija', to: '/my-smart-docs' },
+          { label: 'Interaktivni editor' }
         ]} />
 
-        <header className="mb-6 flex items-center justify-between">
+        <header className="mb-8 flex items-center justify-between border-b border-hairline pb-6">
           <div>
-            <h1 className="text-2xl font-semibold text-ink">Popunjavanje dokumentacije</h1>
-            <h2 className="text-lg font-medium text-ink-subtle">{document.name}</h2>
-            <p className="text-sm text-ink-subtle">Šablon: {document.templateName}</p>
+            <h1 className="text-3xl font-bold text-ink">{document.name}</h1>
+            <p className="text-sm text-ink-subtle">Šablon: <span className="text-primary font-medium">{document.templateName}</span></p>
           </div>
           <div className="flex gap-3">
-            <Button variant="secondary" onClick={() => navigate('/my-smart-docs')}>Završi kasnije</Button>
-            <Button onClick={handleComplete}>Finalizuj</Button>
+            <Button variant="secondary" onClick={() => navigate('/my-smart-docs')}>Sačuvaj i zatvori</Button>
+            <Button  
+              onClick={handleComplete} 
+              disabled={!allFeedbackProvided}
+              title={!allFeedbackProvided ? "Molimo ostavite ocenu i komentar za sve AI generisane sekcije pre finalizacije." : ""}
+              className={cn( 
+                "shadow-lg transition-all",
+                !allFeedbackProvided ? "opacity-40 grayscale cursor-not-allowed" : "shadow-primary/20"
+              )}
+            >
+              Finalizuj dokument
+            </Button>
           </div>
         </header>
 
-        <div className="mb-8">
-          <ProgressBar progress={progress} label="Napredak popunjavanja dokumenta" />
+        <div className="mb-10">
+          <ProgressBar progress={progress} label="Ukupan progres dokumenta" />
         </div>
 
-        <div className="grid gap-8">
-          {document.sections.map((section, index) => (
-            <section key={section.id} className="rounded-xl border border-hairline bg-surface-1 p-6">
-              <h2 className="mb-4 text-lg font-medium text-primary">
-                Sekcija {index + 1}: {section.title}
-              </h2>
-              
-              <TextArea
-                label="Vaš unos / Kontekst za AI"
-                value={section.userInput}
-                onChange={(e) => handleUpdateSection(section.id, e.target.value)}
-                placeholder="Unesite podatke za ovu sekciju..."
-                className="mb-4 min-h-[150px]"
-              />
+        <div className="grid gap-12">
+          {document.sections.map((section, index) => {
+            const hasAiResult = !!section.llmResult;
+            const isModified = section.llmResult !== section.refinedResult && hasAiResult;
+            
+            let buttonLabel = "Generiši tekst";
+            if (generatingId === section.id) buttonLabel = "AI razmišlja...";
+            else if (hasAiResult && isModified) buttonLabel = "AI dorada (refine)";
+            else if (hasAiResult) buttonLabel = "Regeneriši";
 
-              {section.llmResult && (
-                <div className="space-y-4">
-                  <div className="rounded-lg bg-surface-2 p-4 border-l-4 border-primary">
-                    <h3 className="text-xs font-semibold uppercase text-ink-subtle mb-2">AI Predlog:</h3>
-                    <p className="text-sm text-ink whitespace-pre-wrap">{section.llmResult}</p>
+            return (
+              <section key={section.id} className="rounded-2xl border border-hairline bg-surface-1 p-8 shadow-sm transition-all hover:shadow-md">
+                <h2 className="mb-6 text-xl font-bold text-primary flex items-center gap-3">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-white text-xs">
+                    {index + 1}
+                  </span>
+                  {section.title}
+                </h2>
+                
+                <div className="grid gap-8 lg:grid-cols-2">
+                  <div className="space-y-4">
+                    <TextArea
+                      label="Vaš unos / Činjenice za AI"
+                      value={section.userInput}
+                      onChange={(e) => handleUpdateSection(section.id, e.target.value)}
+                      placeholder="Unesite ključne podatke ili teze koje AI treba da obradi..."
+                      className="min-h-[250px] bg-surface-2/40 focus:bg-surface-1"
+                    />
+                    <Button 
+                      variant={hasAiResult ? "tertiary" : "primary"}
+                      onClick={() => handleGenerate(section.id)}
+                      disabled={generatingId === section.id || !section.userInput.trim()}
+                      className="w-full"
+                    >
+                      {buttonLabel}
+                    </Button>
                   </div>
-                  
-                  {/* FEEDBACK UI */}
-                  <div className="rounded-lg bg-surface-2/50 p-4 border border-hairline">
-                    <h4 className="text-[10px] font-bold uppercase text-ink-subtle mb-3">Oceni ovaj AI predlog:</h4>
-                    <div className="flex items-center gap-4">
-                      <div className="flex gap-1">
-                        {[1, 2, 3, 4, 5].map(num => (
+
+                  <div className="relative flex flex-col space-y-4">
+                    {hasAiResult ? (
+                      <>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-ink-subtle">
+                            AI Predlog (Uredi tekst ispod)
+                          </span>
                           <button 
-                            key={num}
-                            onClick={() => handleSaveFeedback(section.id, num, section.feedbackComment || '')}
-                            className={`h-8 w-8 rounded border text-xs font-bold transition-all ${
-                              section.rating === num ? 'bg-primary border-primary text-white' : 'border-hairline text-ink-subtle hover:bg-surface-3'
-                            }`}
+                            onClick={() => handleUndo(section.id, section.llmResult!)}
+                            className="text-[10px] font-bold text-primary hover:underline uppercase transition-all"
                           >
-                            {num}
+                            ⟲ Originalna AI verzija
                           </button>
-                        ))}
+                        </div>
+                        <TextArea
+                          name={`refined-${section.id}`}
+                          value={section.refinedResult || ''}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setDocument(prev => ({
+                              ...prev!,
+                              sections: prev!.sections.map(s => s.id === section.id ? {...s, refinedResult: val} : s)
+                            }))
+                          }}
+                          onBlur={(e) => handleRefinedChange(section.id, e.target.value)}
+                          className="flex-1 min-h-[250px] border-primary/30 bg-surface-2/60 font-serif text-base leading-relaxed text-ink shadow-inner focus:bg-surface-2 focus:border-primary/50 transition-all outline-none custom-scrollbar"
+                        />
+                      </>
+                    ) : (
+                      <div className="flex h-full min-h-[250px] flex-col items-center justify-center rounded-lg border-2 border-dashed border-hairline bg-surface-2/20 p-8 text-center text-ink-subtle italic">
+                        <svg className="mb-3 h-8 w-8 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                        Unesite podatke levo i kliknite "Generiši" da započnete AI pisanje.
                       </div>
-                      <input 
-                        type="text" 
-                        placeholder="Opcioni komentar..." 
-                        className="flex-1 bg-surface-3 border border-hairline rounded px-3 py-1.5 text-sm text-ink focus:outline-none focus:border-primary"
-                        defaultValue={section.feedbackComment}
-                        onBlur={(e) => handleSaveFeedback(section.id, section.rating || 0, e.target.value)}
-                      />
-                    </div>
+                    )}
                   </div>
                 </div>
-              )}
-              
-              <div className="mt-4 flex justify-end">
-                <Button 
-                  variant="tertiary" 
-                  onClick={() => handleGenerate(section.id)}
-                  disabled={generatingId === section.id || !section.userInput}
-                >
-                  {generatingId === section.id ? 'AI razmišlja...' : 'Generiši tekst'}
-                </Button>
-              </div>
-            </section>
-          ))}
+                
+                {hasAiResult && (
+                  <div className="mt-8 border-t border-hairline pt-6">
+                    <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg bg-surface-2/30 p-4 border border-hairline/50">
+                      <div className="space-y-1">
+                        <h4 className="text-[10px] font-bold uppercase tracking-wider text-ink-subtle">Kvalitet AI rezultata:</h4>
+                        <div className="flex gap-1.5">
+                          {[1, 2, 3, 4, 5].map(num => (
+                            <button 
+                              key={num}
+                              onClick={() => handleSaveFeedback(section.id, num, section.feedbackComment || '')}
+                              className={`h-9 w-9 rounded-md border text-sm font-bold transition-all ${
+                                section.rating === num 
+                                  ? 'bg-primary border-primary text-white scale-110 shadow-lg shadow-primary/20' 
+                                  : 'border-hairline bg-surface-3/50 text-ink-subtle hover:text-ink hover:border-primary/50'
+                              }`}
+                            >
+                              {num}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="flex-1 min-w-[200px]">
+                        <input 
+                          type="text" 
+                          placeholder="Dodajte komentar menadžeru (obavezno za finalizaciju)..." 
+                          className="w-full rounded-md border border-hairline bg-surface-3/50 px-4 py-2.5 text-sm text-ink outline-none focus:border-primary/60 focus:bg-surface-3 transition-all placeholder:text-ink-tertiary"
+                          defaultValue={section.feedbackComment}
+                          onBlur={(e) => handleSaveFeedback(section.id, section.rating || 0, e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </section>
+            )
+          })}
         </div>
       </div>
     </AppShell>

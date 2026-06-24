@@ -82,6 +82,9 @@ export interface PromptVersion {
   versionNumber: number
   active: boolean
   createdAt: string
+  averageRating?: number
+  feedbackCount?: number
+  feedbackComments?: string[]
 }
 
 export function fetchPromptHistory(sectionId: number): Promise<PromptVersion[]> {
@@ -98,5 +101,12 @@ export function createNewPromptVersion(sectionId: number, content: string): Prom
 export function activatePromptVersion(sectionId: number, versionId: number): Promise<void> {
   return apiFetch<void>(`/smart-docs/sections/${sectionId}/prompts/${versionId}/activate`, {
     method: 'PUT',
+  })
+}
+
+export function updateRefinedResult(sectionId: number, refinedResult: string): Promise<void> {
+  return apiFetch<void>(`/smart-docs/sections/${sectionId}/refined`, {
+    method: 'PUT',
+    body: JSON.stringify({ refinedResult }),
   })
 }

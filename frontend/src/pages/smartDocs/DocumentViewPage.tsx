@@ -21,7 +21,6 @@ export function DocumentViewPage() {
   return (
     <AppShell>
       <div className="mx-auto max-w-4xl">
-        {/* PUTOKAZI (Sakriveni pri štampi) */}
         <div className="print:hidden">
           <Breadcrumbs items={[
             { label: 'Moja Dokumentacija', to: '/my-smart-docs' },
@@ -42,7 +41,6 @@ export function DocumentViewPage() {
               </div>
             </div>
             
-            {/* AKCIJE (Sakrivene pri štampi) */}
             <div className="flex gap-3 print:hidden">
               <Button variant="tertiary" onClick={() => window.print()}>
                 Preuzmi PDF / Štampaj
@@ -53,7 +51,6 @@ export function DocumentViewPage() {
             </div>
           </header>
 
-          {/* SADRŽAJ (Čist papir izgled) */}
           <div className="p-12 space-y-12 bg-white text-black min-h-[20cm]">
             {document.sections.map((section) => (
               <section key={section.id} className="prose max-w-none">

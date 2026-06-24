@@ -11,7 +11,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 public class MockAiService implements AiService {
 
     @Override
-    public String generateText(String systemPrompt, String context, String userInput) {
+    public String generateText(String systemPrompt, String context, String userInput, String currentDraft) {
         try {
             Thread.sleep(1500);
         } catch (InterruptedException e) {
