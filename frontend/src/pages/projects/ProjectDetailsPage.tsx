@@ -6,6 +6,7 @@ import { fetchWorkflows } from '../../api/workflows'
 import { useAuth } from '../../auth/AuthContext'
 import { AppShell } from '../../components/layout/AppShell'
 import { Button } from '../../components/ui/Button'
+import { PristupDialog } from '../../components/PristupDialog'
 import type { Project } from '../../types/project'
 import type { TaskSummary } from '../../types/task'
 import type { Workflow } from '../../types/workflow'
@@ -36,6 +37,7 @@ export function ProjectDetailsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const [shareOpen, setShareOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
@@ -129,6 +131,21 @@ export function ProjectDetailsPage() {
             <Button variant="secondary" onClick={() => navigate('/projects')}>
               Nazad na projekte
             </Button>
+            {projectId && canManage && (
+              <button
+                type="button"
+                onClick={() => setShareOpen(true)}
+                className="flex items-center gap-1.5 rounded-md border border-hairline bg-surface-1 px-3 py-1.5 text-sm text-ink-muted transition-colors hover:bg-surface-2 hover:text-ink cursor-pointer"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <circle cx="18" cy="5" r="3" stroke="currentColor" strokeWidth="1.75" />
+                  <circle cx="6" cy="12" r="3" stroke="currentColor" strokeWidth="1.75" />
+                  <circle cx="18" cy="19" r="3" stroke="currentColor" strokeWidth="1.75" />
+                  <path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+                </svg>
+                Podeli
+              </button>
+            )}
             {projectId && canManage ? (
               <Button icon="add" onClick={() => setCreateDialogOpen(true)}>
                 Novi zadatak
@@ -207,6 +224,16 @@ export function ProjectDetailsPage() {
         onClose={() => setCreateDialogOpen(false)}
         onSubmit={handleCreateTask}
       />
+
+      {projectId && (
+        <PristupDialog
+          isOpen={shareOpen}
+          onClose={() => setShareOpen(false)}
+          resourceType="PROJEKAT"
+          resourceId={projectId}
+          currentUserId={user ? String(user.id) : ''}
+        />
+      )}
     </AppShell>
   )
 }

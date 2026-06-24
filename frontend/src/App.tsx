@@ -15,6 +15,7 @@ import { WorkflowEditWizardPage } from './pages/workflows/WorkflowEditWizardPage
 import { WorkflowsPage } from './pages/workflows/WorkflowsPage'
 import { DocumentsPage } from './pages/documents/DocumentsPage'
 import { DocumentTypesPage } from './pages/documentTypes/DocumentTypesPage'
+import { PristupPage } from './pages/pristup/PristupPage'
 
 function App() {
   return (
@@ -47,6 +48,10 @@ function App() {
           <Route path="/document-types" element={<DocumentTypesPage />} />
           <Route path="/workflows/new" element={<WorkflowCreateWizardPage />} />
           <Route path="/workflows/:workflowId/edit" element={<WorkflowEditWizardPage />} />
+        </Route>
+
+        <Route element={<ProtectedRoute allowedRoles={['ADMINISTRATOR', 'MANAGER']} />}>
+          <Route path="/pristup" element={<PristupPage />} />
         </Route>
 
         <Route path="/" element={<Navigate to="/login" replace />} />

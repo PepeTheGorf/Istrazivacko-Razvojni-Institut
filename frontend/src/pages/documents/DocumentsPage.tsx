@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState, type Dispatch, type FormEvent, type SetStateAction } from 'react'
 import { AdvancedSearchDialog, EMPTY_ADVANCED_FILTERS } from '../../components/AdvancedSearchDialog'
 import type { AdvancedFilters } from '../../components/AdvancedSearchDialog'
+import { PristupDialog } from '../../components/PristupDialog'
 import { TagDocumentsDialog } from '../../components/TagDocumentsDialog'
+import { checkAccess, fetchProjekatPristupIds } from '../../api/pristup'
 import { createDocument, deleteDocument, fetchDocuments, updateDocument, uploadDocument } from '../../api/documents'
 import { createDokumentTag, deleteDokumentTag, fetchDocumentTags } from '../../api/documentTags'
 import { fetchMetapodatakByDocument } from '../../api/metapodatak'
@@ -149,6 +151,9 @@ export function DocumentsPage() {
   const [tipoviMetapodataka, setTipoviMetapodataka] = useState<TipMetapodatka[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  const [pristupDialogDocumentId, setPristupDialogDocumentId] = useState<string | null>(null)
+  const [documentAccessMap, setDocumentAccessMap] = useState<Map<string, 'CITANJE' | 'IZMENA' | null>>(new Map())
 
   const [tagDialogOpen, setTagDialogOpen] = useState(false)
   const [tagInput, setTagInput] = useState('')
@@ -303,8 +308,9 @@ export function DocumentsPage() {
     setLoading(true)
     setError(null)
     try {
+      const korisnikId = user?.role === 'TEAM_MEMBER' ? user.id : undefined
       const [documentsData, projectsData, tagsData, tipoviData, tipoviMetapodatakaData] = await Promise.all([
-        fetchDocuments(),
+        fetchDocuments(korisnikId),
         fetchProjectsForSelection(),
         fetchTags(),
         fetchTipDokumenta(),
@@ -338,10 +344,35 @@ export function DocumentsPage() {
       setDocuments(documentsData)
       setDocumentTagNamesByDocumentId(new Map(tagResults))
       setDocumentMetadataByDocumentId(new Map(metadataResults))
-      setProjects(projectsData)
       setTags(tagsData)
       setTipoviDokumenta(tipoviData)
       setTipoviMetapodataka(tipoviMetapodatakaData)
+
+      if (user?.role === 'TEAM_MEMBER' && user.id != null) {
+        const accessResults = await Promise.all(
+          documentsData.map(async (doc) => {
+            try {
+              const res = await checkAccess(String(user.id), doc.id)
+              const nivo = res.nivo === 'CITANJE' || res.nivo === 'IZMENA' ? res.nivo : null
+              return [doc.id, nivo] as const
+            } catch {
+              return [doc.id, null] as const
+            }
+          }),
+        )
+        setDocumentAccessMap(new Map(accessResults))
+
+        const allProjectIds = projectsData.map((p) => String(p.id)).filter(Boolean)
+        if (allProjectIds.length > 0) {
+          const allowedIds = await fetchProjekatPristupIds(String(user.id), allProjectIds)
+          const allowedSet = new Set(allowedIds)
+          setProjects(projectsData.filter((p) => allowedSet.has(String(p.id))))
+        } else {
+          setProjects([])
+        }
+      } else {
+        setProjects(projectsData)
+      }
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : 'Neuspesno ucitavanje dokumenata')
     } finally {
@@ -753,6 +784,9 @@ export function DocumentsPage() {
               ) : filteredDocuments.length ? (
                 filteredDocuments.map((document) => {
                   const isSelected = selectedDocumentId === document.id
+                  const accessNivo = documentAccessMap.get(document.id)
+                  const canEdit = user?.role !== 'TEAM_MEMBER' || accessNivo === 'IZMENA'
+                  const canManageAccess = user?.role === 'MANAGER' || user?.role === 'ADMINISTRATOR'
                   return (
                     <div
                       key={document.id}
@@ -787,24 +821,51 @@ export function DocumentsPage() {
                       <div className="truncate text-sm text-ink-muted">{document.authorName ?? document.authorId}</div>
                       <div className="text-sm text-ink-muted">{formatDate(document.createdAt)}</div>
                       <div className="flex justify-end gap-2">
-                        <Button
-                          variant="secondary"
-                          onClick={(event) => {
-                            event.stopPropagation()
-                            void openEditDialog(document)
-                          }}
-                        >
-                          Izmeni
-                        </Button>
-                        <Button
-                          variant="delete"
-                          onClick={(event) => {
-                            event.stopPropagation()
-                            void handleDelete(document)
-                          }}
-                        >
-                          Obrisi
-                        </Button>
+                        {canManageAccess && (
+                          <button
+                            type="button"
+                            title="Upravljanje pristupom"
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              setPristupDialogDocumentId(document.id)
+                            }}
+                            className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md border border-hairline bg-surface-1 text-ink-muted transition-colors hover:bg-surface-2 hover:text-ink"
+                            aria-label="Upravljanje pristupom"
+                          >
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
+                              <circle cx="18" cy="5" r="3" stroke="currentColor" strokeWidth="1.75" />
+                              <circle cx="6" cy="12" r="3" stroke="currentColor" strokeWidth="1.75" />
+                              <circle cx="18" cy="19" r="3" stroke="currentColor" strokeWidth="1.75" />
+                              <path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+                            </svg>
+                          </button>
+                        )}
+                        {canEdit ? (
+                          <>
+                            <Button
+                              variant="secondary"
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                void openEditDialog(document)
+                              }}
+                            >
+                              Izmeni
+                            </Button>
+                            <Button
+                              variant="delete"
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                void handleDelete(document)
+                              }}
+                            >
+                              Obrisi
+                            </Button>
+                          </>
+                        ) : (
+                          <span className="rounded border border-blue-500/40 px-2 py-0.5 text-xs text-blue-400">
+                            samo čitanje
+                          </span>
+                        )}
                       </div>
                     </div>
                   )
@@ -1100,6 +1161,14 @@ export function DocumentsPage() {
           onClose={() => setTagDialogOpen(false)}
           onApplied={() => void loadAll()}
           documents={documents}
+        />
+
+        <PristupDialog
+          isOpen={pristupDialogDocumentId !== null}
+          onClose={() => setPristupDialogDocumentId(null)}
+          resourceType="DOKUMENT"
+          resourceId={pristupDialogDocumentId ?? ''}
+          currentUserId={user ? String(user.id) : ''}
         />
 
         <AdvancedSearchDialog

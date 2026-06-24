@@ -26,7 +26,7 @@ export function ProjectListItem({ project, canManage, onDelete }: ProjectListIte
         </p>
       </Link>
 
-      {canManage ? (
+      {canManage && (
         <div className="flex shrink-0 gap-2 self-center lg:justify-end">
           <Link to={editPath} className="inline-flex">
             <Button variant="secondary" type="button" className="min-w-24" icon="edit">
@@ -43,7 +43,7 @@ export function ProjectListItem({ project, canManage, onDelete }: ProjectListIte
             Obriši
           </Button>
         </div>
-      ) : null}
+      )}
     </article>
   )
 }

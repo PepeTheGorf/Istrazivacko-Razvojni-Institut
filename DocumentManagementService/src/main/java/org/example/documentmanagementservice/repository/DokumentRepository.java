@@ -9,4 +9,6 @@ import java.util.UUID;
 public interface DokumentRepository extends JpaRepository<Dokument, UUID> {
 
     Optional<Dokument> findByVectorDocumentId(String vectorDocumentId);
+
+    java.util.List<Dokument> findByProjektId(UUID projektId);
 }

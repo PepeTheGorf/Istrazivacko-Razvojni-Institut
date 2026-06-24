@@ -35,6 +35,10 @@ export default defineConfig({
         target: 'http://localhost:9070',
         changeOrigin: true,
       },
+      '/api/prava-pristupa': {
+        target: 'http://localhost:9070',
+        changeOrigin: true,
+      },
       '/api': {
         target: 'http://localhost:9003',
         changeOrigin: true,

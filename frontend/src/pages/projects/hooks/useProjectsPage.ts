@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../../../auth/AuthContext'
 import { deleteProject, fetchProjects } from '../../../api/projects'
+import { fetchProjekatPristupIds } from '../../../api/pristup'
 import type { Project } from '../../../types/project'
 
 export function useProjectsPage() {
@@ -18,13 +19,25 @@ export function useProjectsPage() {
     setError(null)
     try {
       const list = await fetchProjects()
-      setProjects(list)
+
+      if (user?.role === 'TEAM_MEMBER' && user.id != null) {
+        const allIds = list.map((p) => String(p.id)).filter(Boolean)
+        if (allIds.length > 0) {
+          const allowedIds = await fetchProjekatPristupIds(String(user.id), allIds)
+          const allowedSet = new Set(allowedIds)
+          setProjects(list.filter((p) => allowedSet.has(String(p.id))))
+        } else {
+          setProjects([])
+        }
+      } else {
+        setProjects(list)
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Učitavanje projekata nije uspelo')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [user?.role, user?.id])
 
   useEffect(() => {
     void load()
@@ -68,4 +81,3 @@ export function useProjectsPage() {
     canManage,
   }
 }
-

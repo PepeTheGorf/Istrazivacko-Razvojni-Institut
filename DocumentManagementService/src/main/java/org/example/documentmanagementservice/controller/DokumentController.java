@@ -50,7 +50,15 @@ public class DokumentController {
     }
 
     @GetMapping("")
-    public ResponseEntity<List<Dokument>> listAll() {
+    public ResponseEntity<List<Dokument>> listAll(
+            @RequestParam(required = false) String korisnikId,
+            @RequestParam(required = false) String projektId) {
+        if (korisnikId != null && !korisnikId.isBlank()) {
+            return ResponseEntity.ok(documentService.listForKorisnik(korisnikId));
+        }
+        if (projektId != null && !projektId.isBlank()) {
+            return ResponseEntity.ok(documentService.listByProjekat(projektId));
+        }
         return ResponseEntity.ok(documentService.listAll());
     }
 

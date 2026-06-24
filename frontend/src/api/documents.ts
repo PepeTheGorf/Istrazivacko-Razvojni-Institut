@@ -4,8 +4,13 @@ import type { Dokument } from '../types/document'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '/api'
 
-export function fetchDocuments(): Promise<Dokument[]> {
-  return apiFetch<Dokument[]>('/v1/dokumenti')
+export function fetchDocuments(korisnikId?: string | number): Promise<Dokument[]> {
+  const query = korisnikId != null ? `?korisnikId=${korisnikId}` : ''
+  return apiFetch<Dokument[]>(`/v1/dokumenti${query}`)
+}
+
+export function fetchDocumentsByProject(projekatId: string): Promise<Dokument[]> {
+  return apiFetch<Dokument[]>(`/v1/dokumenti?projektId=${projekatId}`)
 }
 
 export function fetchDocumentById(id: string): Promise<Dokument> {

@@ -17,7 +17,7 @@ export const MANAGER_SIDEBAR_SECTIONS: SidebarSection[] = [
   },
   {
     title: 'Resursi',
-    items: [],
+    items: [{ to: '/pristup', label: 'Upravljanje pristupom', end: true }],
   },
 ]
 
@@ -39,6 +39,9 @@ export const ADMINISTRATOR_SIDEBAR_SECTIONS: SidebarSection[] = [
   },
   {
     title: 'Resursi',
-    items: [{ to: '/document-types', label: 'Tipovi Dokumenata', end: true }],
+    items: [
+      { to: '/document-types', label: 'Tipovi Dokumenata', end: true },
+      { to: '/pristup', label: 'Upravljanje pristupom', end: true },
+    ],
   },
 ]

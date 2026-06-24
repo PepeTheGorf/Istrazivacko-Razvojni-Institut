@@ -53,6 +53,7 @@ public class DocumentService {
     private final DokumentTagService dokumentTagService;
     private final MetapodatakService metapodatakService;
     private final TagRepository tagRepository;
+    private final PravaPristupaService pravaPristupaService;
 
     private final RestTemplate restTemplate = createRestTemplate();
 
@@ -279,6 +280,37 @@ public class DocumentService {
 
     public java.util.List<Dokument> listAll() {
         return dokumentRepository.findAll();
+    }
+
+    public java.util.List<Dokument> listByProjekat(String rawProjektId) {
+        UUID projektUuid = resolveProjectId(rawProjektId);
+        if (projektUuid == null) return java.util.List.of();
+        return dokumentRepository.findByProjektId(projektUuid);
+    }
+
+    public java.util.List<Dokument> listForKorisnik(String rawKorisnikId) {
+        UUID korisnikUuid = resolveKorisnikId(rawKorisnikId);
+        return dokumentRepository.findAll().stream()
+                .filter(doc -> pravaPristupaService.checkAccess(korisnikUuid, doc.getId()) != null)
+                .toList();
+    }
+
+    private UUID resolveKorisnikId(String rawId) {
+        if (rawId == null || rawId.isBlank()) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST, "korisnikId is required");
+        }
+        String normalized = rawId.trim();
+        try {
+            return UUID.fromString(normalized);
+        } catch (IllegalArgumentException ignored) {
+            if (normalized.matches("\\d+")) {
+                return UUID.nameUUIDFromBytes(("stakeholder:" + normalized).getBytes(StandardCharsets.UTF_8));
+            }
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST,
+                    "korisnikId must be a UUID or numeric id");
+        }
     }
 
     private HttpHeaders jsonHeaders() {

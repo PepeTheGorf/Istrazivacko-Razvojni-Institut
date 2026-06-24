@@ -4,7 +4,10 @@ import lombok.RequiredArgsConstructor;
 import org.example.documentmanagementservice.dto.PravaPristupaRequestDTO;
 import org.example.documentmanagementservice.dto.PravaPristupaResponseDTO;
 import org.example.documentmanagementservice.exception.ResourceNotFoundException;
+import org.example.documentmanagementservice.model.Dokument;
+import org.example.documentmanagementservice.model.NivoPrava;
 import org.example.documentmanagementservice.model.PravaPristupa;
+import org.example.documentmanagementservice.repository.DokumentRepository;
 import org.example.documentmanagementservice.repository.PravaPristupaRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +21,7 @@ import java.util.UUID;
 public class PravaPristupaService {
 
     private final PravaPristupaRepository repository;
+    private final DokumentRepository dokumentRepository;
 
     public List<PravaPristupaResponseDTO> findAll() {
         return repository.findAll().stream().map(PravaPristupaResponseDTO::fromEntity).toList();
@@ -77,5 +81,75 @@ public class PravaPristupaService {
             .findFirst()
             .map(PravaPristupaResponseDTO::fromEntity)
             .orElseThrow(() -> new ResourceNotFoundException("PravaPristupa not found for korisnik:" + korisnikId + " dokument:" + dokumentId));
+    }
+
+    public PravaPristupaResponseDTO grantDokumentAccess(UUID dokumentId, UUID korisnikId, NivoPrava nivo, UUID dodeljivaoId) {
+        PravaPristupa entity = repository.findFirstByKorisnikIdAndDokumentId(korisnikId, dokumentId)
+                .orElseGet(() -> PravaPristupa.builder()
+                        .korisnikId(korisnikId)
+                        .dokumentId(dokumentId)
+                        .folderId(null)
+                        .projekatId(null)
+                        .dodeljivaoId(dodeljivaoId)
+                        .build());
+        entity.setNivo(nivo);
+        entity.setDodeljivaoId(dodeljivaoId);
+        return PravaPristupaResponseDTO.fromEntity(repository.save(entity));
+    }
+
+    public PravaPristupaResponseDTO grantProjekatAccess(UUID projekatId, UUID korisnikId, NivoPrava nivo, UUID dodeljivaoId) {
+        PravaPristupa entity = repository.findFirstByKorisnikIdAndProjekatId(korisnikId, projekatId)
+                .orElseGet(() -> PravaPristupa.builder()
+                        .korisnikId(korisnikId)
+                        .projekatId(projekatId)
+                        .folderId(null)
+                        .dokumentId(null)
+                        .dodeljivaoId(dodeljivaoId)
+                        .build());
+        entity.setNivo(nivo);
+        entity.setDodeljivaoId(dodeljivaoId);
+        return PravaPristupaResponseDTO.fromEntity(repository.save(entity));
+    }
+
+    public void revokeDokumentAccess(UUID dokumentId, UUID korisnikId) {
+        repository.deleteByKorisnikIdAndDokumentId(korisnikId, dokumentId);
+    }
+
+    public void revokeProjekatAccess(UUID projekatId, UUID korisnikId) {
+        repository.deleteByKorisnikIdAndProjekatId(korisnikId, projekatId);
+    }
+
+    public boolean hasProjekatAccess(UUID korisnikId, UUID projekatId) {
+        return repository.findFirstByKorisnikIdAndProjekatId(korisnikId, projekatId).isPresent();
+    }
+
+    public NivoPrava checkAccess(UUID korisnikId, UUID dokumentId) {
+        Dokument dokument = dokumentRepository.findById(dokumentId).orElse(null);
+        if (dokument == null) return null;
+
+        if (dokument.getAuthorId() != null && dokument.getAuthorId().equals(korisnikId)) {
+            // author always has full access unless explicitly denied at document level
+            var directAccess = repository.findFirstByKorisnikIdAndDokumentId(korisnikId, dokumentId);
+            if (directAccess.isPresent() && directAccess.get().getNivo() == NivoPrava.ZABRANA) {
+                return null;
+            }
+            return NivoPrava.IZMENA;
+        }
+
+        // Direct document-level access always takes precedence (including ZABRANA)
+        var directAccess = repository.findFirstByKorisnikIdAndDokumentId(korisnikId, dokumentId);
+        if (directAccess.isPresent()) {
+            NivoPrava nivo = directAccess.get().getNivo();
+            return nivo == NivoPrava.ZABRANA ? null : nivo;
+        }
+
+        if (dokument.getProjektId() != null) {
+            var projectAccess = repository.findFirstByKorisnikIdAndProjekatId(korisnikId, dokument.getProjektId());
+            if (projectAccess.isPresent() && projectAccess.get().getNivo() != NivoPrava.ZABRANA) {
+                return projectAccess.get().getNivo();
+            }
+        }
+
+        return null;
     }
 }
