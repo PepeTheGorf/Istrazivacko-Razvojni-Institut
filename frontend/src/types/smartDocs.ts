@@ -54,6 +54,7 @@ export interface DocumentSection {
   templateSectionId: number
   userInput: string      
   llmResult?: string  
+  refinedResult?: string
   rating?: number           
   feedbackComment?: string   
 }

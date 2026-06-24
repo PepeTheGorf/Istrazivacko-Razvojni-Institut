@@ -100,3 +100,10 @@ export function activatePromptVersion(sectionId: number, versionId: number): Pro
     method: 'PUT',
   })
 }
+
+export function updateRefinedResult(sectionId: number, refinedResult: string): Promise<void> {
+  return apiFetch<void>(`/smart-docs/sections/${sectionId}/refined`, {
+    method: 'PUT',
+    body: JSON.stringify({ refinedResult }),
+  })
+}

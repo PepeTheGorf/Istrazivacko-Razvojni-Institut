@@ -211,15 +211,26 @@ public class SmartDocService {
         }
         
         String generatedResult = aiService.generateText(
-            activePrompt, 
+            currentSection.getTemplateSection().getActivePromptContent(), 
             contextBuilder.toString(), 
-            currentSection.getUserInput()
+            currentSection.getUserInput(),
+            currentSection.getRefinedResult() 
         );
-        
+
+        if (currentSection.getLlmResult() == null) {
+        currentSection.setLlmResult(generatedResult);
+        }
         currentSection.setLlmResult(generatedResult);
         documentSectionRepository.save(currentSection);
         return generatedResult;
     }
+
+    @Transactional("transactionManager")
+    public void updateRefinedResult(Long sectionId, String text) {
+    DocumentSection section = documentSectionRepository.findById(sectionId).orElseThrow();
+    section.setRefinedResult(text);
+    documentSectionRepository.save(section);
+}
 
     @Transactional("transactionManager")
     public void completeDocument(Long docId) {
