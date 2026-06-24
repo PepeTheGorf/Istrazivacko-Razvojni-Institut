@@ -189,6 +189,11 @@ public class SmartDocService {
         GeneratedDocument doc = currentSection.getDocument();
         TemplateSection ts = currentSection.getTemplateSection();
 
+        PromptVersion activeVersion = ts.getPromptVersions().stream()
+            .filter(PromptVersion::isActive)
+            .findFirst()
+            .orElseThrow(() -> new RuntimeException("Nema aktivnog prompta."));
+
         List<DocumentSection> sortedSections = doc.getSections().stream()
                 .sorted((a, b) -> a.getTemplateSection().getSectionOrder()
                         .compareTo(b.getTemplateSection().getSectionOrder()))
@@ -211,7 +216,7 @@ public class SmartDocService {
         }
         
         String generatedResult = aiService.generateText(
-            currentSection.getTemplateSection().getActivePromptContent(), 
+            activeVersion.getContent(),
             contextBuilder.toString(), 
             currentSection.getUserInput(),
             currentSection.getRefinedResult() 
@@ -220,7 +225,10 @@ public class SmartDocService {
         if (currentSection.getLlmResult() == null) {
         currentSection.setLlmResult(generatedResult);
         }
+
         currentSection.setLlmResult(generatedResult);
+        currentSection.setUsedPromptVersion(activeVersion);
+
         documentSectionRepository.save(currentSection);
         return generatedResult;
     }
@@ -297,14 +305,23 @@ public class SmartDocService {
     @Transactional(value = "transactionManager", readOnly = true)
     public List<PromptVersionDTO> getPromptHistory(Long sectionId) {
         return promptVersionRepository.findByTemplateSectionIdOrderByVersionNumberDesc(sectionId).stream()
-                .map(v -> PromptVersionDTO.builder()
+                .map(v -> {
+                Double avg = feedbackRepository.getAverageRatingByVersionId(v.getId());
+                List<String> comments = feedbackRepository.findAllCommentsByVersionId(v.getId());
+                Integer count = feedbackRepository.countFeedbackByVersionId(v.getId());
+
+                return PromptVersionDTO.builder()
                         .id(v.getId())
                         .content(v.getContent())
                         .versionNumber(v.getVersionNumber())
                         .active(v.isActive())
                         .createdAt(v.getCreatedAt())
-                        .build())
-                .collect(Collectors.toList());
+                        .averageRating(avg != null ? avg : 0.0)
+                        .feedbackCount(count)
+                        .feedbackComments(comments)
+                        .build();
+            })
+            .collect(Collectors.toList());
     }
 
     @Transactional(value = "transactionManager", readOnly = true)

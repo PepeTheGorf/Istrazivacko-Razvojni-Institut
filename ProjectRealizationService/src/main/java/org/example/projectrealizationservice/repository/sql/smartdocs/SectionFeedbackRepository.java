@@ -18,4 +18,13 @@ public interface SectionFeedbackRepository extends JpaRepository<SectionFeedback
            "JOIN f.section s JOIN s.document d GROUP BY d.template.id")
     List<Object[]> findAllAverageRatings();
 
+    @Query("SELECT AVG(f.rating) FROM SectionFeedback f WHERE f.section.usedPromptVersion.id = :versionId")
+    Double getAverageRatingByVersionId(@Param("versionId") Long versionId);
+
+    @Query("SELECT f.comment FROM SectionFeedback f WHERE f.section.usedPromptVersion.id = :versionId AND f.comment IS NOT NULL AND f.comment != ''")
+    List<String> findAllCommentsByVersionId(@Param("versionId") Long versionId);
+    
+    @Query("SELECT COUNT(f) FROM SectionFeedback f WHERE f.section.usedPromptVersion.id = :versionId")
+    Integer countFeedbackByVersionId(@Param("versionId") Long versionId);
+
 }

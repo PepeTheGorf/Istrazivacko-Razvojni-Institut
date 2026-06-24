@@ -32,4 +32,8 @@ public class DocumentSection {
 
     @OneToOne(mappedBy = "section", cascade = CascadeType.ALL)
     private SectionFeedback feedback;
+
+    @ManyToOne
+    @JoinColumn(name = "used_prompt_version_id")
+    private PromptVersion usedPromptVersion;
 }

@@ -14,6 +14,9 @@ export interface PromptVersion {
   versionNumber: number
   active: boolean
   createdAt: string
+  averageRating?: number
+  feedbackCount?: number
+  feedbackComments?: string[]
 }
 
 export interface TemplateSection {

@@ -82,6 +82,9 @@ export interface PromptVersion {
   versionNumber: number
   active: boolean
   createdAt: string
+  averageRating?: number
+  feedbackCount?: number
+  feedbackComments?: string[]
 }
 
 export function fetchPromptHistory(sectionId: number): Promise<PromptVersion[]> {
