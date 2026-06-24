@@ -40,24 +40,34 @@ export function TemplateDetailsPage() {
         <div className="grid gap-6">
           <h2 className="text-lg font-medium text-ink">Sekcije i Promptovi</h2>
           {template.sections.map((section, index) => (
-            <div key={section.id} className="flex items-center justify-between rounded-xl border border-hairline bg-surface-1 p-6 transition-colors hover:bg-surface-2/50">
-              <div className="flex items-center gap-4">
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-3 text-xs font-bold text-primary">
-                  {index + 1}
-                </span>
-                <div>
-                  <h3 className="font-semibold text-ink">{section.title}</h3>
-                 
-                </div>
-              </div>
-              <Button 
-                variant="secondary" 
-                onClick={() => setSelectedSection({ id: section.id!, title: section.title })}
-              >
-                Upravljaj verzijama
-              </Button>
-            </div>
-          ))}
+             <div key={section.id} 
+              className="group flex items-center justify-between rounded-xl border border-hairline bg-surface-1 p-6 transition-all hover:border-primary/50 hover:shadow-md">
+             <div className="flex items-center gap-5">
+             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-surface-2 text-sm font-bold text-ink-muted group-hover:bg-primary group-hover:text-white transition-colors">
+                 {index + 1}
+             </div>
+            <div>
+        <h3 className="font-semibold text-ink text-lg">{section.title}</h3>
+        <p className="text-sm text-ink-subtle">
+           Konfigurišite AI prompt i istoriju verzija za ovu sekciju.
+        </p>
+      </div>
+    </div>
+    
+    <div className="flex items-center gap-4">
+      <Button 
+        variant="primary"
+        className="shadow-sm"
+        onClick={(e) => {
+          e.stopPropagation(); 
+          setSelectedSection({ id: section.id!, title: section.title });
+        }}
+      >
+        Konfiguriši Prompt
+      </Button>
+    </div>
+  </div>
+))}
         </div>
 
         {/* MODAL POZIV */}

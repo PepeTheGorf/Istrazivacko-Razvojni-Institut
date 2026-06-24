@@ -10,7 +10,6 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List; 
 import org.example.projectrealizationservice.dto.smartdocs.SmartTemplateDTO;
 import org.example.projectrealizationservice.dto.smartdocs.PromptVersionDTO;
-import java.time.OffsetDateTime;
 import java.util.Map;
 
 @RestController

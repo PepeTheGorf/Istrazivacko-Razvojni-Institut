@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom' 
 import { AppShell } from '../../components/layout/AppShell'
 import { Button } from '../../components/ui/Button'
 import { apiFetch } from '../../api/client' 
@@ -9,6 +9,7 @@ import { formatDate } from '../../lib/formatDate'
 export function TemplateListPage() {
   const [templates, setTemplates] = useState<SmartTemplate[]>([])
   const [loading, setLoading] = useState(true)
+  const navigate = useNavigate() 
 
   useEffect(() => {
     apiFetch<SmartTemplate[]>('/smart-docs/templates/all')
@@ -21,11 +22,11 @@ export function TemplateListPage() {
       <div className="mx-auto max-w-6xl">
         <header className="mb-8 flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-semibold text-ink">Moji Šabloni</h1>
+            <h1 className="text-3xl font-semibold text-ink">Moji šabloni</h1>
             <p className="text-ink-subtle">Analiza kvaliteta i upravljanje šablonima.</p>
           </div>
           <Link to="/smart-templates/new">
-            <Button>+ Novi Šablon</Button>
+            <Button>+ Novi šablon</Button>
           </Link>
         </header>
 
@@ -40,16 +41,19 @@ export function TemplateListPage() {
                   <th className="px-6 py-4 text-xs font-semibold uppercase text-ink-muted">AI Rejting</th>
                   <th className="px-6 py-4 text-xs font-semibold uppercase text-ink-muted">Datum</th>
                   <th className="px-6 py-4 text-xs font-semibold uppercase text-ink-muted text-right">Sekcije</th>
+                  <th className="px-6 py-4 text-xs font-semibold uppercase text-ink-muted text-right">Akcije</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-hairline">
+              <tbody className="divide-y divide-hairline text-sm">
                 {templates.map(t => (
-                  <tr key={t.id} className="hover:bg-surface-2/50 transition-colors">
+                  <tr 
+                    key={t.id} 
+                    className="group hover:bg-surface-2/80 transition-all cursor-pointer"
+                    onClick={() => navigate(`/smart-templates/${t.id}`)}
+                  >
                     <td className="px-6 py-4">
-                      <Link to={`/smart-templates/${t.id}`} className="text-sm font-medium text-primary hover:underline">
-     {t.name}
-   </Link>
-                       <div className="text-xs text-ink-subtle">{t.domain?.name} / {t.category?.name}</div>
+                      <div className="font-medium text-ink group-hover:text-primary transition-colors">{t.name}</div>
+                      <div className="text-xs text-ink-subtle">{t.domain?.name} / {t.category?.name}</div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
@@ -64,8 +68,17 @@ export function TemplateListPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm text-ink-muted">{formatDate(t.createdAt)}</td>
-                    <td className="px-6 py-4 text-sm text-right font-mono text-primary">{t.sections?.length || 0}</td>
+                    <td className="px-6 py-4 text-ink-muted">
+                      {formatDate(t.createdAt)} 
+                    </td>
+                    <td className="px-6 py-4 text-right font-mono text-primary">
+                      {t.sections?.length || 0}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <span className="text-xs font-medium text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                        Upravljaj →
+                      </span>
+                    </td>
                   </tr>
                 ))}
               </tbody>
