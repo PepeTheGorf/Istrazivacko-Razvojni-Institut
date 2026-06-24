@@ -4,7 +4,7 @@ import type { AdvancedFilters } from '../../components/AdvancedSearchDialog'
 import { PristupDialog } from '../../components/PristupDialog'
 import { TagDocumentsDialog } from '../../components/TagDocumentsDialog'
 import { checkAccess, fetchProjekatPristupIds } from '../../api/pristup'
-import { createDocument, deleteDocument, fetchDocuments, updateDocument, uploadDocument } from '../../api/documents'
+import { createDocument, deleteDocument, fetchDocuments, searchDocuments, updateDocument, uploadDocument } from '../../api/documents'
 import { createDokumentTag, deleteDokumentTag, fetchDocumentTags } from '../../api/documentTags'
 import { fetchMetapodatakByDocument } from '../../api/metapodatak'
 import { fetchProjectsForSelection } from '../../api/projects'
@@ -23,7 +23,7 @@ import type { Metapodatak } from '../../types/metapodatak'
 import type { Project } from '../../types/project'
 import type { Tag } from '../../types/tag'
 import type { TipDokumenta } from '../../types/tipDokumenta'
-import type { TipMetapodatka, TipPodatka } from '../../types/tipMetapodatka'
+import type { TipMetapodatka } from '../../types/tipMetapodatka'
 
 type DocumentMode = 'create' | 'edit'
 
@@ -116,22 +116,6 @@ function valueContains(haystack: string | undefined, needle: string) {
   return normalizeSearchText(haystack ?? '').includes(normalizeSearchText(needle))
 }
 
-function metadataValueMatches(tipPodatka: TipPodatka | undefined, actual: string, expected: string) {
-  const normalizedActual = normalizeSearchText(actual)
-  const normalizedExpected = normalizeSearchText(expected)
-
-  if (!normalizedExpected) return true
-
-  if (tipPodatka === 'BROJ') {
-    return normalizedActual === normalizedExpected
-  }
-
-  if (tipPodatka === 'BOOLEAN') {
-    return normalizedActual === normalizedExpected || normalizedActual.startsWith(normalizedExpected)
-  }
-
-  return normalizedActual.includes(normalizedExpected)
-}
 
 export function DocumentsPage() {
   const { user } = useAuth()
@@ -145,6 +129,8 @@ export function DocumentsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [advancedSearchOpen, setAdvancedSearchOpen] = useState(false)
   const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilters>(EMPTY_ADVANCED_FILTERS)
+  const [searchResults, setSearchResults] = useState<Dokument[] | null>(null)
+  const [searchLoading, setSearchLoading] = useState(false)
   const [projects, setProjects] = useState<Project[]>([])
   const [tags, setTags] = useState<Tag[]>([])
   const [tipoviDokumenta, setTipoviDokumenta] = useState<TipDokumenta[]>([])
@@ -197,11 +183,6 @@ export function DocumentsPage() {
     [tipoviMetapodataka],
   )
 
-  const tipMetapodatkaById = useMemo(
-    () => new Map(tipoviMetapodataka.map((item) => [item.id, item])),
-    [tipoviMetapodataka],
-  )
-
   const documentsById = useMemo(
     () => new Map(documents.map((document) => [document.id, document])),
     [documents],
@@ -226,9 +207,9 @@ export function DocumentsPage() {
 
   const filteredDocuments = useMemo(() => {
     const q = normalizeSearchText(searchQuery)
-    const af = advancedFilters
+    const baseDocuments = searchResults ?? documents
 
-    return documents.filter((document) => {
+    return baseDocuments.filter((document) => {
       const documentMetadata = documentMetadataByDocumentId.get(document.id) ?? []
       const tagNames = documentTagNamesByDocumentId.get(document.id) ?? []
       const documentProjectName = document.projectName ?? projectNameById.get(document.projektId ?? '') ?? ''
@@ -242,7 +223,7 @@ export function DocumentsPage() {
         if (!matchesProject) return false
       }
 
-      // main search bar — matches title, tags, metadata values
+      // quick search bar — matches title, tags, metadata values
       if (q) {
         const searchableText = [
           document.naslov,
@@ -252,54 +233,17 @@ export function DocumentsPage() {
         if (!valueContains(searchableText, q)) return false
       }
 
-      // advanced filters
-      if (af.title.trim() && !valueContains(document.naslov, af.title)) return false
-      if (af.author.trim()) {
-        const authorCandidate = `${document.authorName ?? ''} ${document.authorId}`
-        if (!valueContains(authorCandidate, af.author)) return false
-      }
-      if (af.tipDokumentaId && document.tipDokumentaId !== af.tipDokumentaId) return false
-      if (af.tag.trim()) {
-        if (!tagNames.some((n) => valueContains(n, af.tag))) return false
-      }
-      if (af.dateFrom) {
-        const docDate = document.createdAt ? new Date(document.createdAt) : null
-        if (!docDate || docDate < new Date(af.dateFrom)) return false
-      }
-      if (af.dateTo) {
-        const docDate = document.createdAt ? new Date(document.createdAt) : null
-        if (!docDate || docDate > new Date(af.dateTo + 'T23:59:59')) return false
-      }
-      if (af.projektId) {
-        const selectedProject = projects.find((p) => p.id === af.projektId)
-        const matchesProject =
-          document.projektId === af.projektId ||
-          (selectedProject?.name ? documentProjectName === selectedProject.name : false)
-        if (!matchesProject) return false
-      }
-      // advanced metadata filters
-      for (const row of af.metadataFilters) {
-        if (!row.tipMetapodatkaId && !row.vrednost.trim()) continue
-        const matchingMetadata = documentMetadata.filter((item) => item.tipMetapodatkaId === row.tipMetapodatkaId)
-        if (!matchingMetadata.length) return false
-        const metadataType = tipMetapodatkaById.get(row.tipMetapodatkaId)
-        if (!matchingMetadata.some((item) => metadataValueMatches(metadataType?.tipPodatka, item.vrednost, row.vrednost))) {
-          return false
-        }
-      }
-
       return true
     })
   }, [
-    advancedFilters,
     documentMetadataByDocumentId,
     documentTagNamesByDocumentId,
     documents,
     projects,
     projectNameById,
     searchQuery,
+    searchResults,
     selectedProjectId,
-    tipMetapodatkaById,
   ])
 
   const currentAuthorLabel = user ? `${user.name} ${user.surname}` : 'Nijedan korisnik nije prijavljen'
@@ -598,6 +542,41 @@ export function DocumentsPage() {
     setSearchQuery('')
     setSelectedProjectId(null)
     setAdvancedFilters(EMPTY_ADVANCED_FILTERS)
+    setSearchResults(null)
+  }
+
+  async function handleApplyAdvancedSearch(f: AdvancedFilters) {
+    setAdvancedFilters(f)
+    setAdvancedSearchOpen(false)
+
+    const hasFilters = f.title.trim() || f.author.trim() || f.tipDokumentaId || f.tag.trim()
+      || f.dateFrom || f.dateTo || f.projektId
+      || f.metadataFilters.some((r) => r.tipMetapodatkaId && r.vrednost.trim())
+
+    if (!hasFilters) {
+      setSearchResults(null)
+      return
+    }
+
+    setSearchLoading(true)
+    try {
+      const results = await searchDocuments({
+        naslov: f.title || undefined,
+        autor: f.author || undefined,
+        tipDokumentaId: f.tipDokumentaId || undefined,
+        tag: f.tag || undefined,
+        dateFrom: f.dateFrom || undefined,
+        dateTo: f.dateTo || undefined,
+        projektId: f.projektId || undefined,
+        metadataFilters: f.metadataFilters.filter((r) => r.tipMetapodatkaId && r.vrednost.trim()),
+      })
+      setSearchResults(results)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Greška pri pretrazi')
+      setSearchResults(null)
+    } finally {
+      setSearchLoading(false)
+    }
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -1177,7 +1156,7 @@ export function DocumentsPage() {
           projects={projects}
           tipoviDokumenta={tipoviDokumenta}
           tipoviMetapodataka={tipoviMetapodataka}
-          onApply={(f) => { setAdvancedFilters(f); setAdvancedSearchOpen(false) }}
+          onApply={(f) => void handleApplyAdvancedSearch(f)}
           onClose={() => setAdvancedSearchOpen(false)}
         />
       </div>

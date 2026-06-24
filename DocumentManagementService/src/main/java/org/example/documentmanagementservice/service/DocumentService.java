@@ -288,6 +288,48 @@ public class DocumentService {
         return dokumentRepository.findByProjektId(projektUuid);
     }
 
+    public java.util.List<Dokument> searchDokumenti(org.example.documentmanagementservice.dto.DokumentSearchRequestDTO req) {
+        String naslov = blankToNull(req.getNaslov());
+        String autor = blankToNull(req.getAutor());
+        UUID tipDokumentaId = req.getTipDokumentaId();
+        UUID projektId = resolveProjectId(req.getProjektId());
+        String tag = blankToNull(req.getTag());
+
+        Instant dateFrom = req.getDateFrom() != null
+                ? req.getDateFrom().atStartOfDay(java.time.ZoneOffset.UTC).toInstant()
+                : null;
+        Instant dateTo = req.getDateTo() != null
+                ? req.getDateTo().plusDays(1).atStartOfDay(java.time.ZoneOffset.UTC).toInstant()
+                : null;
+
+        var result = dokumentRepository.searchDokumenti(naslov, autor, tipDokumentaId, projektId, dateFrom, dateTo, tag);
+
+        if (req.getMetadataFilters() != null && !req.getMetadataFilters().isEmpty()) {
+            result = result.stream().filter(doc -> {
+                for (var filter : req.getMetadataFilters()) {
+                    if (filter.getTipMetapodatkaId() == null) continue;
+                    String filterVal = filter.getVrednost() == null ? "" : filter.getVrednost().trim().toLowerCase();
+                    var metas = metapodatakService.findByDokumentId(doc.getId());
+                    boolean matched = metas.stream()
+                            .filter(m -> filter.getTipMetapodatkaId().equals(m.getTipMetapodatkaId()))
+                            .anyMatch(m -> {
+                                if (filterVal.isBlank()) return true;
+                                String mv = m.getVrednost() == null ? "" : m.getVrednost().toLowerCase();
+                                return mv.contains(filterVal);
+                            });
+                    if (!matched) return false;
+                }
+                return true;
+            }).toList();
+        }
+
+        return result;
+    }
+
+    private String blankToNull(String s) {
+        return (s == null || s.isBlank()) ? null : s.trim();
+    }
+
     public java.util.List<Dokument> listForKorisnik(String rawKorisnikId) {
         UUID korisnikUuid = resolveKorisnikId(rawKorisnikId);
         return dokumentRepository.findAll().stream()

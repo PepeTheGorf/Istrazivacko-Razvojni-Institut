@@ -2,6 +2,7 @@ package org.example.documentmanagementservice.controller;
 
 import lombok.RequiredArgsConstructor;
 import org.example.documentmanagementservice.dto.DokumentRequestDTO;
+import org.example.documentmanagementservice.dto.DokumentSearchRequestDTO;
 import org.example.documentmanagementservice.model.Dokument;
 import org.example.documentmanagementservice.service.DocumentService;
 import org.springframework.http.ResponseEntity;
@@ -60,6 +61,11 @@ public class DokumentController {
             return ResponseEntity.ok(documentService.listByProjekat(projektId));
         }
         return ResponseEntity.ok(documentService.listAll());
+    }
+
+    @PostMapping("/search")
+    public ResponseEntity<List<Dokument>> search(@RequestBody DokumentSearchRequestDTO request) {
+        return ResponseEntity.ok(documentService.searchDokumenti(request));
     }
 
     @GetMapping("/{id}")

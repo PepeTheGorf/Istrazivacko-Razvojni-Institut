@@ -2,7 +2,11 @@ package org.example.documentmanagementservice.repository;
 
 import org.example.documentmanagementservice.model.Dokument;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -10,5 +14,34 @@ public interface DokumentRepository extends JpaRepository<Dokument, UUID> {
 
     Optional<Dokument> findByVectorDocumentId(String vectorDocumentId);
 
-    java.util.List<Dokument> findByProjektId(UUID projektId);
+    List<Dokument> findByProjektId(UUID projektId);
+
+    @Query(value = """
+            SELECT * FROM (
+                SELECT DISTINCT d.*,
+                    CASE WHEN CAST(:naslov AS text) IS NULL THEN 0 ELSE similarity(d.naslov, CAST(:naslov AS text)) END AS _sim
+                FROM dokumenti d
+                LEFT JOIN dokument_tag dt ON dt.dokument_id = d.id
+                LEFT JOIN tag t ON t.id = dt.tag_id
+                WHERE
+                    (CAST(:naslov AS text) IS NULL OR similarity(d.naslov, CAST(:naslov AS text)) > 0.2 OR d.naslov ILIKE '%' || CAST(:naslov AS text) || '%')
+                    AND (CAST(:autor AS text) IS NULL OR d.author_name ILIKE '%' || CAST(:autor AS text) || '%')
+                    AND (CAST(:tipDokumentaId AS uuid) IS NULL OR d.tip_dokumenta_id = CAST(:tipDokumentaId AS uuid))
+                    AND (CAST(:projektId AS uuid) IS NULL OR d.projekt_id = CAST(:projektId AS uuid))
+                    AND (CAST(:dateFrom AS timestamptz) IS NULL OR d.created_at >= CAST(:dateFrom AS timestamptz))
+                    AND (CAST(:dateTo AS timestamptz) IS NULL OR d.created_at <= CAST(:dateTo AS timestamptz))
+                    AND (CAST(:tag AS text) IS NULL OR similarity(t.naziv, CAST(:tag AS text)) > 0.2 OR t.naziv ILIKE '%' || CAST(:tag AS text) || '%')
+            ) sub
+            ORDER BY _sim DESC, created_at DESC
+            """,
+            nativeQuery = true)
+    List<Dokument> searchDokumenti(
+            @Param("naslov") String naslov,
+            @Param("autor") String autor,
+            @Param("tipDokumentaId") UUID tipDokumentaId,
+            @Param("projektId") UUID projektId,
+            @Param("dateFrom") Instant dateFrom,
+            @Param("dateTo") Instant dateTo,
+            @Param("tag") String tag
+    );
 }

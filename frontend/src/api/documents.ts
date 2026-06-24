@@ -70,4 +70,22 @@ export async function uploadDocument(params: {
   return response.json() as Promise<Dokument>
 }
 
+export interface DokumentSearchRequest {
+  naslov?: string
+  autor?: string
+  tipDokumentaId?: string
+  tag?: string
+  dateFrom?: string
+  dateTo?: string
+  projektId?: string
+  metadataFilters?: { tipMetapodatkaId: string; vrednost: string }[]
+}
+
+export function searchDocuments(req: DokumentSearchRequest): Promise<Dokument[]> {
+  return apiFetch<Dokument[]>('/v1/dokumenti/search', {
+    method: 'POST',
+    body: JSON.stringify(req),
+  })
+}
+
 export default {}
