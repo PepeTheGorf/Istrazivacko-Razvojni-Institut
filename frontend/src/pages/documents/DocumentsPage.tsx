@@ -3,6 +3,7 @@ import { AdvancedSearchDialog, EMPTY_ADVANCED_FILTERS } from '../../components/A
 import type { AdvancedFilters } from '../../components/AdvancedSearchDialog'
 import { PristupDialog } from '../../components/PristupDialog'
 import { TagDocumentsDialog } from '../../components/TagDocumentsDialog'
+import { VerzijeDialog } from '../../components/VerzijeDialog'
 import { checkAccess, fetchProjekatPristupIds } from '../../api/pristup'
 import { createDocument, deleteDocument, fetchDocuments, searchDocuments, updateDocument, uploadDocument } from '../../api/documents'
 import { createDokumentTag, deleteDokumentTag, fetchDocumentTags } from '../../api/documentTags'
@@ -140,6 +141,9 @@ export function DocumentsPage() {
 
   const [pristupDialogDocumentId, setPristupDialogDocumentId] = useState<string | null>(null)
   const [documentAccessMap, setDocumentAccessMap] = useState<Map<string, 'CITANJE' | 'IZMENA' | null>>(new Map())
+
+  const [verzijeDialogDocumentId, setVerzijeDialogDocumentId] = useState<string | null>(null)
+  const [verzijeDialogCanEdit, setVerzijeDialogCanEdit] = useState(false)
 
   const [tagDialogOpen, setTagDialogOpen] = useState(false)
   const [tagInput, setTagInput] = useState('')
@@ -800,6 +804,22 @@ export function DocumentsPage() {
                       <div className="truncate text-sm text-ink-muted">{document.authorName ?? document.authorId}</div>
                       <div className="text-sm text-ink-muted">{formatDate(document.createdAt)}</div>
                       <div className="flex justify-end gap-2">
+                        <button
+                          type="button"
+                          title="Istorija verzija"
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            setVerzijeDialogDocumentId(document.id)
+                            setVerzijeDialogCanEdit(canEdit)
+                          }}
+                          className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md border border-hairline bg-surface-1 text-ink-muted transition-colors hover:bg-surface-2 hover:text-ink"
+                          aria-label="Istorija verzija"
+                        >
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
+                            <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.75" />
+                            <path d="M12 7v5l3 3" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </button>
                         {canManageAccess && (
                           <button
                             type="button"
@@ -1148,6 +1168,15 @@ export function DocumentsPage() {
           resourceType="DOKUMENT"
           resourceId={pristupDialogDocumentId ?? ''}
           currentUserId={user ? String(user.id) : ''}
+        />
+
+        <VerzijeDialog
+          isOpen={verzijeDialogDocumentId !== null}
+          onClose={() => setVerzijeDialogDocumentId(null)}
+          dokumentId={verzijeDialogDocumentId ?? ''}
+          currentUserId={user ? String(user.id) : ''}
+          canEdit={verzijeDialogCanEdit}
+          onRestored={() => void loadAll()}
         />
 
         <AdvancedSearchDialog

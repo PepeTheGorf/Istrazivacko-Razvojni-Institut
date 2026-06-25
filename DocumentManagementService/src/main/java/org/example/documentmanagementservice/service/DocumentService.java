@@ -15,6 +15,7 @@ import org.example.documentmanagementservice.model.Dokument;
 import org.example.documentmanagementservice.model.Tag;
 import org.example.documentmanagementservice.repository.DokumentRepository;
 import org.example.documentmanagementservice.repository.TagRepository;
+import org.example.documentmanagementservice.service.DokumentVerzijaService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.http.HttpEntity;
@@ -54,6 +55,7 @@ public class DocumentService {
     private final MetapodatakService metapodatakService;
     private final TagRepository tagRepository;
     private final PravaPristupaService pravaPristupaService;
+    private final DokumentVerzijaService dokumentVerzijaService;
 
     private final RestTemplate restTemplate = createRestTemplate();
 
@@ -152,6 +154,10 @@ public class DocumentService {
         }
 
         var existing = dokumentRepository.findById(id).orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Dokument not found"));
+
+        UUID requestingUserId = resolveAuthorId(request.getAuthorId());
+        dokumentVerzijaService.createVerzija(existing, requestingUserId);
+
         existing.setNaslov(request.getNaslov());
         existing.setSadrzaj(request.getSadrzaj());
         existing.setAuthorId(resolveAuthorId(request.getAuthorId()));
