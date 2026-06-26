@@ -7,6 +7,7 @@ import rs.ac.uns.acs.ist.TimeseriesDatabaseService.model.DocumentChange;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Repository
 public class DocumentChangeRepositoryImpl implements DocumentChangeRepository {
@@ -65,6 +66,26 @@ public class DocumentChangeRepositoryImpl implements DocumentChangeRepository {
             OffsetDateTime start = stop.minusDays(days);
             String predicate = "document_id=\"" + documentId + "\" AND change_type=\"" + changeType + "\"";
             return inConn.deleteByPredicate(client, "document_changes", predicate, start, stop);
+        } finally {
+            client.close();
+        }
+    }
+
+    @Override
+    public List<Map<String, Object>> izmenePoTipuAkcije(String start, String stop) {
+        InfluxDBClient client = inConn.buildConnection();
+        try {
+            return inConn.izmenePoTipuAkcije(client, start, stop);
+        } finally {
+            client.close();
+        }
+    }
+
+    @Override
+    public List<Map<String, Object>> dnevniTrendIzmena(String start, String stop) {
+        InfluxDBClient client = inConn.buildConnection();
+        try {
+            return inConn.dnevniTrendIzmena(client, start, stop);
         } finally {
             client.close();
         }

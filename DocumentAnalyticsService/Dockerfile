@@ -2,7 +2,7 @@ FROM maven:3.9-eclipse-temurin-17 AS build
 WORKDIR /workspace/app
 
 COPY . .
-RUN mvn package -DskipTests
+RUN mvn clean package -DskipTests
 
 RUN mkdir -p target/dependency && (cd target/dependency; jar -xf ../*.jar)
 
@@ -15,4 +15,4 @@ COPY --from=build ${DEPENDENCY}/BOOT-INF/classes /app
 
 EXPOSE 8082
 
-ENTRYPOINT ["java", "-cp", "app:app/lib/*", "rs.ac.uns.acs.ist.TimeseriesDatabaseService.TimeseriesDatabaseServiceApplication"]
+ENTRYPOINT ["java", "-cp", "/app:/app/lib/*", "rs.ac.uns.acs.ist.TimeseriesDatabaseService.TimeseriesDatabaseServiceApplication"]

@@ -7,6 +7,7 @@ import rs.ac.uns.acs.ist.TimeseriesDatabaseService.model.DocumentAccess;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Repository
 public class DocumentAccessRepositoryImpl implements DocumentAccessRepository {
@@ -65,6 +66,36 @@ public class DocumentAccessRepositoryImpl implements DocumentAccessRepository {
             OffsetDateTime start = stop.minusDays(days);
             String predicate = "user_id=\"" + userId + "\" AND document_id=\"" + documentId + "\"";
             return inConn.deleteByPredicate(client, "document_access", predicate, start, stop);
+        } finally {
+            client.close();
+        }
+    }
+
+    @Override
+    public List<Map<String, Object>> najaktivnijiKorisnici(String start, String stop, int limit) {
+        InfluxDBClient client = inConn.buildConnection();
+        try {
+            return inConn.najaktivnijiKorisnici(client, start, stop, limit);
+        } finally {
+            client.close();
+        }
+    }
+
+    @Override
+    public List<Map<String, Object>> topDokumentiPoPregledu(String start, String stop, int limit) {
+        InfluxDBClient client = inConn.buildConnection();
+        try {
+            return inConn.topDokumentiPoPregledu(client, start, stop, limit);
+        } finally {
+            client.close();
+        }
+    }
+
+    @Override
+    public List<Map<String, Object>> trendPristupaDokumentima(String start, String stop) {
+        InfluxDBClient client = inConn.buildConnection();
+        try {
+            return inConn.trendPristupaDokumentima(client, start, stop);
         } finally {
             client.close();
         }

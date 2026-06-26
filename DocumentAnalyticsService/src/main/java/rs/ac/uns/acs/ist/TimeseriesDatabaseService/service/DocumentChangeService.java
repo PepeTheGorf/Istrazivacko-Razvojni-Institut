@@ -5,6 +5,7 @@ import rs.ac.uns.acs.ist.TimeseriesDatabaseService.model.DocumentChange;
 import rs.ac.uns.acs.ist.TimeseriesDatabaseService.repository.DocumentChangeRepository;
 
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class DocumentChangeService {
@@ -33,5 +34,13 @@ public class DocumentChangeService {
 
     public Boolean delete(String documentId, String changeType, int days) {
         return repository.delete(documentId, changeType, days);
+    }
+
+    public List<Map<String, Object>> izmenePoTipuAkcije(String start, String stop) {
+        return repository.izmenePoTipuAkcije(start, stop);
+    }
+
+    public List<Map<String, Object>> dnevniTrendIzmena(String start, String stop) {
+        return repository.dnevniTrendIzmena(start, stop);
     }
 }

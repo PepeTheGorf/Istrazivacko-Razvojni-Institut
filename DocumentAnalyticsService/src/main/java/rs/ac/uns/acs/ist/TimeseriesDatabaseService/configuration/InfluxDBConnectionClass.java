@@ -18,7 +18,9 @@ import rs.ac.uns.acs.ist.TimeseriesDatabaseService.model.DocumentChange;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Component
 public class InfluxDBConnectionClass {
@@ -77,6 +79,72 @@ public class InfluxDBConnectionClass {
         return mapChange(client.getQueryApi(), flux);
     }
 
+    public List<Map<String, Object>> najaktivnijiKorisnici(InfluxDBClient client, String start, String stop, int limit) {
+        String flux = "from(bucket:\"" + bucket + "\")\n" +
+                "  |> range(start: " + start + ", stop: " + stop + ")\n" +
+                "  |> filter(fn: (r) => r[\"_measurement\"] == \"document_access\")\n" +
+                "  |> filter(fn: (r) => r[\"_field\"] == \"session_duration_sec\")\n" +
+                "  |> group(columns: [\"user_id\"])\n" +
+                "  |> count()\n" +
+                "  |> group()\n" +
+                "  |> sort(columns: [\"_value\"], desc: true)\n" +
+                "  |> limit(n: " + limit + ")\n" +
+                "  |> rename(columns: {_value: \"total_accesses\"})";
+        return mapToKeyValue(client.getQueryApi(), flux, "user_id", "total_accesses");
+    }
+
+    public List<Map<String, Object>> topDokumentiPoPregledu(InfluxDBClient client, String start, String stop, int limit) {
+        String flux = "from(bucket:\"" + bucket + "\")\n" +
+                "  |> range(start: " + start + ", stop: " + stop + ")\n" +
+                "  |> filter(fn: (r) => r[\"_measurement\"] == \"document_access\")\n" +
+                "  |> filter(fn: (r) => r[\"action_type\"] == \"pregled\")\n" +
+                "  |> filter(fn: (r) => r[\"_field\"] == \"session_duration_sec\")\n" +
+                "  |> group(columns: [\"document_id\"])\n" +
+                "  |> count()\n" +
+                "  |> group()\n" +
+                "  |> rename(columns: {_value: \"view_count\"})\n" +
+                "  |> sort(columns: [\"view_count\"], desc: true)\n" +
+                "  |> limit(n: " + limit + ")";
+        return mapToKeyValue(client.getQueryApi(), flux, "document_id", "view_count");
+    }
+
+    public List<Map<String, Object>> izmenePoTipuAkcije(InfluxDBClient client, String start, String stop) {
+        String flux = "from(bucket:\"" + bucket + "\")\n" +
+                "  |> range(start: " + start + ", stop: " + stop + ")\n" +
+                "  |> filter(fn: (r) => r[\"_measurement\"] == \"document_changes\")\n" +
+                "  |> filter(fn: (r) => r[\"_field\"] == \"version_number\")\n" +
+                "  |> group(columns: [\"change_type\"])\n" +
+                "  |> count()\n" +
+                "  |> group()\n" +
+                "  |> rename(columns: {_value: \"broj_izmena\"})\n" +
+                "  |> sort(columns: [\"broj_izmena\"], desc: true)";
+        return mapToKeyValue(client.getQueryApi(), flux, "change_type", "broj_izmena");
+    }
+
+    public List<Map<String, Object>> dnevniTrendIzmena(InfluxDBClient client, String start, String stop) {
+        String flux = "from(bucket:\"" + bucket + "\")\n" +
+                "  |> range(start: " + start + ", stop: " + stop + ")\n" +
+                "  |> filter(fn: (r) => r[\"_measurement\"] == \"document_changes\")\n" +
+                "  |> filter(fn: (r) => r[\"_field\"] == \"version_number\")\n" +
+                "  |> map(fn: (r) => ({r with _field: \"Broj izmena\"}))\n" +
+                "  |> group(columns: [\"_field\"])\n" +
+                "  |> aggregateWindow(every: 1d, fn: count, createEmpty: true)\n" +
+                "  |> yield(name: \"dnevne_izmene\")";
+        return mapTimeSeries(client.getQueryApi(), flux);
+    }
+
+    public List<Map<String, Object>> trendPristupaDokumentima(InfluxDBClient client, String start, String stop) {
+        String flux = "from(bucket:\"" + bucket + "\")\n" +
+                "  |> range(start: " + start + ", stop: " + stop + ")\n" +
+                "  |> filter(fn: (r) => r[\"_measurement\"] == \"document_access\")\n" +
+                "  |> filter(fn: (r) => r[\"_field\"] == \"session_duration_sec\")\n" +
+                "  |> map(fn: (r) => ({r with _field: \"Broj pristupa\"}))\n" +
+                "  |> group(columns: [\"_field\"])\n" +
+                "  |> aggregateWindow(every: 1d, fn: count, createEmpty: true)\n" +
+                "  |> yield(name: \"count\")";
+        return mapTimeSeries(client.getQueryApi(), flux);
+    }
+
     public boolean deleteByPredicate(InfluxDBClient client, String measurement, String predicate, OffsetDateTime start, OffsetDateTime stop) {
         try {
             DeleteApi deleteApi = client.getDeleteApi();
@@ -132,6 +200,34 @@ public class InfluxDBConnectionClass {
             }
         }
         return values;
+    }
+
+    private List<Map<String, Object>> mapToKeyValue(QueryApi queryApi, String flux, String keyColumn, String valueColumn) {
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (FluxTable table : queryApi.query(flux)) {
+            for (FluxRecord record : table.getRecords()) {
+                Map<String, Object> row = new LinkedHashMap<>();
+                row.put(keyColumn, record.getValueByKey(keyColumn));
+                Object val = record.getValueByKey(valueColumn);
+                if (val == null) val = record.getValue();
+                row.put(valueColumn, val);
+                result.add(row);
+            }
+        }
+        return result;
+    }
+
+    private List<Map<String, Object>> mapTimeSeries(QueryApi queryApi, String flux) {
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (FluxTable table : queryApi.query(flux)) {
+            for (FluxRecord record : table.getRecords()) {
+                Map<String, Object> row = new LinkedHashMap<>();
+                row.put("time", record.getTime());
+                row.put("value", record.getValue());
+                result.add(row);
+            }
+        }
+        return result;
     }
 
     private Long toLong(Object value) {
