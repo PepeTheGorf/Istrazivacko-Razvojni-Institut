@@ -5,7 +5,7 @@ import { PristupDialog } from '../../components/PristupDialog'
 import { TagDocumentsDialog } from '../../components/TagDocumentsDialog'
 import { VerzijeDialog } from '../../components/VerzijeDialog'
 import { checkAccess, fetchProjekatPristupIds } from '../../api/pristup'
-import { createDocument, deleteDocument, fetchDocuments, searchDocuments, updateDocument, uploadDocument } from '../../api/documents'
+import { createDocument, deleteDocument, fetchDocumentById, fetchDocuments, searchDocuments, updateDocument, uploadDocument } from '../../api/documents'
 import { createDokumentTag, deleteDokumentTag, fetchDocumentTags } from '../../api/documentTags'
 import { fetchMetapodatakByDocument } from '../../api/metapodatak'
 import { fetchProjectsForSelection } from '../../api/projects'
@@ -349,6 +349,7 @@ export function DocumentsPage() {
   async function selectDocument(document: Dokument) {
     setSelectedDocumentId(document.id)
     setSelectedDocumentMetadataLoading(true)
+    fetchDocumentById(document.id).catch(() => {})
     try {
       const metadata = documentMetadataByDocumentId.get(document.id)
       if (metadata) {

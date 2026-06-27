@@ -14,6 +14,7 @@ import org.example.documentmanagementservice.dto.MetapodatakCreateDTO;
 import org.example.documentmanagementservice.model.Dokument;
 import org.example.documentmanagementservice.model.Tag;
 import org.example.documentmanagementservice.repository.DokumentRepository;
+import org.example.documentmanagementservice.repository.MetapodatakRepository;
 import org.example.documentmanagementservice.repository.TagRepository;
 import org.example.documentmanagementservice.service.DokumentVerzijaService;
 import org.springframework.beans.factory.annotation.Value;
@@ -53,6 +54,7 @@ public class DocumentService {
     private final TagService tagService;
     private final DokumentTagService dokumentTagService;
     private final MetapodatakService metapodatakService;
+    private final MetapodatakRepository metapodatakRepository;
     private final TagRepository tagRepository;
     private final PravaPristupaService pravaPristupaService;
     private final DokumentVerzijaService dokumentVerzijaService;
@@ -64,6 +66,9 @@ public class DocumentService {
 
     @Value("${project.service.url:http://project-realization-service:8080/projects}")
     private String projectServiceUrl;
+
+    @Value("${analytics.service.url:http://document-acsses-service:8082/document-access.json/save}")
+    private String analyticsServiceUrl;
 
     @Transactional
     @CacheEvict(value = "tag", allEntries = true)
@@ -281,7 +286,58 @@ public class DocumentService {
     }
 
     public Dokument getById(java.util.UUID id) {
-        return dokumentRepository.findById(id).orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Dokument not found"));
+        Dokument dokument = dokumentRepository.findById(id).orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Dokument not found"));
+        trackDocumentAccess(dokument);
+        return dokument;
+    }
+
+    private void trackDocumentAccess(Dokument dokument) {
+        String userId = extractCurrentUserId();
+        String documentId = dokument.getId().toString();
+        String projectId = dokument.getProjektId() != null ? dokument.getProjektId().toString() : "";
+        long fileSizeBytes = dokument.getSadrzaj() != null ? dokument.getSadrzaj().getBytes(StandardCharsets.UTF_8).length : 0L;
+
+        // Build headers in the request thread before handing off — RequestContextHolder is not available in new threads
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        new Thread(() -> {
+            try {
+                Map<String, Object> payload = new java.util.HashMap<>();
+                payload.put("user_id", userId);
+                payload.put("document_id", documentId);
+                payload.put("project_id", projectId);
+                payload.put("action_type", "VIEW");
+                payload.put("session_duration_sec", 0L);
+                payload.put("file_size_bytes", fileSizeBytes);
+                payload.put("created", Instant.now().toString());
+                restTemplate.postForObject(analyticsServiceUrl, new HttpEntity<>(payload, headers), Object.class);
+            } catch (Exception ex) {
+                log.error("Failed to record document access analytics - continuing", ex);
+            }
+        }).start();
+    }
+
+    private String extractCurrentUserId() {
+        RequestAttributes attributes = RequestContextHolder.getRequestAttributes();
+        if (attributes instanceof ServletRequestAttributes servletRequestAttributes) {
+            String auth = servletRequestAttributes.getRequest().getHeader(HttpHeaders.AUTHORIZATION);
+            if (auth != null && auth.startsWith("Bearer ")) {
+                try {
+                    String payload = auth.substring(7);
+                    String[] parts = payload.split("\\.");
+                    if (parts.length >= 2) {
+                        String decoded = new String(java.util.Base64.getUrlDecoder().decode(parts[1]), StandardCharsets.UTF_8);
+                        com.fasterxml.jackson.databind.JsonNode node = new ObjectMapper().readTree(decoded);
+                        if (node.has("sub")) return node.get("sub").asText();
+                        if (node.has("id")) return node.get("id").asText();
+                        if (node.has("userId")) return node.get("userId").asText();
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+        }
+        return "unknown";
     }
 
     public java.util.List<Dokument> listAll() {
@@ -311,22 +367,14 @@ public class DocumentService {
         var result = dokumentRepository.searchDokumenti(naslov, autor, tipDokumentaId, projektId, dateFrom, dateTo, tag);
 
         if (req.getMetadataFilters() != null && !req.getMetadataFilters().isEmpty()) {
-            result = result.stream().filter(doc -> {
-                for (var filter : req.getMetadataFilters()) {
-                    if (filter.getTipMetapodatkaId() == null) continue;
-                    String filterVal = filter.getVrednost() == null ? "" : filter.getVrednost().trim().toLowerCase();
-                    var metas = metapodatakService.findByDokumentId(doc.getId());
-                    boolean matched = metas.stream()
-                            .filter(m -> filter.getTipMetapodatkaId().equals(m.getTipMetapodatkaId()))
-                            .anyMatch(m -> {
-                                if (filterVal.isBlank()) return true;
-                                String mv = m.getVrednost() == null ? "" : m.getVrednost().toLowerCase();
-                                return mv.contains(filterVal);
-                            });
-                    if (!matched) return false;
-                }
-                return true;
-            }).toList();
+            List<UUID> docIds = result.stream().map(Dokument::getId).toList();
+            Map<UUID, List<org.example.documentmanagementservice.model.Metapodatak>> metaByDoc =
+                    metapodatakRepository.findByDokumentIdIn(docIds).stream()
+                            .collect(Collectors.groupingBy(org.example.documentmanagementservice.model.Metapodatak::getDokumentId));
+
+            result = result.stream()
+                    .filter(doc -> matchesAllMetadataFilters(metaByDoc.getOrDefault(doc.getId(), List.of()), req.getMetadataFilters()))
+                    .toList();
         }
 
         return result;
@@ -334,6 +382,20 @@ public class DocumentService {
 
     private String blankToNull(String s) {
         return (s == null || s.isBlank()) ? null : s.trim();
+    }
+
+    private boolean matchesAllMetadataFilters(
+            List<org.example.documentmanagementservice.model.Metapodatak> metas,
+            List<org.example.documentmanagementservice.dto.DokumentSearchRequestDTO.MetadataFilterDTO> filters) {
+        return filters.stream()
+                .filter(f -> f.getTipMetapodatkaId() != null)
+                .allMatch(f -> {
+                    String filterVal = f.getVrednost() == null ? "" : f.getVrednost().trim().toLowerCase();
+                    return metas.stream()
+                            .filter(m -> f.getTipMetapodatkaId().equals(m.getTipMetapodatkaId()))
+                            .anyMatch(m -> filterVal.isBlank() ||
+                                    (m.getVrednost() != null && m.getVrednost().toLowerCase().contains(filterVal)));
+                });
     }
 
     public java.util.List<Dokument> listForKorisnik(String rawKorisnikId) {

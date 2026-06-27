@@ -128,7 +128,6 @@ public class PravaPristupaService {
         if (dokument == null) return null;
 
         if (dokument.getAuthorId() != null && dokument.getAuthorId().equals(korisnikId)) {
-            // author always has full access unless explicitly denied at document level
             var directAccess = repository.findFirstByKorisnikIdAndDokumentId(korisnikId, dokumentId);
             if (directAccess.isPresent() && directAccess.get().getNivo() == NivoPrava.ZABRANA) {
                 return null;
@@ -136,7 +135,6 @@ public class PravaPristupaService {
             return NivoPrava.IZMENA;
         }
 
-        // Direct document-level access always takes precedence (including ZABRANA)
         var directAccess = repository.findFirstByKorisnikIdAndDokumentId(korisnikId, dokumentId);
         if (directAccess.isPresent()) {
             NivoPrava nivo = directAccess.get().getNivo();

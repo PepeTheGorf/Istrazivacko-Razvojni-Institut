@@ -67,8 +67,6 @@ public class PravaPristupaController {
         return ResponseEntity.ok(service.findByKorisnikAndDokument(korisnikId, dokumentId));
     }
 
-    // --- Grant / revoke endpoints ---
-
     @PostMapping("/grant/dokument")
     public ResponseEntity<PravaPristupaResponseDTO> grantDokumentAccess(@RequestBody GrantRequestBody body) {
         return ResponseEntity.ok(service.grantDokumentAccess(

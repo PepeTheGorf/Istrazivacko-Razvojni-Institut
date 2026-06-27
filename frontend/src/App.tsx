@@ -16,6 +16,7 @@ import { WorkflowsPage } from './pages/workflows/WorkflowsPage'
 import { DocumentsPage } from './pages/documents/DocumentsPage'
 import { DocumentTypesPage } from './pages/documentTypes/DocumentTypesPage'
 import { PristupPage } from './pages/pristup/PristupPage'
+import { AnalyticsPage } from './pages/analytics/AnalyticsPage'
 
 function App() {
   return (
@@ -52,6 +53,7 @@ function App() {
 
         <Route element={<ProtectedRoute allowedRoles={['ADMINISTRATOR', 'MANAGER']} />}>
           <Route path="/pristup" element={<PristupPage />} />
+          <Route path="/analytics" element={<AnalyticsPage />} />
         </Route>
 
         <Route path="/" element={<Navigate to="/login" replace />} />

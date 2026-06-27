@@ -75,7 +75,6 @@ public class AutoTagService {
             );
         }
 
-        // Milvus returns INT64 ids — look up each one in Postgres via vectorDocumentId
         List<UUID> documentIds = new ArrayList<>();
         if (response != null && response.get("results") instanceof List<?> results) {
             for (Object item : results) {

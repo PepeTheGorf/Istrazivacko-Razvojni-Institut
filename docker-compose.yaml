@@ -100,7 +100,7 @@ services:
       INFLUX_URL: http://influxdb:8086
       INFLUX_TOKEN: ${INFLUXDB_TOKEN:-dev-analytics-token-change-me}
       INFLUX_ORG: ${INFLUXDB_ORG:-nais}
-      INFLUX_BUCKET: document_management
+      INFLUX_BUCKET: document_access
       SERVER_PORT: 8082
     ports:
       - "8082:8082"
@@ -296,6 +296,7 @@ services:
       SPRING_DATASOURCE_PASSWORD: document
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      ANALYTICS_SERVICE_URL: http://timeseries-database-service:8082/document-access.json/save
     ports:
       - "9070:8080"
     depends_on:

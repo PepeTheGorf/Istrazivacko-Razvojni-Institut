@@ -18,7 +18,9 @@ import rs.ac.uns.acs.ist.TimeseriesDatabaseService.model.DocumentChange;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Component
 public class InfluxDBConnectionClass {
@@ -48,17 +50,17 @@ public class InfluxDBConnectionClass {
     }
 
     public List<DocumentAccess> findAllAccess(InfluxDBClient client) {
-        String flux = "from(bucket:\"" + bucket + "\") |> range(start: 0) |> filter(fn: (r) => r[\"_measurement\"] == \"document_access\") |> sort(columns: [\"_time\"], desc: true)";
+        String flux = "from(bucket:\"" + bucket + "\") |> range(start: 0) |> filter(fn: (r) => r[\"_measurement\"] == \"document_access\") |> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\") |> sort(columns: [\"_time\"], desc: true)";
         return mapAccess(client.getQueryApi(), flux);
     }
 
     public List<DocumentAccess> findAccessByUserId(InfluxDBClient client, String userId) {
-        String flux = "from(bucket:\"" + bucket + "\") |> range(start: 0) |> filter(fn: (r) => r[\"_measurement\"] == \"document_access\" and r[\"user_id\"] == \"" + userId + "\") |> sort(columns: [\"_time\"], desc: true)";
+        String flux = "from(bucket:\"" + bucket + "\") |> range(start: 0) |> filter(fn: (r) => r[\"_measurement\"] == \"document_access\" and r[\"user_id\"] == \"" + userId + "\") |> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\") |> sort(columns: [\"_time\"], desc: true)";
         return mapAccess(client.getQueryApi(), flux);
     }
 
     public List<DocumentAccess> findAccessByDocumentId(InfluxDBClient client, String documentId) {
-        String flux = "from(bucket:\"" + bucket + "\") |> range(start: 0) |> filter(fn: (r) => r[\"_measurement\"] == \"document_access\" and r[\"document_id\"] == \"" + documentId + "\") |> sort(columns: [\"_time\"], desc: true)";
+        String flux = "from(bucket:\"" + bucket + "\") |> range(start: 0) |> filter(fn: (r) => r[\"_measurement\"] == \"document_access\" and r[\"document_id\"] == \"" + documentId + "\") |> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\") |> sort(columns: [\"_time\"], desc: true)";
         return mapAccess(client.getQueryApi(), flux);
     }
 
@@ -75,6 +77,31 @@ public class InfluxDBConnectionClass {
     public List<DocumentChange> findChangesByChangeType(InfluxDBClient client, String changeType) {
         String flux = "from(bucket:\"" + bucket + "\") |> range(start: 0) |> filter(fn: (r) => r[\"_measurement\"] == \"document_changes\" and r[\"change_type\"] == \"" + changeType + "\") |> sort(columns: [\"_time\"], desc: true)";
         return mapChange(client.getQueryApi(), flux);
+    }
+
+    public List<DocumentAccess> findAccessByTimeRange(InfluxDBClient client, Instant from, Instant to) {
+        String flux = "from(bucket:\"" + bucket + "\") |> range(start: " + from.toString() + ", stop: " + to.toString() + ") |> filter(fn: (r) => r[\"_measurement\"] == \"document_access\") |> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\") |> sort(columns: [\"_time\"], desc: true)";
+        return mapAccess(client.getQueryApi(), flux);
+    }
+
+    public List<DocumentAccess> findAccessByDocumentIdAndTimeRange(InfluxDBClient client, String documentId, Instant from, Instant to) {
+        String flux = "from(bucket:\"" + bucket + "\") |> range(start: " + from.toString() + ", stop: " + to.toString() + ") |> filter(fn: (r) => r[\"_measurement\"] == \"document_access\" and r[\"document_id\"] == \"" + documentId + "\") |> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\") |> sort(columns: [\"_time\"], desc: true)";
+        return mapAccess(client.getQueryApi(), flux);
+    }
+
+    public List<DocumentAccess> findAccessByUserIdAndTimeRange(InfluxDBClient client, String userId, Instant from, Instant to) {
+        String flux = "from(bucket:\"" + bucket + "\") |> range(start: " + from.toString() + ", stop: " + to.toString() + ") |> filter(fn: (r) => r[\"_measurement\"] == \"document_access\" and r[\"user_id\"] == \"" + userId + "\") |> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\") |> sort(columns: [\"_time\"], desc: true)";
+        return mapAccess(client.getQueryApi(), flux);
+    }
+
+    public Map<String, Long> countAccessByDocumentInTimeRange(InfluxDBClient client, Instant from, Instant to) {
+        String flux = "from(bucket:\"" + bucket + "\") |> range(start: " + from.toString() + ", stop: " + to.toString() + ") |> filter(fn: (r) => r[\"_measurement\"] == \"document_access\") |> group(columns: [\"document_id\"]) |> count()";
+        return mapCountByTag(client.getQueryApi(), flux, "document_id");
+    }
+
+    public Map<String, Long> countAccessByUserInTimeRange(InfluxDBClient client, Instant from, Instant to) {
+        String flux = "from(bucket:\"" + bucket + "\") |> range(start: " + from.toString() + ", stop: " + to.toString() + ") |> filter(fn: (r) => r[\"_measurement\"] == \"document_access\") |> group(columns: [\"user_id\"]) |> count()";
+        return mapCountByTag(client.getQueryApi(), flux, "user_id");
     }
 
     public boolean deleteByPredicate(InfluxDBClient client, String measurement, String predicate, OffsetDateTime start, OffsetDateTime stop) {
@@ -146,5 +173,19 @@ public class InfluxDBConnectionClass {
             return number.intValue();
         }
         return null;
+    }
+
+    private Map<String, Long> mapCountByTag(QueryApi queryApi, String flux, String tagKey) {
+        Map<String, Long> result = new HashMap<>();
+        for (FluxTable table : queryApi.query(flux)) {
+            for (FluxRecord record : table.getRecords()) {
+                String tagValue = (String) record.getValueByKey(tagKey);
+                Object countObj = record.getValue();
+                if (tagValue != null && countObj instanceof Number number) {
+                    result.merge(tagValue, number.longValue(), Long::sum);
+                }
+            }
+        }
+        return result;
     }
 }

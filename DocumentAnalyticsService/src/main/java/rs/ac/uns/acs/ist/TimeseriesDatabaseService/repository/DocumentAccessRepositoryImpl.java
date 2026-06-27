@@ -5,8 +5,10 @@ import org.springframework.stereotype.Repository;
 import rs.ac.uns.acs.ist.TimeseriesDatabaseService.configuration.InfluxDBConnectionClass;
 import rs.ac.uns.acs.ist.TimeseriesDatabaseService.model.DocumentAccess;
 
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Repository
 public class DocumentAccessRepositoryImpl implements DocumentAccessRepository {
@@ -65,6 +67,56 @@ public class DocumentAccessRepositoryImpl implements DocumentAccessRepository {
             OffsetDateTime start = stop.minusDays(days);
             String predicate = "user_id=\"" + userId + "\" AND document_id=\"" + documentId + "\"";
             return inConn.deleteByPredicate(client, "document_access", predicate, start, stop);
+        } finally {
+            client.close();
+        }
+    }
+
+    @Override
+    public List<DocumentAccess> findAllByTimeRange(Instant from, Instant to) {
+        InfluxDBClient client = inConn.buildConnection();
+        try {
+            return inConn.findAccessByTimeRange(client, from, to);
+        } finally {
+            client.close();
+        }
+    }
+
+    @Override
+    public List<DocumentAccess> findByDocumentIdAndTimeRange(String documentId, Instant from, Instant to) {
+        InfluxDBClient client = inConn.buildConnection();
+        try {
+            return inConn.findAccessByDocumentIdAndTimeRange(client, documentId, from, to);
+        } finally {
+            client.close();
+        }
+    }
+
+    @Override
+    public List<DocumentAccess> findByUserIdAndTimeRange(String userId, Instant from, Instant to) {
+        InfluxDBClient client = inConn.buildConnection();
+        try {
+            return inConn.findAccessByUserIdAndTimeRange(client, userId, from, to);
+        } finally {
+            client.close();
+        }
+    }
+
+    @Override
+    public Map<String, Long> countByDocumentInTimeRange(Instant from, Instant to) {
+        InfluxDBClient client = inConn.buildConnection();
+        try {
+            return inConn.countAccessByDocumentInTimeRange(client, from, to);
+        } finally {
+            client.close();
+        }
+    }
+
+    @Override
+    public Map<String, Long> countByUserInTimeRange(Instant from, Instant to) {
+        InfluxDBClient client = inConn.buildConnection();
+        try {
+            return inConn.countAccessByUserInTimeRange(client, from, to);
         } finally {
             client.close();
         }

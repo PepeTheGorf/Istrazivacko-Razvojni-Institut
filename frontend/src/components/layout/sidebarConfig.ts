@@ -17,7 +17,10 @@ export const MANAGER_SIDEBAR_SECTIONS: SidebarSection[] = [
   },
   {
     title: 'Resursi',
-    items: [{ to: '/pristup', label: 'Upravljanje pristupom', end: true }],
+    items: [
+      { to: '/pristup', label: 'Upravljanje pristupom', end: true },
+      { to: '/analytics', label: 'Analitika pristupa', end: true },
+    ],
   },
 ]
 
@@ -42,6 +45,7 @@ export const ADMINISTRATOR_SIDEBAR_SECTIONS: SidebarSection[] = [
     items: [
       { to: '/document-types', label: 'Tipovi Dokumenata', end: true },
       { to: '/pristup', label: 'Upravljanje pristupom', end: true },
+      { to: '/analytics', label: 'Analitika pristupa', end: true },
     ],
   },
 ]
