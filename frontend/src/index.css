@@ -103,3 +103,29 @@
     padding-bottom: 0.125rem;
   }
 }
+
+@media print {
+  aside, 
+  nav, 
+  button, 
+  .print\:hidden { 
+    display: none !important; 
+  }
+
+  body {
+    background: white !important;
+    padding: 0 !important;
+  }
+
+  .mx-auto {
+    max-width: none !important;
+    width: 100% !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  * {
+    color: black !important;
+    -webkit-print-color-adjust: exact;
+  }
+}

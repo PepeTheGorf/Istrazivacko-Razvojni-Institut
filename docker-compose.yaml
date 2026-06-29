@@ -1,5 +1,3 @@
-version: "3.3" # Defines the Docker Compose file format version
-
 services:
   redis:
     image: redis:7-alpine
@@ -41,7 +39,6 @@ services:
         condition: service_healthy
     ports:
       - "9003:9000"
-
 
   influxdb:
     image: influxdb:2.7
@@ -87,6 +84,42 @@ services:
     ports:
       - "9063:8080"
 
+  document-acsses-service:
+    build:
+      context: ./DocumentAnalyticsService
+      dockerfile: Dockerfile
+    image: timeseries-database-service:latest
+    container_name: timeseries-database-service
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      influxdb:
+        condition: service_healthy
+    environment:
+      EUREKA_URL: http://eureka-server:8761/eureka/
+      INFLUX_URL: http://influxdb:8086
+      INFLUX_TOKEN: ${INFLUXDB_TOKEN:-dev-analytics-token-change-me}
+      INFLUX_ORG: ${INFLUXDB_ORG:-nais}
+      INFLUX_BUCKET: document_management
+      SERVER_PORT: 8082
+    ports:
+      - "8082:8082"
+
+  grafana:
+    build:
+      context: ./grafana
+      dockerfile: Dockerfile
+    image: document-management-grafana:latest
+    container_name: grafana
+    depends_on:
+      influxdb:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_PATHS_PROVISIONING: /etc/grafana/provisioning
+
   project-realization-postgres:
     image: postgres:16
     environment:
@@ -126,16 +159,24 @@ services:
         condition: service_healthy
       project-realization-postgres:
         condition: service_healthy
+      neo4j:
+        condition: service_healthy
       redis:
+        condition: service_healthy
+      ollama:
         condition: service_healthy
     environment:
       EUREKA_URL: http://eureka-server:8761/eureka/
       SPRING_DATASOURCE_URL: jdbc:postgresql://project-realization-postgres:5432/project_realization
       SPRING_DATASOURCE_USERNAME: project_realization
       SPRING_DATASOURCE_PASSWORD: project_realization
+      SPRING_NEO4J_URI: bolt://neo4j:7687
+      SPRING_NEO4J_AUTHENTICATION_USERNAME: neo4j
+      SPRING_NEO4J_AUTHENTICATION_PASSWORD: password
       JWT_SECRET: c3Rha2Vob2xkZXJzZXJ2aWNland0c2VjcmV0a2V5Zm9ydGgyNTZiaXRzMTIzNDU2Nzg5MA==
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      SPRING_AI_OLLAMA_BASE_URL: http://ollama:11434
     ports:
       - "9060:8080"
 
@@ -193,6 +234,7 @@ services:
       EUREKA_URL: http://eureka-server:8761/eureka/
       MILVUS_HOST: standalone
       MILVUS_PORT: 19530
+      PROMPT_VECTOR_SEED_ENABLED: "false"
     ports:
       - "9061:8080"
 
@@ -205,7 +247,7 @@ services:
       ETCD_QUOTA_BACKEND_BYTES: "4294967296"
       ETCD_SNAPSHOT_COUNT: "50000"
     volumes:
-      - ./VectorDatabaseService/volumes/etcd:/etcd
+      - etcd_data:/etcd
     command: etcd -advertise-client-urls=http://etcd:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
     healthcheck:
       test: ["CMD", "etcdctl", "endpoint", "health"]
@@ -223,7 +265,7 @@ services:
       # - "9001:9001"  # MinIO console UI (not required for local dev)
       - "9000:9000"
     volumes:
-      - ./VectorDatabaseService/volumes/minio:/minio_data
+      - minio_data:/minio_data
     command: minio server /minio_data --console-address ":9001"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
@@ -260,15 +302,17 @@ services:
   #   depends_on:
   #     - standalone
 
-  doucument-management-service:
+  vector-database-service:
     build:
       context: ./VectorDatabaseService
       dockerfile: Dockerfile
-    image: doucument-management-service:latest
+    image: vector-database-service:latest
     environment:
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
       MILVUS_HOST: standalone
       MILVUS_PORT: 19530
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
     ports:
       - "8000:8000"
     depends_on:
@@ -276,6 +320,60 @@ services:
         condition: service_healthy
       standalone:
         condition: service_healthy
+
+  document-management-service:
+    build:
+      context: ./DocumentManagementService
+      dockerfile: Dockerfile
+    image: document-management-service:latest
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      SPRING_DATASOURCE_URL: jdbc:postgresql://document-postgres:5432/documents
+      SPRING_DATASOURCE_USERNAME: document
+      SPRING_DATASOURCE_PASSWORD: document
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    ports:
+      - "9070:8080"
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      document-postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  document-postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: documents
+      POSTGRES_USER: document
+      POSTGRES_PASSWORD: document
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5434:5432"
+    volumes:
+      - document_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U document -d documents"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  neo4j:
+    image: neo4j:5.22.0
+    ports:
+      # - "7474:7474"  # Neo4j Browser UI (not required for services)
+      - "7687:7687"
+    environment:
+      NEO4J_AUTH: neo4j/password
+    volumes:
+      - neo4j_data:/data
+    healthcheck:
+      test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "password", "RETURN 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
 
   stakeholder-postgres:
     image: postgres:16
@@ -293,11 +391,118 @@ services:
       timeout: 5s
       retries: 5
 
+  # ============= ELASTICSEARCH SERVICE =============
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.0
+    container_name: elasticsearch
+    environment:
+      discovery.type: single-node
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+      xpack.security.enabled: "false"
+    ports:
+      - "9200:9200"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200 | grep -q cluster_name"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+
+  elasticsearch-service:
+    build:
+      context: ./ElasticsearchService
+      dockerfile: Dockerfile
+    image: elasticsearch-service:latest
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      EUREKA_URL: http://eureka-server:8761/eureka/
+      SPRING_ELASTICSEARCH_REST_URIS: http://elasticsearch:9200
+      SERVER_PORT: 8080
+    ports:
+      - "9064:8080"
+
+  # ============= CASSANDRA SERVICE =============
+
+  cassandra:
+    image: cassandra:4.1
+    container_name: cassandra
+    environment:
+      CASSANDRA_CLUSTER_NAME: "PromptAnalyticsCluster"
+      CASSANDRA_LISTEN_ADDRESS: cassandra
+      CASSANDRA_BROADCAST_ADDRESS: cassandra
+      CASSANDRA_RPC_ADDRESS: cassandra
+      CASSANDRA_SEEDS: cassandra
+    ports:
+      - "9042:9042"
+      - "7000:7000"
+    healthcheck:
+      test: ["CMD", "nodetool", "status"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    volumes:
+      - cassandra_data:/var/lib/cassandra
+
+  cassandra-service:
+    build:
+      context: ./CassandraService
+      dockerfile: Dockerfile
+    image: cassandra-service:latest
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      cassandra:
+        condition: service_healthy
+      redis:                   
+        condition: service_healthy
+    environment:
+      EUREKA_URL: http://eureka-server:8761/eureka/
+      SPRING_CASSANDRA_CONTACTPOINTS: cassandra:9042
+      SPRING_CASSANDRA_KEYSPACENAME: prompt_analytics
+      SPRING_CASSANDRA_LOCAL_DATACENTER: datacenter1
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SERVER_PORT: 8080
+    ports:
+      - "9065:8080"
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
 volumes:
   stakeholder_pg_data: {}
+  document_pg_data: {}
+  project_pg_data: {}
   project_realization_pg_data: {}
   project_realization_pgadmin_data: {}
+  etcd_data: {}
+  minio_data: {}
+  neo4j_data: {}
   influxdb_data: {}
+  elasticsearch_data: {}
+  cassandra_data: {}
   redis_data: {}
   grafana_data: {}
-
+  ollama_data: {}

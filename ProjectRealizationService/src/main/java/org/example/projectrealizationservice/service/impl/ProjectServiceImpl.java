@@ -13,7 +13,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -64,7 +63,14 @@ public class ProjectServiceImpl implements ProjectService {
     @Cacheable(value = "projects", key = "#creatorId", condition = "#creatorId != null")
     public List<ProjectDTO> findAll(Long creatorId) {
         return projectRepository.findAll().stream()
-                .filter(project -> Objects.equals(project.getCreatorId(), creatorId))
+				// .filter(project -> Objects.equals(project.getCreatorId(), creatorId))
+				.map(ProjectDTO::toDTO)
+                .toList();
+    }
+
+    @Override
+    public List<ProjectDTO> findAllForSelection() {
+        return projectRepository.findAll().stream()
                 .map(ProjectDTO::toDTO)
                 .toList();
     }
@@ -73,7 +79,7 @@ public class ProjectServiceImpl implements ProjectService {
     public ProjectDTO getProjectByName(String name, Long creatorId) {
         Project project = projectRepository.findByName(name)
                 .orElseThrow(() -> new RuntimeException("Project with that name does not exist!"));
-        assertAccessibleProject(project, creatorId);
+        // assertAccessibleProject(project, creatorId);
         return ProjectDTO.toDTO(project);
     }
 
@@ -85,13 +91,13 @@ public class ProjectServiceImpl implements ProjectService {
     private Project findAccessibleProjectOrThrow(Long projectId, Long creatorId) {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new RuntimeException("Project with that id does not exist!"));
-        assertAccessibleProject(project, creatorId);
-        return project;
+		// assertAccessibleProject(project, creatorId);
+		return project;
     }
 
     private void assertAccessibleProject(Project project, Long creatorId) {
-        if (!Objects.equals(project.getCreatorId(), creatorId)) {
-            throw new RuntimeException("You do not have access to this project.");
-        }
+        // if (!Objects.equals(project.getCreatorId(), creatorId)) {
+        //     throw new RuntimeException("You do not have access to this project.");
+        // }
     }
 }

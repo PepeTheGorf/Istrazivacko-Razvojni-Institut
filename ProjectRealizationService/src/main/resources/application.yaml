@@ -1,7 +1,17 @@
 server:
   port: 8080
 
+ai:
+  service:
+    mode: real 
+    
 spring:
+  ai:
+    ollama:
+      base-url: http://ollama:11434
+      chat:
+        model: llama3
+        
   cache:
     type: redis
   datasource:

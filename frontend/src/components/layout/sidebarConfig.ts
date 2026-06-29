@@ -19,6 +19,13 @@ export const MANAGER_SIDEBAR_SECTIONS: SidebarSection[] = [
     ],
   },
   {
+    title: 'Pametni Šabloni',
+    items: [
+      { to: '/smart-templates', label: 'Lista Šablona', end: true },
+      { to: '/smart-templates/new', label: 'Novi Šablon' },
+    ],
+  },
+  {
     title: 'Resursi',
     items: [{ to: '/reported-problems', label: 'Prijavljeni problemi' }],
   },
@@ -33,6 +40,17 @@ export const TEAM_MEMBER_SIDEBAR_SECTIONS: SidebarSection[] = [
     title: 'Resursi',
     items: [{ to: '/my-reported-problems', label: 'Prijavljeni problemi' }],
   },
+  {
+    title: 'Dokumenti',
+    items: [{ to: '/documents', label: 'Lista Dokumenata', end: true }],
+  },
+  {
+    title: 'AI Dokumentacija',
+    items: [
+      { to: '/my-smart-docs', label: 'Moja Dokumentacija', end: true },
+      { to: '/smart-docs', label: 'Nova AI Dokumentacija' },
+    ],
+  },
 ]
 
 export const ADMINISTRATOR_SIDEBAR_SECTIONS: SidebarSection[] = [
@@ -42,6 +60,9 @@ export const ADMINISTRATOR_SIDEBAR_SECTIONS: SidebarSection[] = [
   },
   {
     title: 'Resursi',
-    items: [{ to: '/technical-resources', label: 'Tehnički resursi' }],
+    items: [
+      { to: '/technical-resources', label: 'Tehnički resursi' },
+      { to: '/document-types', label: 'Tipovi Dokumenata', end: true },
+    ],
   },
 ]
