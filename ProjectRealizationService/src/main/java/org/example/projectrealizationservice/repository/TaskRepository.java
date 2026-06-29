@@ -28,6 +28,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             SELECT t FROM Task t
             LEFT JOIN FETCH t.phase
             LEFT JOIN FETCH t.workflow w
+            LEFT JOIN FETCH w.phases
             WHERE t.parentTask.id = :parentTaskId
             """)
     List<Task> findSubtasksByParentTaskId(@Param("parentTaskId") Long parentTaskId);
@@ -90,7 +91,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     Integer countTasksByPhaseAndProject(Phase phase, Project project);
 
     @Query("""
-            SELECT p.name AS phaseName, p.order AS phaseOrder, COUNT(t) AS taskCount
+            SELECT p.id AS phaseId, p.name AS phaseName, p.order AS phaseOrder, COUNT(t) AS taskCount
             FROM Task t
             JOIN t.phase p
             WHERE t.project = :project
@@ -100,7 +101,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             AND t.id = COALESCE(:taskId, t.id)
             AND t.endDate >= COALESCE(:from, t.endDate)
             AND t.startDate <= COALESCE(:to, t.startDate)
-            GROUP BY p.name, p.order
+            GROUP BY p.id, p.name, p.order
             ORDER BY p.order ASC, p.name ASC
             """)
     List<PhaseTaskCountAggregate> aggregatePhaseTaskCountsByProject(

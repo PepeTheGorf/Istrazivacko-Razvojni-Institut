@@ -45,7 +45,7 @@ public class TaskServiceImpl implements TaskService {
     private final TaskDateValidator taskDateValidator;
 
     @Override
-    @CacheEvict(value = "tasks-summary", key = "#taskCreation.projectId")
+    @CacheEvict(value = "tasks-summary-v2", key = "#taskCreation.projectId")
     public TaskSummaryDTO createTask(TaskCreationDTO taskCreation) {
         Project project = findAccessibleProjectOrThrow(taskCreation.getProjectId());
         Long creatorId = ResourceAuthorization.requireCurrentUserId();
@@ -118,7 +118,7 @@ public class TaskServiceImpl implements TaskService {
         for (Task rootTask : rootTasks) {
             deleteTaskCascade(rootTask.getId());
         }
-        Objects.requireNonNull(cacheManager.getCache("tasks-summary")).evict(projectId);
+        Objects.requireNonNull(cacheManager.getCache("tasks-summary-v2")).evict(projectId);
     }
 
     private void deleteTaskCascade(Long taskId) {
@@ -197,7 +197,7 @@ public class TaskServiceImpl implements TaskService {
     }
 
     @Override
-    @Cacheable(value = "tasks-summary", key = "#projectId", condition = "#projectId != null")
+    @Cacheable(value = "tasks-summary-v2", key = "#projectId", condition = "#projectId != null")
     public List<TaskSummaryDTO> getTasksByProjectId(Long projectId) {
         Project project = findAccessibleProjectOrThrow(projectId);
         return taskRepository.findRootTasksByProjectId(project.getId()).stream()
@@ -338,7 +338,7 @@ public class TaskServiceImpl implements TaskService {
 
     private void evictProjectTasksCache(Task task) {
         if (task.getProject() != null) {
-            Objects.requireNonNull(cacheManager.getCache("tasks-summary"))
+            Objects.requireNonNull(cacheManager.getCache("tasks-summary-v2"))
                     .evict(task.getProject().getId());
         }
     }

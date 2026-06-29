@@ -58,7 +58,7 @@ public class ProjectAnalyticsServiceImpl implements ProjectAnalyticsService {
                             to
                     );
                     return PhaseAnalyticsDTO.builder()
-                            .phaseId((long) Objects.hash(phaseName, phaseOrder))
+                            .phaseId(aggregate.getPhaseId())
                             .phaseName(phaseName)
                             .phaseOrder(phaseOrder)
                             .currentTaskCount(aggregate.getTaskCount().intValue())

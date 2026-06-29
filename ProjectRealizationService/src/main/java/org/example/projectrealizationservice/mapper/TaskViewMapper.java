@@ -11,6 +11,7 @@ import org.example.projectrealizationservice.repository.TaskRepository;
 import org.example.projectrealizationservice.repository.TaskResourceAssignmentRepository;
 import org.springframework.stereotype.Component;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 
 @Component
@@ -76,10 +77,30 @@ public class TaskViewMapper {
                 .name(task.getName())
                 .description(task.getDescription())
                 .phaseName(task.getPhase() != null ? task.getPhase().getName() : null)
+                .phaseOrder(task.getPhase() != null ? task.getPhase().getOrder() : null)
+                .phaseId(task.getPhase() != null ? task.getPhase().getId() : null)
                 .endDate(task.getEndDate())
                 .assigneeIds(assigneeIds)
                 .assigneeNames(List.of())
+                .completed(isTaskCompleted(task))
+                .overdue(isTaskOverdue(task))
                 .subTasks(subTasks)
                 .build();
+    }
+
+    private boolean isTaskCompleted(Task task) {
+        if (task.getPhase() == null || task.getWorkflow() == null) {
+            return false;
+        }
+        int currentOrder = task.getPhase().getOrder();
+        return task.getWorkflow().getPhases().stream()
+                .noneMatch(phase -> phase.getOrder() > currentOrder);
+    }
+
+    private boolean isTaskOverdue(Task task) {
+        if (task.getEndDate() == null || isTaskCompleted(task)) {
+            return false;
+        }
+        return task.getEndDate().isBefore(OffsetDateTime.now());
     }
 }

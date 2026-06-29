@@ -139,6 +139,27 @@ services:
     ports:
       - "9060:8080"
 
+  grafana:
+    image: grafana/grafana:11.0.0
+    container_name: grafana
+    depends_on:
+      project-realization-postgres:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_SECURITY_ALLOW_EMBEDDING: "true"
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_SECURITY_CSRF_TRUSTED_ORIGINS: http://localhost:5173
+      GF_USERS_DEFAULT_THEME: dark
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/etc/grafana/dashboards
+
   stakeholder-service:
     build:
       context: ./StakeholderService
@@ -278,4 +299,5 @@ volumes:
   project_realization_pgadmin_data: {}
   influxdb_data: {}
   redis_data: {}
+  grafana_data: {}
 

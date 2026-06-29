@@ -40,7 +40,7 @@ public class RedisConfig {
         return RedisCacheManager.builder(redisConnectionFactory)
                 .cacheDefaults(defaultConfig)
                 .withCacheConfiguration("projects", defaultCacheConfig(Duration.ofMinutes(60)))
-                .withCacheConfiguration("tasks-summary", defaultCacheConfig(Duration.ofMinutes(30)))
+                .withCacheConfiguration("tasks-summary-v2", defaultCacheConfig(Duration.ofMinutes(30)))
                 .build();
     }
 

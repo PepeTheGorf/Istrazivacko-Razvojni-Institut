@@ -14,6 +14,6 @@ public class TestCacheConfig {
 
     @Bean
     public CacheManager cacheManager() {
-        return new ConcurrentMapCacheManager("projects", "tasks-summary");
+        return new ConcurrentMapCacheManager("projects", "tasks-summary-v2");
     }
 }
