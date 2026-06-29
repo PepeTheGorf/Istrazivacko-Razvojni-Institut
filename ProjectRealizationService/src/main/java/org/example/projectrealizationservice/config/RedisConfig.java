@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
@@ -17,6 +18,7 @@ import org.springframework.data.redis.serializer.RedisSerializationContext.Seria
 
 @EnableCaching
 @Configuration
+@Profile("!test")
 public class RedisConfig {
 
     @Value("${redis.host}")
@@ -38,7 +40,7 @@ public class RedisConfig {
         return RedisCacheManager.builder(redisConnectionFactory)
                 .cacheDefaults(defaultConfig)
                 .withCacheConfiguration("projects", defaultCacheConfig(Duration.ofMinutes(60)))
-                .withCacheConfiguration("tasks-summary", defaultCacheConfig(Duration.ofMinutes(30)))
+                .withCacheConfiguration("tasks-summary-v2", defaultCacheConfig(Duration.ofMinutes(30)))
                 .build();
     }
 

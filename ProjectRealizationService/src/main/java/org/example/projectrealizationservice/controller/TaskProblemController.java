@@ -12,42 +12,50 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class TaskProblemController {
     private final ProblemReportService problemReportService;
-    
+
     @PostMapping
     @PreAuthorize("hasAnyRole('MANAGER', 'TEAM_MEMBER')")
     public ResponseEntity<?> reportProblem(@RequestBody ProblemReportCreationDTO problemReport) {
         try {
-            if (problemReport.getTaskId() == null || problemReport.getTaskId().isBlank()) {
-                return ResponseEntity.badRequest().body("taskId is required");
-            }
             problemReportService.createProblemReport(problemReport.getTaskId(), problemReport);
             return ResponseEntity.ok().build();
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
-    
+
+    @GetMapping("/my")
+    @PreAuthorize("hasRole('TEAM_MEMBER')")
+    public ResponseEntity<?> getMyProblemReports() {
+        try {
+            return ResponseEntity.ok(problemReportService.getMyProblemReports());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
     @GetMapping
-    public ResponseEntity<?> getProblemsByTask(@RequestParam String taskId) {
+    public ResponseEntity<?> getProblemsByTask(@RequestParam Long taskId) {
         try {
             return ResponseEntity.ok(problemReportService.getAllProblemsByTask(taskId));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
-    
+
     @GetMapping("/{problemReportId}")
-    public ResponseEntity<?> getProblemReportById(@PathVariable String problemReportId) {
+    public ResponseEntity<?> getProblemReportById(@PathVariable Long problemReportId) {
         try {
             return ResponseEntity.ok(problemReportService.getProblemReportById(problemReportId));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
-    
+
     @PutMapping("/{problemReportId}")
     @PreAuthorize("hasAnyRole('MANAGER', 'TEAM_MEMBER')")
-    public ResponseEntity<?> updateProblemReport(@PathVariable String problemReportId, @RequestBody ProblemReportCreationDTO problemReport) {
+    public ResponseEntity<?> updateProblemReport(@PathVariable Long problemReportId,
+                                                 @RequestBody ProblemReportCreationDTO problemReport) {
         try {
             problemReportService.updateProblemReport(problemReportId, problemReport);
             return ResponseEntity.ok().build();
@@ -55,10 +63,10 @@ public class TaskProblemController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
-    
+
     @DeleteMapping("/{problemReportId}")
     @PreAuthorize("hasAnyRole('MANAGER', 'TEAM_MEMBER')")
-    public ResponseEntity<?> deleteProblemReport(@PathVariable String problemReportId) {
+    public ResponseEntity<?> deleteProblemReport(@PathVariable Long problemReportId) {
         try {
             problemReportService.deleteProblemReport(problemReportId);
             return ResponseEntity.ok().build();

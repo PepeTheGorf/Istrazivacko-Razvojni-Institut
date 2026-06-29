@@ -1,31 +1,23 @@
 package org.example.projectrealizationservice.service.impl;
 
 import lombok.RequiredArgsConstructor;
-import org.example.projectrealizationservice.dto.ProjectTaskDTO;
-import org.example.projectrealizationservice.dto.TaskSummaryDTO;
+import org.example.projectrealizationservice.dto.*;
+import org.example.projectrealizationservice.dto.creation.TaskAssignmentDTO;
 import org.example.projectrealizationservice.dto.creation.TaskCreationDTO;
 import org.example.projectrealizationservice.mapper.TaskViewMapper;
-import org.example.projectrealizationservice.model.neo4j.Phase;
-import org.example.projectrealizationservice.model.neo4j.Task;
-import org.example.projectrealizationservice.model.neo4j.Workflow;
-import org.example.projectrealizationservice.model.sql.Project;
-import org.example.projectrealizationservice.model.sql.ProjectTask;
-import org.example.projectrealizationservice.repository.neo4j.TaskRepository;
-import org.example.projectrealizationservice.repository.neo4j.WorkflowRepository;
-import org.example.projectrealizationservice.repository.sql.AcceptanceCriteriaRepository;
-import org.example.projectrealizationservice.repository.sql.ProjectRepository;
-import org.example.projectrealizationservice.repository.sql.ProjectTaskRepository;
-import org.example.projectrealizationservice.repository.sql.TaskAssignmentRepository;
-import org.example.projectrealizationservice.repository.sql.TaskResourceAssignmentRepository;
+import org.example.projectrealizationservice.model.*;
+import org.example.projectrealizationservice.repository.*;
 import org.example.projectrealizationservice.security.ResourceAuthorization;
 import org.example.projectrealizationservice.security.SecurityUtils;
 import org.example.projectrealizationservice.service.TaskService;
+import org.example.projectrealizationservice.validation.TaskDateValidator;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.Comparator;
 import java.util.List;
@@ -33,114 +25,349 @@ import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class TaskServiceImpl implements TaskService {
 
     private final TaskRepository taskRepository;
-    private final WorkflowRepository workflowRepository;
     private final ProjectRepository projectRepository;
-    private final ProjectTaskRepository projectTaskRepository;
     private final AcceptanceCriteriaRepository acceptanceCriteriaRepository;
     private final TaskAssignmentRepository taskAssignmentRepository;
     private final TaskResourceAssignmentRepository taskResourceAssignmentRepository;
+    private final ProblemReportRepository problemReportRepository;
+    private final PhaseRepository phaseRepository;
+    private final WorkflowRepository workflowRepository;
+    private final TransitionConditionRepository transitionConditionRepository;
+    
     private final TaskViewMapper taskViewMapper;
     private final CacheManager cacheManager;
+    
+    private final TransitionConditionEvaluatorImpl transitionConditionEvaluator;
+    private final TaskDateValidator taskDateValidator;
 
     @Override
-    @Transactional(transactionManager = "neo4jTransactionManager")
-    @CacheEvict(value = "tasks-summary", key = "#taskCreation.projectId")
+    @CacheEvict(value = "tasks-summary-v2", key = "#taskCreation.projectId")
     public TaskSummaryDTO createTask(TaskCreationDTO taskCreation) {
         Project project = findAccessibleProjectOrThrow(taskCreation.getProjectId());
         Long creatorId = ResourceAuthorization.requireCurrentUserId();
 
-        Task task = Task.builder()
+        Task parent = null;
+        Task.TaskBuilder taskBuilder = Task.builder()
                 .name(taskCreation.getName())
                 .description(taskCreation.getDescription())
                 .creatorId(creatorId)
-                .projectId(project.getId())
-                .phaseChangeDate(OffsetDateTime.now())
-                .build();
-        
-        task = taskRepository.save(task);
-
-        projectTaskRepository.save(ProjectTask.builder()
-                .projectId(project.getId())
-                .taskId(task.getId())
-                .startDate(OffsetDateTime.now())
+                .project(project)
+                .startDate(taskCreation.getStartDate() != null ? taskCreation.getStartDate() : OffsetDateTime.now())
                 .endDate(taskCreation.getEndDate())
-                .build());
+                .phaseChangeDate(OffsetDateTime.now());
+
+        if (taskCreation.getParentTaskId() != null) {
+            parent = findAccessibleTaskOrThrow(taskCreation.getParentTaskId());
+            if (parent.getProject() == null || !Objects.equals(parent.getProject().getId(), project.getId())) {
+                throw new RuntimeException("Parent task must belong to the same project.");
+            }
+            taskBuilder.parentTask(parent);
+            Workflow workflow = resolveWorkflow(parent.getWorkflow(), taskCreation.getWorkflowId());
+            applyWorkflowAndPhase(taskBuilder, workflow, parent.getPhase());
+        } else if (taskCreation.getWorkflowId() != null) {
+            Workflow workflow = workflowRepository.findByIdWithPhases(taskCreation.getWorkflowId())
+                    .orElseThrow(() -> new RuntimeException("Workflow with that id does not exist!"));
+            applyWorkflowAndPhase(taskBuilder, workflow, null);
+        }
+
+        Task task = taskBuilder.build();
+        taskDateValidator.validate(task, project, parent);
+        task = taskRepository.save(task);
+        if (taskCreation.getAssigneeId() != null) {
+            assignTaskToUser(TaskAssignmentDTO.builder()
+                    .taskId(task.getId())
+                    .userId(taskCreation.getAssigneeId())
+                    .build());
+        }
         return taskViewMapper.toTaskSummaryDto(task);
     }
 
     @Override
-    @Transactional(transactionManager = "transactionManager")
-    public void updateTask(String taskId, TaskCreationDTO taskCreation) {
+    public void updateTask(Long taskId, TaskCreationDTO taskCreation) {
         Task existing = findAccessibleTaskOrThrow(taskId);
         ResourceAuthorization.assertCurrentUserIsOwner(existing.getCreatorId());
 
         existing.setName(taskCreation.getName());
         existing.setDescription(taskCreation.getDescription());
-        taskRepository.save(existing);
-
+        if (taskCreation.getStartDate() != null) {
+            existing.setStartDate(taskCreation.getStartDate());
+        }
         if (taskCreation.getEndDate() != null) {
-            projectTaskRepository.findByTaskId(taskId).ifPresent(projectTask -> {
-                projectTask.setEndDate(taskCreation.getEndDate());
-                projectTaskRepository.save(projectTask);
-            });
+            existing.setEndDate(taskCreation.getEndDate());
         }
-        if (existing.getProjectId() != null) {
-            Objects.requireNonNull(cacheManager.getCache("tasks-summary"))
-                    .evict(String.valueOf(existing.getProjectId()));
-        }
+        taskDateValidator.validate(existing, existing.getProject(), existing.getParentTask());
+        taskRepository.save(existing);
+        evictProjectTasksCache(existing);
     }
 
     @Override
-    @Transactional(transactionManager = "transactionManager")
-    public void deleteTask(String taskId) {
+    public void deleteTask(Long taskId) {
         Task existing = findAccessibleTaskOrThrow(taskId);
         ResourceAuthorization.assertCurrentUserIsOwner(existing.getCreatorId());
-
-        acceptanceCriteriaRepository.deleteAll(acceptanceCriteriaRepository.findByTaskId(taskId));
-        taskAssignmentRepository.deleteAll(taskAssignmentRepository.findByTaskId(taskId));
-        taskResourceAssignmentRepository.deleteAll(taskResourceAssignmentRepository.findByTaskId(taskId));
-        projectTaskRepository.findByTaskId(taskId)
-                .ifPresent(projectTaskRepository::delete);
-        taskRepository.delete(existing);
-
-        if (existing.getProjectId() != null) {
-            Objects.requireNonNull(cacheManager.getCache("tasks-summary")).evict(String.valueOf(existing.getProjectId()));
-        }
+        deleteTaskCascade(taskId);
+        evictProjectTasksCache(existing);
     }
 
     @Override
-    @Cacheable(value = "tasks-summary", key = "#projectId", condition = "#projectId != null")
-    public List<TaskSummaryDTO> getTasksByProjectId(String projectId) {
+    public void deleteTasksForProject(Long projectId) {
+        List<Task> rootTasks = taskRepository.findRootTasksByProjectId(projectId);
+        for (Task rootTask : rootTasks) {
+            deleteTaskCascade(rootTask.getId());
+        }
+        Objects.requireNonNull(cacheManager.getCache("tasks-summary-v2")).evict(projectId);
+    }
+
+    private void deleteTaskCascade(Long taskId) {
+        for (Task subtask : taskRepository.findSubtasksByParentTaskId(taskId)) {
+            deleteTaskCascade(subtask.getId());
+        }
+
+        acceptanceCriteriaRepository.deleteAll(acceptanceCriteriaRepository.findByTask_Id(taskId));
+        taskAssignmentRepository.deleteAll(taskAssignmentRepository.findByTask_Id(taskId));
+        taskResourceAssignmentRepository.deleteAll(taskResourceAssignmentRepository.findByTask_Id(taskId));
+        problemReportRepository.deleteAll(problemReportRepository.findByTask_Id(taskId));
+        taskRepository.deleteById(taskId);
+    }
+    
+    @Override
+    public TaskTransitionsResponseDTO getTaskTransitions(Long taskId) {
+        Task task = findAccessibleTaskOrThrow(taskId);
+    
+        Phase currentPhase = task.getPhase();
+        Workflow workflow = task.getWorkflow();
+    
+        if (workflow == null || currentPhase == null) {
+            return TaskTransitionsResponseDTO.builder()
+                    .currentPhaseId(currentPhase != null ? currentPhase.getId() : null)
+                    .currentPhaseName(currentPhase != null ? currentPhase.getName() : null)
+                    .workflowPhases(List.of())
+                    .transitions(List.of())
+                    .build();
+        }
+    
+        List<TransitionCondition> conditions =
+                transitionConditionRepository.findByWorkflow(workflow);
+    
+        List<PhaseDTO> workflowPhases = workflow.getPhases().stream()
+                .sorted(Comparator.comparingInt(Phase::getOrder))
+                .map(PhaseDTO::toDTO)
+                .toList();
+    
+        List<TaskPhaseTransitionDTO> transitions = workflow.getPhases().stream()
+                .filter(phase -> !phase.getId().equals(currentPhase.getId()))
+                .sorted(Comparator.comparingInt(Phase::getOrder))
+                .map(targetPhase -> {
+    
+                    List<TransitionCondition> transitionConditions = conditions.stream()
+                            .filter(c -> c.getFromPhase().getId().equals(currentPhase.getId()) && c.getToPhase().getId().equals(targetPhase.getId()))
+                            .toList();
+    
+                    boolean transitionExists = !transitionConditions.isEmpty();
+    
+                    List<TransitionRequirementStatusDTO> requirements = transitionConditions.stream()
+                            .filter(c -> c.getTransitionType() != null)
+                            .map(c -> TransitionRequirementStatusDTO.builder()
+                                    .id(c.getTransitionType().getId())
+                                    .name(c.getTransitionType().getName())
+                                    .description(c.getTransitionType().getDescription())
+                                    .met(transitionConditionEvaluator.evaluateCondition(c, task))
+                                    .build())
+                            .toList();
+    
+                    return TaskPhaseTransitionDTO.builder()
+                            .toPhaseId(targetPhase.getId())
+                            .toPhaseName(targetPhase.getName())
+                            .routeExists(transitionExists)
+                            .conditionsMet(transitionExists && requirements.stream().allMatch(TransitionRequirementStatusDTO::isMet))
+                            .requirements(requirements)
+                            .build();
+                })
+                .toList();
+    
+        return TaskTransitionsResponseDTO.builder()
+                .currentPhaseId(currentPhase.getId())
+                .currentPhaseName(currentPhase.getName())
+                .workflowPhases(workflowPhases)
+                .transitions(transitions)
+                .build();
+    }
+
+    @Override
+    @Cacheable(value = "tasks-summary-v2", key = "#projectId", condition = "#projectId != null")
+    public List<TaskSummaryDTO> getTasksByProjectId(Long projectId) {
         Project project = findAccessibleProjectOrThrow(projectId);
-        return taskRepository.findByProjectId(project.getId()).stream()
-                .filter(task -> task.getParentTask() == null)
+        return taskRepository.findRootTasksByProjectId(project.getId()).stream()
                 .map(taskViewMapper::toTaskSummaryDto)
                 .toList();
     }
 
     @Override
-    public ProjectTaskDTO getTaskById(String taskId) {
+    public List<AssignedTaskSummaryDTO> getMyTasksByProjectId(Long projectId) {
+        Project project = findProjectOrThrow(projectId);
+        return taskRepository.findMyTasksByProject(projectId, SecurityUtils.getCurrentUserId())
+                .stream()
+                .map(task -> AssignedTaskSummaryDTO.builder()
+                        .projectName(project.getName())
+                        .projectId(projectId)
+                        .phaseName(task.getPhase() != null ? task.getPhase().getName() : null)
+                        .description(task.getDescription())
+                        .name(task.getName())
+                        .id(task.getId())
+                        .endDate(task.getEndDate())
+                        .build())
+                .toList();
+    }
+
+    @Override
+    public List<AssignedProjectSummaryDTO> getMyProjects() {
+        Long userId = ResourceAuthorization.requireCurrentUserId();
+        return taskRepository.findProjectsForAssignee(userId).stream()
+                .map(project -> AssignedProjectSummaryDTO.builder()
+                        .id(project.getId())
+                        .name(project.getName())
+                        .build())
+                .toList();
+    }
+
+    @Override
+    public ProjectTaskDTO getTaskById(Long taskId) {
         return taskViewMapper.toProjectTaskDto(findAccessibleTaskOrThrow(taskId));
     }
 
-    private Task findAccessibleTaskOrThrow(String taskId) {
-        Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new RuntimeException("Task with that id does not exist!"));
-        if (task.getProjectId() != null) {
-            findAccessibleProjectOrThrow(String.valueOf(task.getProjectId()));
+    @Override
+    public void assignTaskToUser(TaskAssignmentDTO taskAssignmentDTO) {
+        Task task = findAccessibleTaskOrThrow(taskAssignmentDTO.getTaskId());
+        if (taskAssignmentRepository.existsByTaskAndAssigneeId(task, taskAssignmentDTO.getUserId())) {
+            throw new RuntimeException("User is already assigned to this task.");
         }
+
+        taskAssignmentRepository.save(TaskAssignment.builder()
+                .task(task)
+                .assigneeId(taskAssignmentDTO.getUserId())
+                .assignedAt(OffsetDateTime.now())
+                .build());
+        evictProjectTasksCache(task);
+    }
+
+    @Override
+    public void moveTaskToNextPhase(Long taskId, Long phaseId) {
+        Task task = findAccessibleTaskOrThrow(taskId);
+        Phase currentPhase = task.getPhase();
+        if (currentPhase == null) {
+            throw new RuntimeException("Task has no current phase.");
+        }
+        if (Objects.equals(currentPhase.getId(), phaseId)) {
+            throw new RuntimeException("Task is already in the selected phase.");
+        }
+
+        Phase phase = phaseRepository.findById(phaseId)
+                .orElseThrow(() -> new RuntimeException("Phase with that id does not exist!"));
+
+        List<TransitionCondition> conditions =
+                transitionConditionRepository.findByFromPhaseAndToPhase(currentPhase, phase);
+        if (!transitionConditionEvaluator.evaluateConditions(conditions, task)) {
+            throw new RuntimeException("Transition conditions not met for moving task to the next phase.");
+        }
+
+        Long userId = SecurityUtils.getCurrentUserId();
+        if (userId == null) {
+            throw new RuntimeException("Unauthenticated user cannot perform this action.");
+        }
+        if (task.getWorkflow() == null) {
+            throw new RuntimeException("Task has no workflow.");
+        }
+        
+        OffsetDateTime previousPhaseChangeDate = task.getPhaseChangeDate();
+
+        Long oldPhaseId = currentPhase.getId();
+        OffsetDateTime transitionedAt = OffsetDateTime.now();
+
+        Duration timeInOldPhase = Duration.between(previousPhaseChangeDate, transitionedAt);
+        
+        task.setPhase(phase);
+        task.setPhaseChangeDate(transitionedAt);
+        taskRepository.save(task);
+        taskRepository.addTaskPhaseTransition(
+                task.getId(),
+                oldPhaseId,
+                phase.getId(),
+                task.getWorkflow().getId(),
+                userId,
+                transitionedAt,
+                timeInOldPhase.toSeconds()
+        );
+    }
+
+    private Task findAccessibleTaskOrThrow(Long taskId) {
+        Task task = taskRepository.findByIdWithDetails(taskId)
+                .orElseThrow(() -> new RuntimeException("Task with that id does not exist!"));
+        assertCanAccessTask(task);
         return task;
     }
 
-    private Project findAccessibleProjectOrThrow(String projectId) {
-        Project project = projectRepository.findById(Long.parseLong(projectId))
-                .orElseThrow(() -> new RuntimeException("Project with that id does not exist!"));
+    private void assertCanAccessTask(Task task) {
+        Long userId = SecurityUtils.getCurrentUserId();
+        if (userId == null) {
+            throw new RuntimeException("Unauthenticated user cannot perform this action.");
+        }
+        if (task.getProject() != null && Objects.equals(task.getProject().getCreatorId(), userId)) {
+            return;
+        }
+        if (taskAssignmentRepository.existsByTaskAndAssigneeId(task, userId)) {
+            return;
+        }
+        throw new RuntimeException("You do not have access to this task.");
+    }
+
+    private Project findAccessibleProjectOrThrow(Long projectId) {
+        Project project = findProjectOrThrow(projectId);
         if (!Objects.equals(project.getCreatorId(), SecurityUtils.getCurrentUserId())) {
             throw new RuntimeException("You do not have access to this project.");
         }
         return project;
+    }
+
+    private Project findProjectOrThrow(Long projectId) {
+        return projectRepository.findById(projectId)
+                .orElseThrow(() -> new RuntimeException("Project with that id does not exist!"));
+    }
+
+    private void evictProjectTasksCache(Task task) {
+        if (task.getProject() != null) {
+            Objects.requireNonNull(cacheManager.getCache("tasks-summary-v2"))
+                    .evict(task.getProject().getId());
+        }
+    }
+
+    private Workflow resolveWorkflow(Workflow parentWorkflow, Long workflowId) {
+        if (parentWorkflow != null) {
+            return parentWorkflow;
+        }
+        if (workflowId == null) {
+            return null;
+        }
+        return workflowRepository.findByIdWithPhases(workflowId)
+                .orElseThrow(() -> new RuntimeException("Workflow with that id does not exist!"));
+    }
+
+    private void applyWorkflowAndPhase(Task.TaskBuilder taskBuilder, Workflow workflow, Phase parentPhase) {
+        if (workflow == null) {
+            return;
+        }
+        taskBuilder.workflow(workflow);
+        taskBuilder.phase(resolveInitialPhase(workflow, parentPhase));
+    }
+
+    private Phase resolveInitialPhase(Workflow workflow, Phase parentPhase) {
+        if (parentPhase != null) {
+            return parentPhase;
+        }
+        return workflow.getPhases().stream()
+                .min(Comparator.comparingInt(Phase::getOrder))
+                .orElse(null);
     }
 }

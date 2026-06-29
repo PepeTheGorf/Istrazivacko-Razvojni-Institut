@@ -4,14 +4,14 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.example.projectrealizationservice.model.neo4j.Phase;
+import org.example.projectrealizationservice.model.Phase;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class PhaseDTO {
-    private String id;
+    private Long id;
     private String name;
     private Integer order;
 

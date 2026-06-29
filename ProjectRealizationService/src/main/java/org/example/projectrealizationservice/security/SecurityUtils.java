@@ -20,4 +20,9 @@ public final class SecurityUtils {
         JwtUserPrincipal user = getCurrentUser();
         return user != null ? user.id() : null;
     }
+
+    public static org.example.projectrealizationservice.model.Role getCurrentRole() {
+        JwtUserPrincipal user = getCurrentUser();
+        return user != null ? user.role() : null;
+    }
 }

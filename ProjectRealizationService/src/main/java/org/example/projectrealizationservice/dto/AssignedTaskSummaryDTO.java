@@ -5,18 +5,16 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.OffsetDateTime;
-
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class AssignedTaskSummaryDTO {
-    private String id;
+    private Long id;
     private String name;
     private String description;
     private String phaseName;
-    private OffsetDateTime endDate;
-    private String projectId;
+    private java.time.OffsetDateTime endDate;
+    private Long projectId;
     private String projectName;
 }

@@ -4,16 +4,17 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.example.projectrealizationservice.model.sql.TechnicalResource;
+import org.example.projectrealizationservice.model.TechnicalResource;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class TechnicalResourceDTO {
-    private String id;
+    private Long id;
     private String name;
     private String description;
+    private Integer quantity;
     private Long creatorId;
 
     public static TechnicalResourceDTO toDto(TechnicalResource technicalResource) {
@@ -21,9 +22,10 @@ public class TechnicalResourceDTO {
             return null;
         }
         return TechnicalResourceDTO.builder()
-                .id(String.valueOf(technicalResource.getId()))
+                .id(technicalResource.getId())
                 .name(technicalResource.getName())
                 .description(technicalResource.getDescription())
+                .quantity(technicalResource.getQuantity())
                 .creatorId(technicalResource.getCreatorId())
                 .build();
     }

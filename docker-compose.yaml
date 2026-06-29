@@ -136,6 +136,19 @@ services:
       timeout: 5s
       retries: 5
 
+  project-realization-pgadmin:
+    image: dpage/pgadmin4:latest
+    depends_on:
+      project-realization-postgres:
+        condition: service_healthy
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    volumes:
+      - project_realization_pgadmin_data:/var/lib/pgadmin
+
   project-realization-service:
     build:
       context: ./ProjectRealizationService
@@ -166,6 +179,27 @@ services:
       SPRING_AI_OLLAMA_BASE_URL: http://ollama:11434
     ports:
       - "9060:8080"
+
+  grafana:
+    image: grafana/grafana:11.0.0
+    container_name: grafana
+    depends_on:
+      project-realization-postgres:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_SECURITY_ALLOW_EMBEDDING: "true"
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_SECURITY_CSRF_TRUSTED_ORIGINS: http://localhost:5173
+      GF_USERS_DEFAULT_THEME: dark
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/etc/grafana/dashboards
 
   stakeholder-service:
     build:
@@ -333,7 +367,7 @@ services:
       - "7687:7687"
     environment:
       NEO4J_AUTH: neo4j/password
-    volumes: # Mounts persistent storage or local folders into the container
+    volumes:
       - neo4j_data:/data
     healthcheck:
       test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "password", "RETURN 1"]
@@ -458,15 +492,17 @@ services:
               capabilities: [gpu]
 
 volumes:
-  neo4j_data: {}
   stakeholder_pg_data: {}
   document_pg_data: {}
   project_pg_data: {}
   project_realization_pg_data: {}
+  project_realization_pgadmin_data: {}
   etcd_data: {}
   minio_data: {}
+  neo4j_data: {}
   influxdb_data: {}
   elasticsearch_data: {}
   cassandra_data: {}
   redis_data: {}
+  grafana_data: {}
   ollama_data: {}

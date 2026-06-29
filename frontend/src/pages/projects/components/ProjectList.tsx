@@ -17,7 +17,7 @@ export function ProjectList({
   if (loading) {
     return (
       <section className="rounded-xl border border-hairline bg-surface-1">
-        <p className="m-0 px-5 py-6 text-sm text-ink-subtle">Učitavanje…</p>
+        <p className="m-0 px-5 py-6 text-sm text-ink-subtle">Učitavanje...</p>
       </section>
     )
   }
