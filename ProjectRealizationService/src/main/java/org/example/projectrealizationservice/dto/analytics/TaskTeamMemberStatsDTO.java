@@ -15,4 +15,6 @@ public class TaskTeamMemberStatsDTO {
     private int completedTasks;
     private int activeTasks;
     private int overdueTasks;
+
+    private double averageTaskDurationSeconds;
 }

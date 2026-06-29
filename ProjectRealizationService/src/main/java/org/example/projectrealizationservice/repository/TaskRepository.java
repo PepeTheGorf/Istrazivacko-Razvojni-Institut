@@ -94,12 +94,40 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             FROM Task t
             JOIN t.phase p
             WHERE t.project = :project
+            AND (:memberId IS NULL OR EXISTS (
+                SELECT 1 FROM TaskAssignment ta WHERE ta.task = t AND ta.assigneeId = :memberId
+            ))
+            AND t.id = COALESCE(:taskId, t.id)
+            AND t.endDate >= COALESCE(:from, t.endDate)
+            AND t.startDate <= COALESCE(:to, t.startDate)
             GROUP BY p.name, p.order
             ORDER BY p.order ASC, p.name ASC
             """)
-    List<PhaseTaskCountAggregate> aggregatePhaseTaskCountsByProject(@Param("project") Project project);
+    List<PhaseTaskCountAggregate> aggregatePhaseTaskCountsByProject(
+            @Param("project") Project project,
+            @Param("memberId") Long memberId,
+            @Param("taskId") Long taskId,
+            @Param("from") OffsetDateTime from,
+            @Param("to") OffsetDateTime to
+    );
 
-    Integer countTasksByProject(Project project);
+    @Query("""
+            SELECT COUNT(t) FROM Task t
+            WHERE t.project = :project
+            AND (:memberId IS NULL OR EXISTS (
+                SELECT 1 FROM TaskAssignment ta WHERE ta.task = t AND ta.assigneeId = :memberId
+            ))
+            AND t.id = COALESCE(:taskId, t.id)
+            AND t.endDate >= COALESCE(:from, t.endDate)
+            AND t.startDate <= COALESCE(:to, t.startDate)
+            """)
+    Integer countTasksByProject(
+            @Param("project") Project project,
+            @Param("memberId") Long memberId,
+            @Param("taskId") Long taskId,
+            @Param("from") OffsetDateTime from,
+            @Param("to") OffsetDateTime to
+    );
     
     @Query("""
             SELECT COUNT(t) FROM Task t
@@ -109,9 +137,42 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
                 SELECT 1 FROM Phase later
                 WHERE later.workflow = t.workflow AND later.order > p.order
             )
+            AND (:memberId IS NULL OR EXISTS (
+                SELECT 1 FROM TaskAssignment ta WHERE ta.task = t AND ta.assigneeId = :memberId
+            ))
+            AND t.id = COALESCE(:taskId, t.id)
+            AND t.endDate >= COALESCE(:from, t.endDate)
+            AND t.startDate <= COALESCE(:to, t.startDate)
             """)
-    Integer countCompletedTasksByProject(@Param("project") Project project);
+    Integer countCompletedTasksByProject(
+            @Param("project") Project project,
+            @Param("memberId") Long memberId,
+            @Param("taskId") Long taskId,
+            @Param("from") OffsetDateTime from,
+            @Param("to") OffsetDateTime to
+    );
 
-    @Query("SELECT COUNT(t) FROM Task t WHERE t.project = :project AND t.endDate < CURRENT_TIMESTAMP")
-    Integer countOverdueTasksByProject(@Param("project") Project project);
+    @Query("""
+            SELECT COUNT(t) FROM Task t
+            JOIN t.phase p
+            WHERE t.project = :project
+            AND t.endDate < CURRENT_TIMESTAMP
+            AND EXISTS (
+                SELECT 1 FROM Phase later
+                WHERE later.workflow = t.workflow AND later.order > p.order
+            )
+            AND (:memberId IS NULL OR EXISTS (
+                SELECT 1 FROM TaskAssignment ta WHERE ta.task = t AND ta.assigneeId = :memberId
+            ))
+            AND t.id = COALESCE(:taskId, t.id)
+            AND t.endDate >= COALESCE(:from, t.endDate)
+            AND t.startDate <= COALESCE(:to, t.startDate)
+            """)
+    Integer countOverdueTasksByProject(
+            @Param("project") Project project,
+            @Param("memberId") Long memberId,
+            @Param("taskId") Long taskId,
+            @Param("from") OffsetDateTime from,
+            @Param("to") OffsetDateTime to
+    );
 }

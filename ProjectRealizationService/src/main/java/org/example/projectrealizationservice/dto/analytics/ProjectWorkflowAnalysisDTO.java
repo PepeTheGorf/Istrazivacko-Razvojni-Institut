@@ -19,4 +19,9 @@ public class ProjectWorkflowAnalysisDTO {
     private int completedTasks;
     private int activeTasks;
     private int overdueTasks;
+
+    private double totalTaskDurationSeconds;
+    private double averageTaskDurationSeconds;
+
+    private List<TaskPhaseHistoryEntryDTO> taskPhaseHistory;
 }
