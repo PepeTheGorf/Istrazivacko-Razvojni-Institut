@@ -3,7 +3,11 @@ import { Link } from 'react-router-dom'
 import { formatDate } from '../../../lib/formatDate'
 import type { AnalyticsFilters, TaskTeamMemberStats } from '../../../types/analytics'
 import type { TaskSummary } from '../../../types/task'
-import { getTasksForMemberId } from '../lib/workflowTaskUtils'
+import {
+  filterMemberTasksByStatus,
+  getTasksForMemberId,
+  type MemberTaskStatusFilter,
+} from '../lib/workflowTaskUtils'
 import { ChevronIcon } from './ChevronIcon'
 
 function SummaryCard({ label, value }: { label: string; value: number }) {
@@ -19,24 +23,42 @@ function MemberStatBadge({
   label,
   value,
   tone,
+  selected,
+  onClick,
 }: {
   label: string
   value: number
   tone: 'completed' | 'active' | 'overdue'
+  selected: boolean
+  onClick: () => void
 }) {
   const toneClasses = {
-    completed: 'border-success/35 bg-success/10 text-success',
-    active: 'border-primary/35 bg-primary/10 text-primary-hover',
-    overdue: 'border-error/35 bg-error/10 text-error',
+    completed: {
+      base: 'border-success/35 bg-success/10 text-success',
+      selected: 'border-success bg-success/25 text-success ring-2 ring-success/40',
+    },
+    active: {
+      base: 'border-primary/35 bg-primary/10 text-primary-hover',
+      selected: 'border-primary bg-primary/25 text-primary-hover ring-2 ring-primary/40',
+    },
+    overdue: {
+      base: 'border-error/35 bg-error/10 text-error',
+      selected: 'border-error bg-error/25 text-error ring-2 ring-error/40',
+    },
   }[tone]
 
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-sm font-medium ${toneClasses}`}
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={selected}
+      className={`inline-flex cursor-pointer items-center gap-1.5 rounded-md border px-2.5 py-1 text-sm font-medium transition-colors hover:opacity-90 ${
+        selected ? toneClasses.selected : toneClasses.base
+      }`}
     >
       <span>{label}</span>
       <span className="font-semibold">{value}</span>
-    </span>
+    </button>
   )
 }
 
@@ -88,10 +110,31 @@ export function TeamMemberAnalytics({
     [teamStats],
   )
   const [collapsedMembers, setCollapsedMembers] = useState<Set<string>>(() => new Set(memberIds))
+  const [memberStatusFilters, setMemberStatusFilters] = useState<
+    Record<string, MemberTaskStatusFilter | null>
+  >({})
 
   useEffect(() => {
     setCollapsedMembers(new Set(memberIds))
+    setMemberStatusFilters({})
   }, [memberIds])
+
+  function toggleMemberStatusFilter(
+    memberKey: string,
+    status: MemberTaskStatusFilter,
+  ) {
+    setMemberStatusFilters((prev) => {
+      const nextFilter = prev[memberKey] === status ? null : status
+      if (nextFilter) {
+        setCollapsedMembers((collapsed) => {
+          const next = new Set(collapsed)
+          next.delete(memberKey)
+          return next
+        })
+      }
+      return { ...prev, [memberKey]: nextFilter }
+    })
+  }
 
   function toggleMember(memberId: string) {
     setCollapsedMembers((prev) => {
@@ -126,7 +169,11 @@ export function TeamMemberAnalytics({
         {teamStats.map((member) => {
           const memberKey = String(member.memberId)
           const expanded = !collapsedMembers.has(memberKey)
-          const memberTasks = getTasksForMemberId(projectTasks, member.memberId, filters)
+          const statusFilter = memberStatusFilters[memberKey] ?? null
+          const memberTasks = filterMemberTasksByStatus(
+            getTasksForMemberId(projectTasks, member.memberId, filters),
+            statusFilter,
+          )
 
           return (
             <article
@@ -149,9 +196,27 @@ export function TeamMemberAnalytics({
               </button>
 
               <div className="mt-2 flex flex-wrap gap-2 border-t border-hairline px-4 pb-3 pt-3">
-                <MemberStatBadge label="Završeno" value={member.completedTasks} tone="completed" />
-                <MemberStatBadge label="Aktivno" value={member.activeTasks} tone="active" />
-                <MemberStatBadge label="Prekoračeno" value={member.overdueTasks} tone="overdue" />
+                <MemberStatBadge
+                  label="Završeno"
+                  value={member.completedTasks}
+                  tone="completed"
+                  selected={statusFilter === 'completed'}
+                  onClick={() => toggleMemberStatusFilter(memberKey, 'completed')}
+                />
+                <MemberStatBadge
+                  label="Aktivno"
+                  value={member.activeTasks}
+                  tone="active"
+                  selected={statusFilter === 'active'}
+                  onClick={() => toggleMemberStatusFilter(memberKey, 'active')}
+                />
+                <MemberStatBadge
+                  label="Prekoračeno"
+                  value={member.overdueTasks}
+                  tone="overdue"
+                  selected={statusFilter === 'overdue'}
+                  onClick={() => toggleMemberStatusFilter(memberKey, 'overdue')}
+                />
               </div>
 
               <div
@@ -170,7 +235,9 @@ export function TeamMemberAnalytics({
                     ))
                   ) : (
                     <p className="m-0 text-sm text-ink-muted">
-                      Nema dodeljenih zadataka u ovom projektu.
+                      {statusFilter
+                        ? 'Nema zadataka za izabrani filter.'
+                        : 'Nema dodeljenih zadataka u ovom projektu.'}
                     </p>
                   )}
                 </div>

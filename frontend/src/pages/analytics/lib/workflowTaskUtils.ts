@@ -20,13 +20,30 @@ function matchesTaskFilters(task: TaskSummary, filters?: Partial<AnalyticsFilter
   return true
 }
 
-export function getTasksForPhaseName(
-  projectTasks: TaskSummary[],
+function matchesPhase(
+  task: TaskSummary,
+  phaseId: number,
   phaseName: string,
+  phaseOrder: number,
+) {
+  if (task.phaseId != null) {
+    return task.phaseId === phaseId
+  }
+
+  return task.phaseName === phaseName && task.phaseOrder === phaseOrder
+}
+
+export function getTasksForPhase(
+  projectTasks: TaskSummary[],
+  phaseId: number,
+  phaseName: string,
+  phaseOrder: number,
   filters?: Partial<AnalyticsFilters>,
 ): TaskSummary[] {
   return flattenTasks(projectTasks).filter(
-    (task) => task.phaseName === phaseName && matchesTaskFilters(task, filters),
+    (task) =>
+      matchesPhase(task, phaseId, phaseName, phaseOrder) &&
+      matchesTaskFilters(task, filters),
   )
 }
 
@@ -40,6 +57,27 @@ export function getTasksForMemberId(
   )
 }
 
-export function phaseSectionKey(phaseOrder: number, phaseName: string) {
-  return `${phaseOrder}:${phaseName}`
+export function phaseSectionKey(phaseId: number) {
+  return String(phaseId)
+}
+
+export type MemberTaskStatusFilter = 'completed' | 'active' | 'overdue'
+
+export function matchesMemberTaskStatus(
+  task: TaskSummary,
+  statusFilter?: MemberTaskStatusFilter | null,
+) {
+  if (!statusFilter) return true
+  if (statusFilter === 'completed') return Boolean(task.completed)
+  if (statusFilter === 'active') return !task.completed
+  if (statusFilter === 'overdue') return Boolean(task.overdue)
+  return true
+}
+
+export function filterMemberTasksByStatus(
+  tasks: TaskSummary[],
+  statusFilter?: MemberTaskStatusFilter | null,
+) {
+  if (!statusFilter) return tasks
+  return tasks.filter((task) => matchesMemberTaskStatus(task, statusFilter))
 }

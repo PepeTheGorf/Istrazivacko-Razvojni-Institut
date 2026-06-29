@@ -4,7 +4,7 @@ import { formatDate } from '../../../lib/formatDate'
 import { formatDurationHours } from '../../../lib/formatDuration'
 import type { AnalyticsFilters, ProjectWorkflowAnalysis } from '../../../types/analytics'
 import type { TaskSummary } from '../../../types/task'
-import { getTasksForPhaseName, phaseSectionKey } from '../lib/workflowTaskUtils'
+import { getTasksForPhase, phaseSectionKey } from '../lib/workflowTaskUtils'
 import { ChevronIcon } from './ChevronIcon'
 
 function DurationSummaryCard({ label, seconds }: { label: string; seconds: number }) {
@@ -71,9 +71,18 @@ export function WorkflowPhaseAnalytics({
     () => [...workflow.phaseAnalytics].sort((a, b) => a.phaseOrder - b.phaseOrder),
     [workflow.phaseAnalytics],
   )
+  const duplicatePhaseNames = useMemo(() => {
+    const nameCounts = new Map<string, number>()
+    for (const phase of phases) {
+      nameCounts.set(phase.phaseName, (nameCounts.get(phase.phaseName) ?? 0) + 1)
+    }
+    return new Set(
+      [...nameCounts.entries()].filter(([, count]) => count > 1).map(([name]) => name),
+    )
+  }, [phases])
   const totalTasks = Math.max(workflow.totalTasks, 1)
   const sectionKeys = useMemo(
-    () => phases.map((phase) => phaseSectionKey(phase.phaseOrder, phase.phaseName)),
+    () => phases.map((phase) => phaseSectionKey(phase.phaseId)),
     [phases],
   )
   const [collapsedPhases, setCollapsedPhases] = useState<Set<string>>(() => new Set(sectionKeys))
@@ -145,9 +154,18 @@ export function WorkflowPhaseAnalytics({
           <section className="grid gap-3">
             <h2 className="m-0 text-base font-semibold text-ink">Zadaci po fazama</h2>
             {phases.map((phase) => {
-              const sectionKey = phaseSectionKey(phase.phaseOrder, phase.phaseName)
+              const sectionKey = phaseSectionKey(phase.phaseId)
               const expanded = !collapsedPhases.has(sectionKey)
-              const phaseTasks = getTasksForPhaseName(projectTasks, phase.phaseName, filters)
+              const phaseTasks = getTasksForPhase(
+                projectTasks,
+                phase.phaseId,
+                phase.phaseName,
+                phase.phaseOrder,
+                filters,
+              )
+              const phaseLabel = duplicatePhaseNames.has(phase.phaseName)
+                ? `${phase.phaseName} (#${phase.phaseOrder})`
+                : phase.phaseName
 
               return (
                 <article
@@ -162,7 +180,7 @@ export function WorkflowPhaseAnalytics({
                   >
                     <div className="flex min-w-0 items-center gap-2.5">
                       <ChevronIcon expanded={expanded} />
-                      <span className="truncate font-medium text-ink">{phase.phaseName}</span>
+                      <span className="truncate font-medium text-ink">{phaseLabel}</span>
                     </div>
                     <span className="shrink-0 text-sm text-ink-muted">
                       {phase.currentTaskCount}/{totalTasks}
@@ -205,9 +223,13 @@ export function WorkflowPhaseAnalytics({
               </thead>
               <tbody>
                 {phases.map((phase) => (
-                  <tr key={phaseSectionKey(phase.phaseOrder, phase.phaseName)} className="border-t border-hairline">
+                  <tr key={phase.phaseId} className="border-t border-hairline">
                     <td className="px-4 py-3">{phase.phaseOrder}</td>
-                    <td className="px-4 py-3 text-ink">{phase.phaseName}</td>
+                    <td className="px-4 py-3 text-ink">
+                      {duplicatePhaseNames.has(phase.phaseName)
+                        ? `${phase.phaseName} (#${phase.phaseOrder})`
+                        : phase.phaseName}
+                    </td>
                     <td className="px-4 py-3">{phase.currentTaskCount}</td>
                     <td className="px-4 py-3">{formatDurationHours(phase.averageSecondsInPhase)}</td>
                   </tr>
