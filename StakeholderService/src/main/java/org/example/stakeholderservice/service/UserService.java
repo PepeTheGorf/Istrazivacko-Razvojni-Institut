@@ -6,4 +6,6 @@ import java.util.List;
 
 public interface UserService {
     List<UserDTO> getAllTeamMembers();
+
+    UserDTO getUserById(Long userId);
 }
