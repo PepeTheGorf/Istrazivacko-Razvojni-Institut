@@ -10,12 +10,14 @@ import org.example.projectrealizationservice.repository.*;
 import org.example.projectrealizationservice.security.ResourceAuthorization;
 import org.example.projectrealizationservice.security.SecurityUtils;
 import org.example.projectrealizationservice.service.TaskService;
+import org.example.projectrealizationservice.validation.TaskDateValidator;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.Comparator;
 import java.util.List;
@@ -40,6 +42,7 @@ public class TaskServiceImpl implements TaskService {
     private final CacheManager cacheManager;
     
     private final TransitionConditionEvaluatorImpl transitionConditionEvaluator;
+    private final TaskDateValidator taskDateValidator;
 
     @Override
     @CacheEvict(value = "tasks-summary", key = "#taskCreation.projectId")
@@ -47,17 +50,18 @@ public class TaskServiceImpl implements TaskService {
         Project project = findAccessibleProjectOrThrow(taskCreation.getProjectId());
         Long creatorId = ResourceAuthorization.requireCurrentUserId();
 
+        Task parent = null;
         Task.TaskBuilder taskBuilder = Task.builder()
                 .name(taskCreation.getName())
                 .description(taskCreation.getDescription())
                 .creatorId(creatorId)
                 .project(project)
-                .startDate(OffsetDateTime.now())
+                .startDate(taskCreation.getStartDate() != null ? taskCreation.getStartDate() : OffsetDateTime.now())
                 .endDate(taskCreation.getEndDate())
                 .phaseChangeDate(OffsetDateTime.now());
 
         if (taskCreation.getParentTaskId() != null) {
-            Task parent = findAccessibleTaskOrThrow(taskCreation.getParentTaskId());
+            parent = findAccessibleTaskOrThrow(taskCreation.getParentTaskId());
             if (parent.getProject() == null || !Objects.equals(parent.getProject().getId(), project.getId())) {
                 throw new RuntimeException("Parent task must belong to the same project.");
             }
@@ -70,7 +74,9 @@ public class TaskServiceImpl implements TaskService {
             applyWorkflowAndPhase(taskBuilder, workflow, null);
         }
 
-        Task task = taskRepository.save(taskBuilder.build());
+        Task task = taskBuilder.build();
+        taskDateValidator.validate(task, project, parent);
+        task = taskRepository.save(task);
         if (taskCreation.getAssigneeId() != null) {
             assignTaskToUser(TaskAssignmentDTO.builder()
                     .taskId(task.getId())
@@ -87,9 +93,13 @@ public class TaskServiceImpl implements TaskService {
 
         existing.setName(taskCreation.getName());
         existing.setDescription(taskCreation.getDescription());
+        if (taskCreation.getStartDate() != null) {
+            existing.setStartDate(taskCreation.getStartDate());
+        }
         if (taskCreation.getEndDate() != null) {
             existing.setEndDate(taskCreation.getEndDate());
         }
+        taskDateValidator.validate(existing, existing.getProject(), existing.getParentTask());
         taskRepository.save(existing);
         evictProjectTasksCache(existing);
     }
@@ -263,9 +273,33 @@ public class TaskServiceImpl implements TaskService {
             throw new RuntimeException("Transition conditions not met for moving task to the next phase.");
         }
 
+        Long userId = SecurityUtils.getCurrentUserId();
+        if (userId == null) {
+            throw new RuntimeException("Unauthenticated user cannot perform this action.");
+        }
+        if (task.getWorkflow() == null) {
+            throw new RuntimeException("Task has no workflow.");
+        }
+        
+        OffsetDateTime previousPhaseChangeDate = task.getPhaseChangeDate();
+
+        Long oldPhaseId = currentPhase.getId();
+        OffsetDateTime transitionedAt = OffsetDateTime.now();
+
+        Duration timeInOldPhase = Duration.between(previousPhaseChangeDate, transitionedAt);
+        
         task.setPhase(phase);
-        task.setPhaseChangeDate(OffsetDateTime.now());
+        task.setPhaseChangeDate(transitionedAt);
         taskRepository.save(task);
+        taskRepository.addTaskPhaseTransition(
+                task.getId(),
+                oldPhaseId,
+                phase.getId(),
+                task.getWorkflow().getId(),
+                userId,
+                transitionedAt,
+                timeInOldPhase.toSeconds()
+        );
     }
 
     private Task findAccessibleTaskOrThrow(Long taskId) {

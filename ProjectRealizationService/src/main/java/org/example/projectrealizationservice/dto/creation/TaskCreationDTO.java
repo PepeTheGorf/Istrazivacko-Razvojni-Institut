@@ -16,5 +16,6 @@ public class TaskCreationDTO {
     private Long parentTaskId;
     private Long workflowId;
     private Long assigneeId;
+    private java.time.OffsetDateTime startDate;
     private java.time.OffsetDateTime endDate;
 }

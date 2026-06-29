@@ -62,6 +62,10 @@ public class TaskViewMapper {
 
     public TaskSummaryDTO toTaskSummaryDto(Task task) {
         Long taskId = task.getId();
+        List<TaskAssignment> assignments = taskAssignmentRepository.findByTask_Id(taskId);
+        List<Long> assigneeIds = assignments.stream()
+                .map(TaskAssignment::getAssigneeId)
+                .toList();
 
         List<TaskSummaryDTO> subTasks = taskRepository.findSubtasksByParentTaskId(taskId).stream()
                 .map(this::toTaskSummaryDto)
@@ -73,6 +77,7 @@ public class TaskViewMapper {
                 .description(task.getDescription())
                 .phaseName(task.getPhase() != null ? task.getPhase().getName() : null)
                 .endDate(task.getEndDate())
+                .assigneeIds(assigneeIds)
                 .assigneeNames(List.of())
                 .subTasks(subTasks)
                 .build();

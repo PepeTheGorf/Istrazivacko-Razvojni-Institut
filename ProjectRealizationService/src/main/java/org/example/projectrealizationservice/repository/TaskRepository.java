@@ -1,21 +1,19 @@
 package org.example.projectrealizationservice.repository;
 
+import org.example.projectrealizationservice.model.Phase;
+import org.example.projectrealizationservice.model.Project;
 import org.example.projectrealizationservice.model.Task;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
 @Repository
 public interface TaskRepository extends JpaRepository<Task, Long> {
-
-    @Query(value = """
-        SELECT all_subtasks_completed(:taskId)
-    """, nativeQuery = true)
-    Boolean allSubtasksCompleted(@Param("taskId") Long taskId);
     
     @Query("""
             SELECT t FROM Task t
@@ -67,4 +65,53 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     boolean existsByPhase_Id(Long phaseId);
 
     boolean existsByWorkflow_Id(Long workflowId);
+
+    @Query(value = """
+            SELECT add_task_phase_transition(
+                :taskId,
+                :oldPhaseId,
+                :newPhaseId,
+                :workflowId,
+                :assigneeId,
+                CAST(:transitionedAt AS TIMESTAMPTZ),
+                :duration
+            )
+            """, nativeQuery = true)
+    void addTaskPhaseTransition(
+            @Param("taskId") Long taskId,
+            @Param("oldPhaseId") Long oldPhaseId,
+            @Param("newPhaseId") Long newPhaseId,
+            @Param("workflowId") Long workflowId,
+            @Param("assigneeId") Long assigneeId,
+            @Param("transitionedAt") OffsetDateTime transitionedAt,
+            @Param("duration") Long duration
+    );
+
+    Integer countTasksByPhaseAndProject(Phase phase, Project project);
+
+    @Query("""
+            SELECT p.name AS phaseName, p.order AS phaseOrder, COUNT(t) AS taskCount
+            FROM Task t
+            JOIN t.phase p
+            WHERE t.project = :project
+            GROUP BY p.name, p.order
+            ORDER BY p.order ASC, p.name ASC
+            """)
+    List<PhaseTaskCountAggregate> aggregatePhaseTaskCountsByProject(@Param("project") Project project);
+
+    Integer countTasksByProject(Project project);
+    
+    @Query("""
+            SELECT COUNT(t) FROM Task t
+            JOIN t.phase p
+            WHERE t.project = :project
+            AND NOT EXISTS (
+                SELECT 1 FROM Phase later
+                WHERE later.workflow = t.workflow AND later.order > p.order
+            )
+            """)
+    Integer countCompletedTasksByProject(@Param("project") Project project);
+
+    @Query("SELECT COUNT(t) FROM Task t WHERE t.project = :project AND t.endDate < CURRENT_TIMESTAMP")
+    Integer countOverdueTasksByProject(@Param("project") Project project);
 }

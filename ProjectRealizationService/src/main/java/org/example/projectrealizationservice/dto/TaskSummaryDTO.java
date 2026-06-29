@@ -18,6 +18,7 @@ public class TaskSummaryDTO {
     private String description;
     private String phaseName;
     private OffsetDateTime endDate;
+    private List<Long> assigneeIds;
     private List<String> assigneeNames;
     private List<TaskSummaryDTO> subTasks;
 }
