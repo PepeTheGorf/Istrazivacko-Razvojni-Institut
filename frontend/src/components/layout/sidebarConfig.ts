@@ -13,7 +13,10 @@ export interface SidebarSection {
 export const MANAGER_SIDEBAR_SECTIONS: SidebarSection[] = [
   {
     title: 'Radni Tokovi',
-    items: [{ to: '/projects', label: 'Projekti', end: true }],
+    items: [
+      { to: '/projects', label: 'Projekti', end: true },
+      { to: '/analytics', label: 'Analitika' },
+    ],
   },
   {
     title: 'Resursi',

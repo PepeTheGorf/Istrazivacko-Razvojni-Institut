@@ -102,7 +102,7 @@ export function WorkflowFormWizard({
         nextLabel={
           wizard.activeTab === 'review'
             ? wizard.saving
-              ? 'Čuvanje…'
+              ? 'Čuvanje...'
               : submitLabel
             : wizard.nextLabel
         }

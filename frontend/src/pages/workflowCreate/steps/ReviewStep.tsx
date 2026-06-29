@@ -27,7 +27,7 @@ export function ReviewStep({ name, description, phases, transitionConditions }: 
     <div className="grid w-full gap-8 py-2">
       <div>
         <h2 className="m-0 text-xl font-semibold tracking-tight text-ink md:text-2xl">
-          {name || '—'}
+          {name || 'Bez naziva'}
         </h2>
         <p className="m-0 mt-2 text-sm text-ink-subtle md:text-base">
           {description.trim() || 'Radni tok bez opisa.'}
@@ -52,7 +52,7 @@ export function ReviewStep({ name, description, phases, transitionConditions }: 
                 </div>
                 {index < sorted.length - 1 && (
                   <span className="text-lg text-ink-tertiary select-none" aria-hidden>
-                    →
+                    -
                   </span>
                 )}
               </div>
@@ -79,7 +79,7 @@ export function ReviewStep({ name, description, phases, transitionConditions }: 
                 <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                   <span className="text-base font-semibold text-ink">{route.from}</span>
                   <span className="text-ink-tertiary" aria-hidden>
-                    →
+                    u
                   </span>
                   <span className="text-base font-semibold text-ink">{route.to}</span>
                 </div>

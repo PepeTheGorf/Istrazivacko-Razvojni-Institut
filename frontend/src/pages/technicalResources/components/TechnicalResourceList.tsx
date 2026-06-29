@@ -15,7 +15,7 @@ export function TechnicalResourceList({
   onDelete,
 }: TechnicalResourceListProps) {
   if (loading) {
-    return <p className="m-0 text-ink-subtle">Učitavanje…</p>
+    return <p className="m-0 text-ink-subtle">Učitavanje...</p>
   }
 
   if (resources.length === 0) {

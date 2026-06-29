@@ -13,14 +13,9 @@ import type { Workflow } from '../../types/workflow'
 import { CreateTaskDialog } from './components/CreateTaskDialog'
 import { type TaskFormValues } from './components/TaskForm'
 import { formatDate } from '../../lib/formatDate'
+import { toIsoDateTimeOrUndefined } from '../../lib/datetimeInput'
 import { TaskTree } from './components/TaskTree'
 import { useTeamMembers } from './hooks/useTeamMembers'
-
-function toIsoDateTimeOrUndefined(value: string): string | undefined {
-  if (!value) return undefined
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? undefined : date.toISOString()
-}
 
 export function ProjectDetailsPage() {
   const { projectId } = useParams<{ projectId: string }>()
@@ -69,6 +64,7 @@ export function ProjectDetailsPage() {
       const createdTask = await createTask({
         name: values.name.trim(),
         description: values.description.trim(),
+        startDate: toIsoDateTimeOrUndefined(values.startDate),
         endDate: toIsoDateTimeOrUndefined(values.endDate),
         projectId: Number(projectId),
         ...(values.workflowId ? { workflowId: Number(values.workflowId) } : {}),
@@ -149,7 +145,7 @@ export function ProjectDetailsPage() {
         ) : null}
 
         {loading ? (
-          <p className="m-0 text-sm text-ink-subtle">Učitavanje…</p>
+          <p className="m-0 text-sm text-ink-subtle">Učitavanje...</p>
         ) : (
           <section className="rounded-xl border border-hairline bg-surface-1 p-4">
             <div className="flex flex-wrap items-end justify-between gap-3 border-b border-hairline pb-4">
@@ -183,6 +179,10 @@ export function ProjectDetailsPage() {
         workflows={workflows}
         teamMembers={teamMembers}
         loadingTeamMembers={loadingTeamMembers}
+        dateConstraints={{
+          projectStartDate: project?.startDate,
+          projectEndDate: project?.endDate,
+        }}
         onClose={() => setCreateDialogOpen(false)}
         onSubmit={handleCreateTask}
       />

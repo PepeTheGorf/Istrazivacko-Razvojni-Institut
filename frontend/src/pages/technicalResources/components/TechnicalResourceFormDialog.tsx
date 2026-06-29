@@ -100,7 +100,7 @@ export function TechnicalResourceFormDialog({
               Otkaži
             </Button>
             <Button type="submit" icon={resource ? 'edit' : 'add'} disabled={saving}>
-              {saving ? 'Čuvanje…' : resource ? 'Sačuvaj' : 'Kreiraj'}
+              {saving ? 'Čuvanje...' : resource ? 'Sačuvaj' : 'Kreiraj'}
             </Button>
           </div>
         </form>

@@ -16,6 +16,7 @@ import { WorkflowEditWizardPage } from './pages/workflows/WorkflowEditWizardPage
 import { WorkflowsPage } from './pages/workflows/WorkflowsPage'
 import { ReportedProblemsPage } from './pages/reportedProblems/ReportedProblemsPage'
 import { TechnicalResourcesPage } from './pages/technicalResources/TechnicalResourcesPage'
+import { ManagerAnalyticsPage } from './pages/analytics/ManagerAnalyticsPage'
 
 function App() {
   return (
@@ -42,6 +43,7 @@ function App() {
           <Route path="/projects/new" element={<ProjectFormPage />} />
           <Route path="/projects/:projectId/edit" element={<ProjectFormPage />} />
           <Route path="/reported-problems" element={<ReportedProblemsPage />} />
+          <Route path="/analytics" element={<ManagerAnalyticsPage />} />
         </Route>
 
         <Route element={<ProtectedRoute allowedRoles={['ADMINISTRATOR']} />}>

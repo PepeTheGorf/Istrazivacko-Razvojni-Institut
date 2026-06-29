@@ -231,7 +231,7 @@ export function useWorkflowFormWizard({
   const nextLabel =
     activeTab === 'review'
       ? saving
-        ? 'Čuvanje…'
+        ? 'Čuvanje...'
         : nextTabLabel('review')
       : nextTabLabel(activeTab)
 

@@ -44,7 +44,7 @@ export function TransitionConditionTypesModal({
 
         <div className="scrollbar-dark overflow-y-auto px-5 py-4">
           {loading ? (
-            <p className="m-0 text-sm text-ink-subtle">Učitavanje…</p>
+            <p className="m-0 text-sm text-ink-subtle">Učitavanje...</p>
           ) : types.length === 0 ? (
             <p className="m-0 text-sm text-ink-subtle">Nema definisanih tipova uslova.</p>
           ) : (

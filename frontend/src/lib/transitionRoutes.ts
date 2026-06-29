@@ -1,7 +1,7 @@
 import type { TransitionConditionCreation } from '../types/workflow'
 
 export function routeKey(from: string, to: string): string {
-  return `${from}→${to}`
+  return `${from}::${to}`
 }
 
 export function findRoute(

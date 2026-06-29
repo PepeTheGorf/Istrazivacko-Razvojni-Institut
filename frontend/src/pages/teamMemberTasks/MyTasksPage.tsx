@@ -203,7 +203,7 @@ export function MyTasksPage() {
 
         {isLoading ? (
           <section className="rounded-xl border border-hairline bg-surface-1 p-5">
-            <p className="m-0 text-sm text-ink-subtle">Učitavanje…</p>
+            <p className="m-0 text-sm text-ink-subtle">Učitavanje...</p>
           </section>
         ) : projects.length === 0 ? (
           <section className="rounded-xl border border-hairline bg-surface-1 p-5">

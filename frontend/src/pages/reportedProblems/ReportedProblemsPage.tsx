@@ -153,7 +153,7 @@ export function ReportedProblemsPage() {
             onChange={(event) => setSelectedProjectId(event.target.value)}
           >
             <option value="">
-              {loadingProjects ? 'Učitavanje projekata…' : 'Izaberite projekat'}
+              {loadingProjects ? 'Učitavanje projekata...' : 'Izaberite projekat'}
             </option>
             {projects.map((project) => (
               <option key={project.id} value={project.id}>
@@ -173,7 +173,7 @@ export function ReportedProblemsPage() {
               {!selectedProjectId
                 ? 'Prvo izaberite projekat'
                 : loadingTasks
-                  ? 'Učitavanje zadataka…'
+                  ? 'Učitavanje zadataka...'
                   : 'Izaberite zadatak'}
             </option>
             {tasks.map((task) => (
@@ -217,7 +217,7 @@ export function ReportedProblemsPage() {
             ) : null}
 
             {loadingProblems ? (
-              <p className="m-0 text-sm text-ink-subtle">Učitavanje prijava…</p>
+              <p className="m-0 text-sm text-ink-subtle">Učitavanje prijava...</p>
             ) : filteredProblems.length === 0 ? (
               <section className="rounded-xl border border-hairline bg-surface-1 p-6 text-center">
                 <p className="m-0 text-sm text-ink-subtle">

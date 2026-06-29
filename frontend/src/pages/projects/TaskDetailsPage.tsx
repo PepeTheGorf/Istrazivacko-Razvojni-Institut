@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { fetchProjectById } from '../../api/projects'
 import {
   assignTaskToMember,
   createAcceptanceCriterion,
@@ -16,6 +17,8 @@ import { AppShell } from '../../components/layout/AppShell'
 import { Button } from '../../components/ui/Button'
 import { cn } from '../../lib/cn'
 import { formatDate } from '../../lib/formatDate'
+import { toDateTimeInputValue, toIsoDateTimeOrUndefined } from '../../lib/datetimeInput'
+import type { Project } from '../../types/project'
 import type { ProjectTask } from '../../types/task'
 import type { Workflow } from '../../types/workflow'
 import { type TaskFormValues } from './components/TaskForm'
@@ -26,17 +29,12 @@ import { TechnicalResourceAssignPanel } from './components/TechnicalResourceAssi
 import { useTeamMembers } from './hooks/useTeamMembers'
 import { teamMemberNameById } from '../../lib/teamMemberLabel'
 
-function toIsoDateTimeOrUndefined(value: string): string | undefined {
-  if (!value) return undefined
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? undefined : date.toISOString()
-}
-
 function toFormValues(task: ProjectTask): TaskFormValues {
   return {
     name: task.name ?? '',
     description: task.description ?? '',
-    endDate: '',
+    startDate: toDateTimeInputValue(task.startDate),
+    endDate: toDateTimeInputValue(task.endDate),
     workflowId: task.workflow?.id != null ? String(task.workflow.id) : '',
     assigneeId: '',
     acceptanceCriteria:
@@ -57,6 +55,7 @@ export function TaskDetailsPage() {
   const { teamMembers, loading: loadingTeamMembers } = useTeamMembers(canManage)
 
   const [task, setTask] = useState<ProjectTask | null>(null)
+  const [project, setProject] = useState<Project | null>(null)
   const [workflows, setWorkflows] = useState<Workflow[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -71,15 +70,20 @@ export function TaskDetailsPage() {
     setLoading(true)
     setError(null)
     try {
-      const [taskData, workflowData] = await Promise.all([fetchTaskById(taskId), fetchWorkflows()])
+      const [taskData, workflowData, projectData] = await Promise.all([
+        fetchTaskById(taskId),
+        fetchWorkflows(),
+        projectId ? fetchProjectById(projectId) : Promise.resolve(null),
+      ])
       setTask(taskData)
       setWorkflows(workflowData)
+      setProject(projectData)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Učitavanje zadatka nije uspelo')
     } finally {
       setLoading(false)
     }
-  }, [taskId])
+  }, [taskId, projectId])
 
   useEffect(() => {
     void load()
@@ -93,6 +97,7 @@ export function TaskDetailsPage() {
       await updateTask(taskId, {
         name: values.name.trim(),
         description: values.description.trim(),
+        startDate: toIsoDateTimeOrUndefined(values.startDate),
         endDate: toIsoDateTimeOrUndefined(values.endDate),
         projectId: Number(projectId),
         ...(values.workflowId ? { workflowId: Number(values.workflowId) } : {}),
@@ -155,6 +160,7 @@ export function TaskDetailsPage() {
       await createTask({
         name: values.name.trim(),
         description: values.description.trim(),
+        startDate: toIsoDateTimeOrUndefined(values.startDate),
         endDate: toIsoDateTimeOrUndefined(values.endDate),
         projectId: Number(projectId),
         parentTaskId: Number(taskId),
@@ -197,6 +203,17 @@ export function TaskDetailsPage() {
   const criteriaProgress =
     criteria.length > 0 ? Math.round((completedCriteria / criteria.length) * 100) : 0
 
+  const taskDateConstraints = {
+    projectStartDate: project?.startDate,
+    projectEndDate: project?.endDate,
+  }
+
+  const subtaskDateConstraints = {
+    ...taskDateConstraints,
+    parentStartDate: task?.startDate,
+    parentEndDate: task?.endDate,
+  }
+
   return (
     <AppShell>
       <div className="mx-auto grid max-w-6xl gap-6">
@@ -232,7 +249,7 @@ export function TaskDetailsPage() {
                 disabled={deleting}
                 onClick={() => void handleDeleteTask()}
               >
-                {deleting ? 'Brisanje…' : 'Obriši'}
+                {deleting ? 'Brisanje...' : 'Obriši'}
               </Button>
             </div>
           ) : null}
@@ -245,7 +262,7 @@ export function TaskDetailsPage() {
         ) : null}
 
         {loading || !task ? (
-          <p className="m-0 text-sm text-ink-subtle">Učitavanje…</p>
+          <p className="m-0 text-sm text-ink-subtle">Učitavanje...</p>
         ) : (
           <>
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-6">
@@ -448,6 +465,7 @@ export function TaskDetailsPage() {
             teamMembers={teamMembers}
             loadingTeamMembers={loadingTeamMembers}
             initialValues={toFormValues(task)}
+            dateConstraints={taskDateConstraints}
             onClose={() => setEditDialogOpen(false)}
             onSubmit={handleUpdate}
           />
@@ -464,12 +482,14 @@ export function TaskDetailsPage() {
             initialValues={{
               name: '',
               description: '',
+              startDate: '',
               endDate: '',
               workflowId: task.workflow?.id != null ? String(task.workflow.id) : '',
               assigneeId: '',
               acceptanceCriteria: [],
               resourceAssignments: [],
             }}
+            dateConstraints={subtaskDateConstraints}
             createSubmitLabel="Kreiraj pod-zadatak"
             onClose={() => setSubtaskDialogOpen(false)}
             onSubmit={handleCreateSubTask}

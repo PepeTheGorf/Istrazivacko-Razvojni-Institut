@@ -39,7 +39,7 @@ export function WorkflowEditWizardPage() {
   return (
     <AppShell>
       {loading ? (
-        <p className="m-0 text-ink-subtle">Učitavanje…</p>
+        <p className="m-0 text-ink-subtle">Učitavanje...</p>
       ) : error || !workflow?.id ? (
         <div className="grid gap-4">
           <p className="m-0 rounded-md border border-error/35 bg-error/10 px-3 py-3 text-sm text-[#ffb4b4]">

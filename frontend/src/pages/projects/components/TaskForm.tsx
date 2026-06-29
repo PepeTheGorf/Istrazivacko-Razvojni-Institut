@@ -8,10 +8,12 @@ import type { TechnicalResource } from '../../../types/technicalResource'
 import type { Workflow } from '../../../types/workflow'
 import type { TeamMember } from '../../../types/user'
 import { teamMemberLabel } from '../../../lib/teamMemberLabel'
+import { validateTaskDates, type TaskDateConstraints } from '../../../lib/validateTaskDates'
 
 export interface TaskFormValues {
   name: string
   description: string
+  startDate: string
   endDate: string
   workflowId: string
   assigneeId: string
@@ -35,6 +37,7 @@ interface TaskFormProps {
   workflows: Workflow[]
   teamMembers?: TeamMember[]
   loadingTeamMembers?: boolean
+  dateConstraints?: TaskDateConstraints
   initialValues?: TaskFormValues
   onSubmit: (values: TaskFormValues) => Promise<void>
   onCancel?: () => void
@@ -44,6 +47,7 @@ interface TaskFormProps {
 const EMPTY_VALUES: TaskFormValues = {
   name: '',
   description: '',
+  startDate: '',
   endDate: '',
   workflowId: '',
   assigneeId: '',
@@ -59,6 +63,7 @@ export function TaskForm({
   workflows,
   teamMembers = [],
   loadingTeamMembers = false,
+  dateConstraints,
   initialValues,
   onSubmit,
   onCancel,
@@ -163,6 +168,11 @@ export function TaskForm({
       setError('Svaki acceptance criterion mora imati naziv.')
       return
     }
+    const dateError = validateTaskDates(values.startDate, values.endDate, dateConstraints ?? {})
+    if (dateError) {
+      setError(dateError)
+      return
+    }
     setError(null)
     await onSubmit(values)
   }
@@ -212,6 +222,15 @@ export function TaskForm({
           onChange={(event) => setValues((prev) => ({ ...prev, description: event.target.value }))}
         />
         <TextInput
+          label="Datum početka"
+          name="taskStartDate"
+          type="datetime-local"
+          className="[color-scheme:dark]"
+          disabled={!canManage || submitting}
+          value={values.startDate}
+          onChange={(event) => setValues((prev) => ({ ...prev, startDate: event.target.value }))}
+        />
+        <TextInput
           label="Rok završetka"
           name="taskEndDate"
           type="datetime-local"
@@ -245,7 +264,7 @@ export function TaskForm({
             onChange={(event) => setValues((prev) => ({ ...prev, assigneeId: event.target.value }))}
           >
             <option value="">
-              {loadingTeamMembers ? 'Učitavanje članova…' : 'Bez dodeljenog člana'}
+              {loadingTeamMembers ? 'Učitavanje članova...' : 'Bez dodeljenog člana'}
             </option>
             {teamMembers.map((member) => (
               <option key={member.id} value={member.id}>
@@ -381,7 +400,7 @@ export function TaskForm({
               >
                 <option value="">
                   {loadingCatalog
-                    ? 'Učitavanje resursa…'
+                    ? 'Učitavanje resursa...'
                     : availableResources.length === 0
                       ? 'Nema dostupnih resursa'
                       : 'Izaberite resurs'}
@@ -425,7 +444,7 @@ export function TaskForm({
         <div className="flex flex-wrap gap-3">
           <Button type="submit" icon={mode === 'create' ? 'add' : 'edit'} disabled={submitting}>
             {submitting
-              ? 'Čuvanje…'
+              ? 'Čuvanje...'
               : mode === 'create'
                 ? (createSubmitLabel ?? 'Kreiraj zadatak')
                 : 'Sačuvaj izmene'}

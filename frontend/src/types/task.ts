@@ -54,6 +54,7 @@ export interface TaskSummary {
   description?: string
   phaseName?: string
   endDate?: string
+  assigneeIds?: number[]
   assigneeNames?: string[]
   subTasks?: TaskSummary[]
 }
@@ -76,6 +77,7 @@ export interface AssignedTaskSummary {
 export interface TaskCreationPayload {
   name: string
   description?: string
+  startDate?: string
   endDate?: string
   projectId: number
   assigneeId?: number

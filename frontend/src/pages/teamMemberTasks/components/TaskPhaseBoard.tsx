@@ -95,7 +95,7 @@ export function TaskPhaseBoard({
   if (loading) {
     return (
       <section className="rounded-xl border border-hairline bg-surface-1 p-4">
-        <p className="m-0 text-sm text-ink-subtle">Učitavanje faza…</p>
+        <p className="m-0 text-sm text-ink-subtle">Učitavanje faza...</p>
       </section>
     )
   }
@@ -143,7 +143,7 @@ export function TaskPhaseBoard({
           disabled={moving || !selectedPhaseId}
           onClick={() => void handleMove()}
         >
-          {moving ? 'Premeštanje…' : 'Premesti'}
+          {moving ? 'Premeštanje...' : 'Premesti'}
         </Button>
       </div>
 
@@ -206,7 +206,7 @@ export function TaskPhaseBoard({
                 className="rounded-md border border-hairline bg-surface-2 px-3 py-2"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-sm text-ink">→ {transition.toPhaseName}</span>
+                  <span className="text-sm text-ink">U fazu: {transition.toPhaseName}</span>
                   <span className="text-xs text-ink-subtle">
                     {!transition.routeExists
                       ? 'Nema prelaza'

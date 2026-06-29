@@ -80,7 +80,7 @@ export function TeamMemberAssignPanel({
         >
           <option value="">
             {loadingMembers
-              ? 'Učitavanje članova…'
+              ? 'Učitavanje članova...'
               : availableMembers.length === 0
                 ? 'Nema dostupnih članova'
                 : 'Izaberite člana tima'}

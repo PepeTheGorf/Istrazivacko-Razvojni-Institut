@@ -123,7 +123,7 @@ export function ProjectFormPage() {
 
         <section className="rounded-lg border border-hairline bg-surface-1 p-4 md:p-6">
           {loading ? (
-            <p className="m-0 text-sm text-ink-subtle">Učitavanje…</p>
+            <p className="m-0 text-sm text-ink-subtle">Učitavanje...</p>
           ) : (
             <form onSubmit={(e) => void handleSubmit(e)} className="grid max-w-lg gap-4">
               <TextInput
@@ -167,7 +167,7 @@ export function ProjectFormPage() {
                     icon={mode === 'create' ? 'add' : 'edit'}
                     disabled={saving}
                   >
-                    {saving ? 'Čuvanje…' : mode === 'create' ? 'Kreiraj' : 'Sačuvaj'}
+                    {saving ? 'Čuvanje...' : mode === 'create' ? 'Kreiraj' : 'Sačuvaj'}
                   </Button>
                   <Link to="/projects" className="inline-flex">
                     <Button variant="secondary" type="button" disabled={saving}>

@@ -1,0 +1,184 @@
+import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { formatDate } from '../../../lib/formatDate'
+import type { AnalyticsFilters, TaskTeamMemberStats } from '../../../types/analytics'
+import type { TaskSummary } from '../../../types/task'
+import { getTasksForMemberId } from '../lib/workflowTaskUtils'
+import { ChevronIcon } from './ChevronIcon'
+
+function SummaryCard({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-lg border border-hairline bg-surface-1 px-4 py-3">
+      <p className="m-0 text-xs uppercase tracking-wide text-ink-muted">{label}</p>
+      <p className="m-0 mt-1 text-2xl font-semibold text-ink">{value}</p>
+    </div>
+  )
+}
+
+function MemberStatBadge({
+  label,
+  value,
+  tone,
+}: {
+  label: string
+  value: number
+  tone: 'completed' | 'active' | 'overdue'
+}) {
+  const toneClasses = {
+    completed: 'border-success/35 bg-success/10 text-success',
+    active: 'border-primary/35 bg-primary/10 text-primary-hover',
+    overdue: 'border-error/35 bg-error/10 text-error',
+  }[tone]
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-sm font-medium ${toneClasses}`}
+    >
+      <span>{label}</span>
+      <span className="font-semibold">{value}</span>
+    </span>
+  )
+}
+
+function MemberTaskCard({ task, projectId }: { task: TaskSummary; projectId: string }) {
+  const content = (
+    <>
+      <h4 className="m-0 text-sm font-medium text-ink">{task.name}</h4>
+      <p className="m-0 mt-1 text-xs text-ink-subtle">
+        Faza: {task.phaseName?.trim() || 'Nije dodeljena'}
+      </p>
+      <p className="m-0 mt-1 text-xs text-ink-muted">
+        {task.description?.trim() || 'Nema opisa'}
+      </p>
+      <p className="m-0 mt-2 text-xs text-ink-subtle">Rok: {formatDate(task.endDate)}</p>
+    </>
+  )
+
+  if (!task.id) {
+    return (
+      <div className="rounded-lg border border-hairline bg-surface-2 px-4 py-3">{content}</div>
+    )
+  }
+
+  return (
+    <Link
+      to={`/projects/${projectId}/tasks/${task.id}`}
+      className="block rounded-lg border border-hairline bg-surface-2 px-4 py-3 transition-colors hover:border-hairline-strong hover:bg-surface-3"
+    >
+      {content}
+    </Link>
+  )
+}
+
+interface TeamMemberAnalyticsProps {
+  teamStats: TaskTeamMemberStats[]
+  projectTasks: TaskSummary[]
+  projectId: string
+  filters?: Partial<AnalyticsFilters>
+}
+
+export function TeamMemberAnalytics({
+  teamStats,
+  projectTasks,
+  projectId,
+  filters,
+}: TeamMemberAnalyticsProps) {
+  const memberIds = useMemo(
+    () => teamStats.map((member) => String(member.memberId)),
+    [teamStats],
+  )
+  const [collapsedMembers, setCollapsedMembers] = useState<Set<string>>(() => new Set(memberIds))
+
+  useEffect(() => {
+    setCollapsedMembers(new Set(memberIds))
+  }, [memberIds])
+
+  function toggleMember(memberId: string) {
+    setCollapsedMembers((prev) => {
+      const next = new Set(prev)
+      if (next.has(memberId)) next.delete(memberId)
+      else next.add(memberId)
+      return next
+    })
+  }
+
+  const totals = useMemo(
+    () => ({
+      assigned: teamStats.reduce((sum, member) => sum + member.totalAssignedTasks, 0),
+      completed: teamStats.reduce((sum, member) => sum + member.completedTasks, 0),
+      active: teamStats.reduce((sum, member) => sum + member.activeTasks, 0),
+      overdue: teamStats.reduce((sum, member) => sum + member.overdueTasks, 0),
+    }),
+    [teamStats],
+  )
+
+  return (
+    <div className="grid gap-6">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <SummaryCard label="Dodeljeno" value={totals.assigned} />
+        <SummaryCard label="Završeno" value={totals.completed} />
+        <SummaryCard label="Aktivno" value={totals.active} />
+        <SummaryCard label="Prekoračeno" value={totals.overdue} />
+      </div>
+
+      <section className="grid gap-3">
+        <h2 className="m-0 text-base font-semibold text-ink">Članovi tima</h2>
+        {teamStats.map((member) => {
+          const memberKey = String(member.memberId)
+          const expanded = !collapsedMembers.has(memberKey)
+          const memberTasks = getTasksForMemberId(projectTasks, member.memberId, filters)
+
+          return (
+            <article
+              key={member.memberId}
+              className="overflow-hidden rounded-lg border border-hairline bg-surface-1"
+            >
+              <button
+                type="button"
+                onClick={() => toggleMember(memberKey)}
+                aria-expanded={expanded}
+                className="flex w-full cursor-pointer items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-2"
+              >
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <ChevronIcon expanded={expanded} />
+                  <span className="truncate font-medium text-ink">{member.memberName}</span>
+                </div>
+                <span className="shrink-0 text-sm text-ink-muted">
+                  {member.totalAssignedTasks} dodeljeno
+                </span>
+              </button>
+
+              <div className="mt-2 flex flex-wrap gap-2 border-t border-hairline px-4 pb-3 pt-3">
+                <MemberStatBadge label="Završeno" value={member.completedTasks} tone="completed" />
+                <MemberStatBadge label="Aktivno" value={member.activeTasks} tone="active" />
+                <MemberStatBadge label="Prekoračeno" value={member.overdueTasks} tone="overdue" />
+              </div>
+
+              <div
+                className={`overflow-hidden border-t border-hairline transition-all duration-300 ease-out ${
+                  expanded ? 'max-h-[1200px] opacity-100' : 'max-h-0 opacity-0'
+                }`}
+              >
+                <div className="grid gap-3 px-4 py-3">
+                  {memberTasks.length > 0 ? (
+                    memberTasks.map((task) => (
+                      <MemberTaskCard
+                        key={task.id ?? `${task.name}-${task.endDate}`}
+                        task={task}
+                        projectId={projectId}
+                      />
+                    ))
+                  ) : (
+                    <p className="m-0 text-sm text-ink-muted">
+                      Nema dodeljenih zadataka u ovom projektu.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </article>
+          )
+        })}
+      </section>
+    </div>
+  )
+}

@@ -344,7 +344,7 @@ export function MyTaskDetailsPage() {
     return (
       <AppShell>
         <div className="mx-auto max-w-6xl">
-          <p className="m-0 text-sm text-ink-subtle">Učitavanje…</p>
+          <p className="m-0 text-sm text-ink-subtle">Učitavanje...</p>
         </div>
       </AppShell>
     )
@@ -549,7 +549,7 @@ export function MyTaskDetailsPage() {
                     onClick={() => void handleReportProblem()}
                     disabled={submittingProblem || !problemType || !problemDescription.trim()}
                   >
-                    {submittingProblem ? 'Slanje…' : 'Pošalji prijavu'}
+                    {submittingProblem ? 'Slanje...' : 'Pošalji prijavu'}
                   </Button>
                 </div>
               </div>

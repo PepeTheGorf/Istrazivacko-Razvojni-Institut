@@ -129,7 +129,7 @@ export function RegisterPage() {
 
           <div className="grid gap-3 pt-1">
             <Button type="submit" fullWidth disabled={submitting}>
-              {submitting ? 'Registracija…' : 'Registruj se'}
+              {submitting ? 'Registracija...' : 'Registruj se'}
             </Button>
             <p className="m-0 text-center text-sm text-ink-subtle">
               Već imate nalog?{' '}

@@ -11,7 +11,7 @@ interface WorkflowListProps {
 
 export function WorkflowList({ workflows, loading, onDelete }: WorkflowListProps) {
   if (loading) {
-    return <p className="m-0 text-ink-subtle">Učitavanje…</p>
+    return <p className="m-0 text-ink-subtle">Učitavanje...</p>
   }
 
   if (workflows.length === 0) {

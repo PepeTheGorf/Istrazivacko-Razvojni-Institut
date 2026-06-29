@@ -135,7 +135,7 @@ export function TechnicalResourceAssignPanel({
         >
           <option value="">
             {loadingCatalog
-              ? 'Učitavanje…'
+              ? 'Učitavanje...'
               : availableResources.length === 0
                 ? 'Nema resursa'
                 : 'Izaberite resurs'}

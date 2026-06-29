@@ -220,7 +220,7 @@ export function ConditionsStep({
       return
     }
     if (routeExists(transitionConditions, fromPhase, toPhase)) {
-      setFormError('Prelaz za ovaj par faza već postoji. Koristite „Dodaj tip uslova”.')
+      setFormError('Prelaz za ovaj par faza već postoji. Koristite "Dodaj tip uslova".')
       return
     }
     if (formTypeIds.length === 0) {
@@ -324,7 +324,7 @@ export function ConditionsStep({
             value={fromPhase}
             onChange={(e) => handleFromChange(e.target.value)}
           >
-            <option value="">Izaberite fazu…</option>
+            <option value="">Izaberite fazu...</option>
             {phaseOptions.map((name) => (
               <option key={name} value={name}>
                 {name}
@@ -339,7 +339,7 @@ export function ConditionsStep({
             disabled={!fromPhase}
             onChange={(e) => handleToChange(e.target.value)}
           >
-            <option value="">Izaberite fazu…</option>
+            <option value="">Izaberite fazu...</option>
             {toPhaseOptions.map((name) => (
               <option key={name} value={name}>
                 {name}
@@ -352,9 +352,9 @@ export function ConditionsStep({
           <p className="m-0 mt-3 rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-sm text-ink-muted">
             Prelaz{' '}
             <span className="font-medium text-ink">
-              {fromPhase} → {toPhase}
+              {fromPhase} u {toPhase}
             </span>{' '}
-            već postoji — „Dodaj tip uslova” dodaje na postojeći prelaz.
+            već postoji. "Dodaj tip uslova" dodaje na postojeći prelaz.
           </p>
         )}
 
@@ -373,7 +373,7 @@ export function ConditionsStep({
               <option value="">
                 {availableTypesForDropdown.length === 0
                   ? 'Svi tipovi su već dodati'
-                  : 'Izaberite tip…'}
+                  : 'Izaberite tip...'}
               </option>
               {availableTypesForDropdown.map((type) => (
                 <option key={type.id} value={String(type.id)}>
@@ -491,7 +491,7 @@ export function ConditionsStep({
                     >
                       <span className="font-semibold text-ink">{route.from}</span>
                       <span className="text-ink-tertiary" aria-hidden>
-                        →
+                        u
                       </span>
                       <span className="font-semibold text-ink">{route.to}</span>
                     </button>
