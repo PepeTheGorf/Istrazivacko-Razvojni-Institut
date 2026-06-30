@@ -119,6 +119,7 @@ public class SmartDocService {
                             .title(s.getTemplateSection() != null ? s.getTemplateSection().getTitle() : "Bez naslova")
                             .userInput(s.getUserInput())
                             .llmResult(s.getLlmResult())
+                            .refinedResult(s.getRefinedResult())
                             .rating(s.getFeedback() != null ? s.getFeedback().getRating() : null)
                             .feedbackComment(s.getFeedback() != null ? s.getFeedback().getComment() : null)
                             .build())
@@ -226,7 +227,7 @@ public class SmartDocService {
         currentSection.setLlmResult(generatedResult);
         }
 
-        currentSection.setLlmResult(generatedResult);
+        currentSection.setRefinedResult(generatedResult);
         currentSection.setUsedPromptVersion(activeVersion);
 
         documentSectionRepository.save(currentSection);
