@@ -5,16 +5,12 @@ import { Button } from '../../components/ui/Button'
 import { Breadcrumbs } from '../../components/ui/Breadcrumbs'
 import { apiFetch } from '../../api/client'
 import type { SmartTemplate } from '../../types/smartDocs'
-import { PromptManagementModal } from '../../components/smartDocs/PromptManagementModal'
 
 export function TemplateDetailsPage() {
   const { templateId } = useParams()
   const navigate = useNavigate()
   const [template, setTemplate] = useState<SmartTemplate | null>(null)
   
-  // Stanje za modal
-  const [selectedSection, setSelectedSection] = useState<{id: number, title: string} | null>(null)
-
   useEffect(() => {
     apiFetch<SmartTemplate>(`/smart-docs/templates/${templateId}`).then(setTemplate).catch(err=>console.error("Greska:", err))
   }, [templateId])
@@ -38,7 +34,7 @@ export function TemplateDetailsPage() {
         </header>
 
         <div className="grid gap-6">
-          <h2 className="text-lg font-medium text-ink">Sekcije i Promptovi</h2>
+          <h2 className="text-lg font-medium text-ink">Sekcije i promptovi</h2>
           {template.sections.map((section, index) => (
              <div key={section.id} 
               className="group flex items-center justify-between rounded-xl border border-hairline bg-surface-1 p-6 transition-all hover:border-primary/50 hover:shadow-md">
@@ -58,27 +54,15 @@ export function TemplateDetailsPage() {
       <Button 
         variant="primary"
         className="shadow-sm"
-        onClick={(e) => {
-          e.stopPropagation(); 
-          setSelectedSection({ id: section.id!, title: section.title });
-        }}
+        onClick={() => {
+          navigate(`/smart-templates/${templateId}/sections/${section.id}/prompt`);        }}
       >
-        Konfiguriši Prompt
+        Konfiguriši prompt
       </Button>
     </div>
   </div>
 ))}
         </div>
-
-        {/* MODAL POZIV */}
-        {selectedSection && (
-          <PromptManagementModal 
-            isOpen={!!selectedSection}
-            onClose={() => setSelectedSection(null)}
-            sectionId={selectedSection.id}
-            sectionTitle={selectedSection.title}
-          />
-        )}
       </div>
     </AppShell>
   )

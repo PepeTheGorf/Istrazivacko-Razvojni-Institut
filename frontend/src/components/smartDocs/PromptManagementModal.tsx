@@ -106,7 +106,7 @@ export function PromptManagementModal({ isOpen, onClose, sectionId, sectionTitle
                 <tr>
                   <th className="px-4 py-2">v.</th>
                   <th className="px-4 py-2">Tekst (isječak)</th>
-                  <th className="px-4 py-2">Ocena (Prosek)</th>
+                  <th className="px-4 py-2">Ocjena (prosjek)</th>
                   <th className="px-4 py-2">Datum</th>
                   <th className="px-4 py-2 text-right">Akcija</th>
                 </tr>

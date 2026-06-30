@@ -3,13 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { AppShell } from '../../components/layout/AppShell'
 import { TextArea } from '../../components/ui/TextArea'
 import { Button } from '../../components/ui/Button'
-import { 
-  updateSectionInput, 
-  generateSectionContent, 
-  completeDocument, 
-  saveSectionFeedback,
-  updateRefinedResult 
-} from '../../api/smartDocs' 
+import { updateSectionInput, generateSectionContent, completeDocument, saveSectionFeedback, updateRefinedResult } from '../../api/smartDocs' 
 import type { SmartDocument } from '../../types/smartDocs'
 import { apiFetch } from '../../api/client'
 import { Breadcrumbs } from '../../components/ui/Breadcrumbs'
@@ -62,7 +56,7 @@ export function DocumentEditorPage() {
         }
       })
     } catch (err) {
-      console.error("Greška pri čuvanju izmena teksta:", err)
+      console.error("Greška pri čuvanju izmjena teksta:", err)
     }
   }
 
@@ -83,20 +77,20 @@ export function DocumentEditorPage() {
         })
       }
     } catch {
-      alert("Nije uspelo generisanje teksta.")
+      alert("Nije uspjelo generisanje teksta.")
     } finally {
       setGeneratingId(null)
     }
   }
 
   const handleUndo = async (sectionId: number, original: string) => {
-    if (window.confirm("Poništiti vaše izmene i vratiti na originalni AI predlog?")) {
+    if (window.confirm("Poništiti vaše izmjene i vratiti na originalni AI prijedlog?")) {
       await handleRefinedChange(sectionId, original)
     }
   }
 
   const handleComplete = async () => {
-    if (!window.confirm("Finalizacijom dokumenta onemogućavate dalje izmene. Nastaviti?")) return
+    if (!window.confirm("Finalizacijom dokumenta onemogućavate dalje izmjene. Nastavi?")) return
     try {
       await completeDocument(Number(docId))
       navigate('/my-smart-docs')
@@ -117,16 +111,14 @@ export function DocumentEditorPage() {
         })
       }
     } catch {
-      alert("Greška pri čuvanju ocene.")
+      alert("Greška pri čuvanju ocjene.")
     }
   }
 
-  // Prvo proveravamo da li je dokument učitan pre bilo kakve logike
   if (!document) {
     return <AppShell><div className="p-8 text-center text-ink-subtle">Učitavanje editora...</div></AppShell>
   }
 
-  // Validacija feedbacka: svaka generisana sekcija mora imati ocenu i komentar
   const allFeedbackProvided = document.sections.every(section => {
     if (!section.llmResult) return true; 
     const hasRating = section.rating && section.rating > 0;
@@ -156,7 +148,7 @@ export function DocumentEditorPage() {
             <Button  
               onClick={handleComplete} 
               disabled={!allFeedbackProvided}
-              title={!allFeedbackProvided ? "Molimo ostavite ocenu i komentar za sve AI generisane sekcije pre finalizacije." : ""}
+              title={!allFeedbackProvided ? "Molimo ostavite ocjenu i komentar za sve AI generisane sekcije prije finalizacije." : ""}
               className={cn( 
                 "shadow-lg transition-all",
                 !allFeedbackProvided ? "opacity-40 grayscale cursor-not-allowed" : "shadow-primary/20"
@@ -193,6 +185,7 @@ export function DocumentEditorPage() {
                 <div className="grid gap-8 lg:grid-cols-2">
                   <div className="space-y-4">
                     <TextArea
+                      name={`input-${section.id}`}
                       label="Vaš unos / Činjenice za AI"
                       value={section.userInput}
                       onChange={(e) => handleUpdateSection(section.id, e.target.value)}
@@ -242,7 +235,7 @@ export function DocumentEditorPage() {
                         <svg className="mb-3 h-8 w-8 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                         </svg>
-                        Unesite podatke levo i kliknite "Generiši" da započnete AI pisanje.
+                        Unesite podatke lijevo i kliknite "Generiši" da započnete AI pisanje.
                       </div>
                     )}
                   </div>

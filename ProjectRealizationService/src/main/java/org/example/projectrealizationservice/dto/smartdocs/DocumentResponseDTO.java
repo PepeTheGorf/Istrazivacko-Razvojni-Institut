@@ -21,5 +21,6 @@ public class DocumentResponseDTO {
         private String llmResult;
         private Integer rating;
         private String feedbackComment;
+        String refinedResult;
     }
 }

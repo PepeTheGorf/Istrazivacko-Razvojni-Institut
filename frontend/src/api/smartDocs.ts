@@ -110,3 +110,7 @@ export function updateRefinedResult(sectionId: number, refinedResult: string): P
     body: JSON.stringify({ refinedResult }),
   })
 }
+
+export function fetchTemplateById(id: number): Promise<SmartTemplate> {
+  return apiFetch<SmartTemplate>(`/smart-docs/templates/${id}`)
+}
