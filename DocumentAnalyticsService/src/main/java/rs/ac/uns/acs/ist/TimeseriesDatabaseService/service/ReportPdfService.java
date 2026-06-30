@@ -157,8 +157,8 @@ public class ReportPdfService {
         PdfPTable stats = new PdfPTable(lbls.length * 2);
         float[] widths = new float[lbls.length * 2];
         for (int i = 0; i < lbls.length; i++) {
-            widths[i * 2]     = 2.5f; // label
-            widths[i * 2 + 1] = 1f;   // value
+            widths[i * 2]     = 2.5f; 
+            widths[i * 2 + 1] = 1f;   
         }
         stats.setWidths(widths);
         stats.setWidthPercentage(100);
@@ -204,9 +204,71 @@ public class ReportPdfService {
     private void addTopSection(Document doc, Map<String, Long> byDoc, Map<String, Long> byUser,
                                 Map<String, String> docNames, Map<String, String> userNames) throws DocumentException {
         addSection(doc, "Najaktivniji dokumenti");
-        addTopTable(doc, byDoc, docNames);
+        addBarChart(doc, byDoc, docNames);
         addSection(doc, "Najaktivniji korisnici");
-        addTopTable(doc, byUser, userNames);
+        addBarChart(doc, byUser, userNames);
+    }
+
+    private void addBarChart(Document doc, Map<String, Long> counts, Map<String, String> names) throws DocumentException {
+        List<Map.Entry<String, Long>> top = counts.entrySet().stream()
+                .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
+                .limit(10)
+                .collect(Collectors.toList());
+        if (top.isEmpty()) return;
+
+        long max = top.get(0).getValue();
+        PdfPTable chart = new PdfPTable(new float[]{2.8f, 6f, 0.6f});
+        chart.setWidthPercentage(100);
+        chart.setSpacingAfter(8);
+
+        for (Map.Entry<String, Long> e : top) {
+            PdfPCell label = new PdfPCell(new Phrase(truncate(names.getOrDefault(e.getKey(), e.getKey()), 32), F_CELL));
+            label.setBorder(Rectangle.NO_BORDER);
+            label.setVerticalAlignment(Element.ALIGN_MIDDLE);
+            label.setPaddingTop(3);
+            label.setPaddingBottom(3);
+            label.setPaddingRight(6);
+            chart.addCell(label);
+
+            float fraction = max > 0 ? (float) e.getValue() / max : 0f;
+            float filled = Math.max(fraction * 85f, 1.5f);
+            float empty = 100f - filled;
+
+            PdfPTable barWrap = new PdfPTable(2);
+            barWrap.setWidths(new float[]{filled, empty});
+            barWrap.setWidthPercentage(100);
+
+            PdfPCell bar = new PdfPCell();
+            bar.setBackgroundColor(ACCENT);
+            bar.setBorder(Rectangle.NO_BORDER);
+            bar.setFixedHeight(11f);
+            barWrap.addCell(bar);
+
+            PdfPCell spacer = new PdfPCell();
+            spacer.setBorder(Rectangle.NO_BORDER);
+            barWrap.addCell(spacer);
+
+            PdfPCell barCell = new PdfPCell(barWrap);
+            barCell.setBorder(Rectangle.NO_BORDER);
+            barCell.setPaddingTop(3);
+            barCell.setPaddingBottom(3);
+            chart.addCell(barCell);
+
+            PdfPCell val = new PdfPCell(new Phrase(String.valueOf(e.getValue()), F_ACCENT));
+            val.setBorder(Rectangle.NO_BORDER);
+            val.setVerticalAlignment(Element.ALIGN_MIDDLE);
+            val.setHorizontalAlignment(Element.ALIGN_LEFT);
+            val.setPaddingLeft(5);
+            val.setPaddingTop(3);
+            val.setPaddingBottom(3);
+            chart.addCell(val);
+        }
+        doc.add(chart);
+    }
+
+    private String truncate(String value, int len) {
+        if (value == null) return "—";
+        return value.length() > len ? value.substring(0, len) + "…" : value;
     }
 
     private void addTopTable(Document doc, Map<String, Long> counts, Map<String, String> names) throws DocumentException {

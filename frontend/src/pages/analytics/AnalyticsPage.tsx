@@ -1,5 +1,15 @@
 import { useEffect, useState } from 'react'
 import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  LabelList,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
+import {
   getReport,
   getReportByDocument,
   getReportByUser,
@@ -124,7 +134,8 @@ function userLabel(emailOrId: string | undefined, userByEmail: Map<string, Koris
   return emailOrId
 }
 
-function TopList({
+
+function TopBarChart({
   items,
   idKey,
   lookups,
@@ -136,23 +147,49 @@ function TopList({
   if (items.length === 0) {
     return <EmptyState message="Nema podataka za izabrani period" />
   }
+
+  const data = items.map((item) => {
+    const raw = item[idKey]
+    const label =
+      idKey === 'documentId' ? docLabel(raw, lookups.docById) : userLabel(raw, lookups.userByEmail)
+    return { name: truncate(label, 45), full: label, count: item.accessCount }
+  })
+
+  const barHeight = 32
+  const chartHeight = Math.max(data.length * barHeight + 48, 120)
+
   return (
-    <div className="divide-y divide-hairline rounded-md border border-hairline">
-      {items.map((item, idx) => {
-        const raw = item[idKey]
-        const label =
-          idKey === 'documentId'
-            ? docLabel(raw, lookups.docById)
-            : userLabel(raw, lookups.userByEmail)
-        return (
-          <div key={idx} className="flex items-center justify-between gap-3 px-4 py-2.5">
-            <span className="truncate text-sm text-ink">{label}</span>
-            <span className="shrink-0 rounded border border-primary/40 px-2 py-0.5 text-xs text-primary">
-              {item.accessCount}
-            </span>
-          </div>
-        )
-      })}
+    <div className="w-full rounded-md border border-hairline bg-surface-2 p-2" style={{ height: chartHeight }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data} layout="vertical" margin={{ top: 4, right: 48, bottom: 4, left: 4 }} barSize={18}>
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-hairline)" horizontal={false} />
+          <XAxis type="number" allowDecimals={false} tick={{ fontSize: 10, fill: 'var(--color-ink-muted)' }} axisLine={false} tickLine={false} />
+          <YAxis
+            type="category"
+            dataKey="name"
+            width={240}
+            tick={{ fontSize: 11, fill: 'var(--color-ink-muted)' }}
+            axisLine={false}
+            tickLine={false}
+          />
+          <Tooltip
+            formatter={(value) => [value, 'Broj pristupa']}
+            labelFormatter={(_, payload) => payload?.[0]?.payload?.full ?? ''}
+            contentStyle={{
+              fontSize: 12,
+              backgroundColor: 'var(--color-surface-3)',
+              border: '1px solid var(--color-hairline)',
+              color: 'var(--color-ink)',
+              borderRadius: '6px',
+            }}
+            itemStyle={{ color: 'var(--color-ink-muted)' }}
+            cursor={{ fill: 'var(--color-hairline)' }}
+          />
+          <Bar dataKey="count" fill="#4f46e5" radius={[0, 4, 4, 0]}>
+            <LabelList dataKey="count" position="right" style={{ fontSize: 11, fill: 'var(--color-ink-muted)' }} />
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
     </div>
   )
 }
@@ -323,18 +360,18 @@ function PregledTab({ lookups }: { lookups: SharedLookups }) {
             </>
           )}
 
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="flex flex-col gap-6">
             <div className="flex flex-col gap-2">
               <div className="text-xs font-semibold uppercase tracking-wide text-ink-subtle">
                 Najaktivniji dokumenti
               </div>
-              <TopList items={topDocuments} idKey="documentId" lookups={lookups} />
+              <TopBarChart items={topDocuments} idKey="documentId" lookups={lookups} />
             </div>
             <div className="flex flex-col gap-2">
               <div className="text-xs font-semibold uppercase tracking-wide text-ink-subtle">
                 Najaktivniji korisnici
               </div>
-              <TopList items={topUsers} idKey="userId" lookups={lookups} />
+              <TopBarChart items={topUsers} idKey="userId" lookups={lookups} />
             </div>
           </div>
         </>
@@ -468,7 +505,7 @@ function PoDocumentuTab({ lookups }: { lookups: SharedLookups }) {
           {report.accessByUser.length > 0 && (
             <div className="flex flex-col gap-2">
               <div className="text-xs font-semibold uppercase tracking-wide text-ink-subtle">Pristup po korisniku</div>
-              <TopList items={report.accessByUser} idKey="userId" lookups={lookups} />
+              <TopBarChart items={report.accessByUser} idKey="userId" lookups={lookups} />
             </div>
           )}
         </>
@@ -603,7 +640,7 @@ function PoKorisniku({ lookups }: { lookups: SharedLookups }) {
           {report.accessByDocument.length > 0 && (
             <div className="flex flex-col gap-2">
               <div className="text-xs font-semibold uppercase tracking-wide text-ink-subtle">Pristup po dokumentu</div>
-              <TopList items={report.accessByDocument} idKey="documentId" lookups={lookups} />
+              <TopBarChart items={report.accessByDocument} idKey="documentId" lookups={lookups} />
             </div>
           )}
         </>
