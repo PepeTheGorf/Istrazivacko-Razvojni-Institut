@@ -187,13 +187,10 @@ public class DocumentAccessController {
             @RequestParam(required = false, defaultValue = "") String docNames,
             @RequestParam(required = false, defaultValue = "") String userNames) {
         Instant fromTime = from != null ? Instant.parse(from) : service.defaultFrom();
-        Instant toTime = to != null ? Instant.parse(to) : service.defaultTo();
-
+        Instant toTime   = to   != null ? Instant.parse(to)   : service.defaultTo();
         List<DocumentAccess> accesses = service.findAllByTimeRange(fromTime, toTime);
-        Map<String, String> docMap = parseNameMap(docNames);
-        Map<String, String> userMap = parseNameMap(userNames);
-
-        byte[] pdf = pdfService.generateOverallReport(accesses, fromTime, toTime, docMap, userMap);
+        byte[] pdf = pdfService.generateOverallReport(accesses, fromTime, toTime,
+                parseNameMap(docNames), parseNameMap(userNames));
         return pdfResponse(pdf, "izvestaj-pristupa.pdf");
     }
 
@@ -205,15 +202,11 @@ public class DocumentAccessController {
             @RequestParam(required = false, defaultValue = "") String documentName,
             @RequestParam(required = false, defaultValue = "") String userNames) {
         Instant fromTime = from != null ? Instant.parse(from) : service.defaultFrom();
-        Instant toTime = to != null ? Instant.parse(to) : service.defaultTo();
-
+        Instant toTime   = to   != null ? Instant.parse(to)   : service.defaultTo();
         List<DocumentAccess> accesses = service.findByDocumentIdAndTimeRange(documentId, fromTime, toTime);
-        String resolvedName = documentName.isBlank() ? documentId : documentName;
-        Map<String, String> userMap = parseNameMap(userNames);
-
-        byte[] pdf = pdfService.generateDocumentReport(accesses, documentId, resolvedName, fromTime, toTime, userMap);
-        String filename = "izvestaj-dokument-" + resolvedName.replaceAll("[^a-zA-Z0-9]", "_") + ".pdf";
-        return pdfResponse(pdf, filename);
+        String name = documentName.isBlank() ? documentId : documentName;
+        byte[] pdf = pdfService.generateDocumentReport(accesses, documentId, name, fromTime, toTime, parseNameMap(userNames));
+        return pdfResponse(pdf, "izvestaj-dokument.pdf");
     }
 
     @GetMapping(value = "report/by-user/pdf", produces = "application/pdf")
@@ -224,15 +217,11 @@ public class DocumentAccessController {
             @RequestParam(required = false, defaultValue = "") String userName,
             @RequestParam(required = false, defaultValue = "") String docNames) {
         Instant fromTime = from != null ? Instant.parse(from) : service.defaultFrom();
-        Instant toTime = to != null ? Instant.parse(to) : service.defaultTo();
-
+        Instant toTime   = to   != null ? Instant.parse(to)   : service.defaultTo();
         List<DocumentAccess> accesses = service.findByUserIdAndTimeRange(userId, fromTime, toTime);
-        String resolvedName = userName.isBlank() ? userId : userName;
-        Map<String, String> docMap = parseNameMap(docNames);
-
-        byte[] pdf = pdfService.generateUserReport(accesses, userId, resolvedName, fromTime, toTime, docMap);
-        String filename = "izvestaj-korisnik-" + resolvedName.replaceAll("[^a-zA-Z0-9]", "_") + ".pdf";
-        return pdfResponse(pdf, filename);
+        String name = userName.isBlank() ? userId : userName;
+        byte[] pdf = pdfService.generateUserReport(accesses, userId, name, fromTime, toTime, parseNameMap(docNames));
+        return pdfResponse(pdf, "izvestaj-korisnik.pdf");
     }
 
     private ResponseEntity<byte[]> pdfResponse(byte[] pdf, String filename) {
@@ -248,9 +237,7 @@ public class DocumentAccessController {
         if (encoded == null || encoded.isBlank()) return map;
         for (String pair : encoded.split(",")) {
             String[] kv = pair.split("\\|", 2);
-            if (kv.length == 2 && !kv[0].isBlank()) {
-                map.put(kv[0].trim(), kv[1].trim());
-            }
+            if (kv.length == 2 && !kv[0].isBlank()) map.put(kv[0].trim(), kv[1].trim());
         }
         return map;
     }

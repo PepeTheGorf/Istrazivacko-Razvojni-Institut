@@ -24,13 +24,9 @@ public class DokumentVerzijaService {
 
     @Transactional
     public DokumentVerzija createVerzija(Dokument trenutni, UUID sacuvaoId) {
-        int maxBroj = dokumentVerzijaRepository.findTopByDokumentIdOrderByVerzijaBrojDesc(trenutni.getId())
-                .map(DokumentVerzija::getVerzijaBroj)
-                .orElse(0);
-
         DokumentVerzija verzija = DokumentVerzija.builder()
                 .dokumentId(trenutni.getId())
-                .verzijaBroj(maxBroj + 1)
+                .verzijaBroj(0)
                 .naslov(trenutni.getNaslov())
                 .sadrzaj(trenutni.getSadrzaj())
                 .sacuvaoId(sacuvaoId)

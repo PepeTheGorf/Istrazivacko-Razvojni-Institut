@@ -17,6 +17,19 @@ public interface DokumentRepository extends JpaRepository<Dokument, UUID> {
     List<Dokument> findByProjektId(UUID projektId);
 
     @Query(value = """
+            SELECT DISTINCT d.* FROM dokumenti d
+            LEFT JOIN prava_pristupa pp_dok
+                ON pp_dok.dokument_id = d.id AND pp_dok.korisnik_id = :korisnikId
+            LEFT JOIN prava_pristupa pp_proj
+                ON pp_proj.projekat_id = d.projekt_id AND pp_proj.korisnik_id = :korisnikId
+            WHERE
+                (d.author_id = :korisnikId AND COALESCE(pp_dok.nivo, '') != 'ZABRANA')
+                OR (pp_dok.id IS NOT NULL AND pp_dok.nivo != 'ZABRANA')
+                OR (pp_proj.id IS NOT NULL AND pp_proj.nivo != 'ZABRANA' AND pp_dok.id IS NULL)
+            """, nativeQuery = true)
+    List<Dokument> findDokumentiZaKorisnika(@Param("korisnikId") UUID korisnikId);
+
+    @Query(value = """
             SELECT * FROM (
                 SELECT DISTINCT d.*,
                     CASE WHEN CAST(:naslov AS text) IS NULL THEN 0 ELSE similarity(d.naslov, CAST(:naslov AS text)) END AS _sim
