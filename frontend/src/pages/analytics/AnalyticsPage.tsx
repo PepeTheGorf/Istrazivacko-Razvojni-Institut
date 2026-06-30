@@ -113,7 +113,7 @@ interface SharedLookups {
 
 function docLabel(id: string | undefined, docById: Map<string, Dokument>): string {
   if (!id) return '—'
-  const doc = docById.get(id)
+  const doc = docById.get(id) ?? docById.get(String(id))
   return doc ? doc.naslov : truncate(id, 24)
 }
 
@@ -160,9 +160,7 @@ function TopList({
 const selectClass =
   'min-h-9 w-full rounded-md border border-hairline bg-surface-1 px-3 py-2 text-sm text-ink focus:border-hairline-strong focus:outline-2 focus:outline-primary-focus/50 disabled:opacity-50'
 
-// ────────────────────────────────────────────────────────────
-// Tab 1 — Pregled pristupa
-// ────────────────────────────────────────────────────────────
+
 
 const ACCESS_PAGE_SIZE = 20
 
@@ -345,9 +343,7 @@ function PregledTab({ lookups }: { lookups: SharedLookups }) {
   )
 }
 
-// ────────────────────────────────────────────────────────────
-// Tab 2 — Po dokumentu
-// ────────────────────────────────────────────────────────────
+
 
 function PoDocumentuTab({ lookups }: { lookups: SharedLookups }) {
   const [selectedDocId, setSelectedDocId] = useState('')
@@ -481,9 +477,7 @@ function PoDocumentuTab({ lookups }: { lookups: SharedLookups }) {
   )
 }
 
-// ────────────────────────────────────────────────────────────
-// Tab 3 — Po korisniku
-// ────────────────────────────────────────────────────────────
+
 
 function PoKorisniku({ lookups }: { lookups: SharedLookups }) {
   const [selectedUserId, setSelectedUserId] = useState('')
@@ -515,7 +509,7 @@ function PoKorisniku({ lookups }: { lookups: SharedLookups }) {
     setPdfLoading(true)
     try {
       const u = lookups.userByEmail.get(selectedUserId)
-      const userName = u ? `${u.name} ${u.surname} (${u.email})` : selectedUserId
+      const userName = u ? `${u.name} ${u.surname}` : selectedUserId
       const docNames = Object.fromEntries(Array.from(lookups.docById.entries()).map(([id, d]) => [id, d.naslov]))
       await downloadUserReportPdf(selectedUserId, userName, toISOString(from), toISOString(to, true), docNames)
     } catch (err) {
@@ -618,21 +612,21 @@ function PoKorisniku({ lookups }: { lookups: SharedLookups }) {
   )
 }
 
-// ────────────────────────────────────────────────────────────
-// Root page
-// ────────────────────────────────────────────────────────────
+
 
 export function AnalyticsPage() {
   const [activeTab, setActiveTab] = useState<Tab>('PREGLED')
   const [lookups, setLookups] = useState<SharedLookups>({ docById: new Map(), userByEmail: new Map() })
 
   useEffect(() => {
-    Promise.all([fetchDocuments(), fetchAllUsers()]).then(([docs, users]) => {
+    Promise.allSettled([fetchDocuments(), fetchAllUsers()]).then(([docsResult, usersResult]) => {
+      const docs = docsResult.status === 'fulfilled' ? docsResult.value : []
+      const users = usersResult.status === 'fulfilled' ? usersResult.value : []
       setLookups({
-        docById: new Map(docs.map((d) => [d.id, d])),
+        docById: new Map(docs.map((d) => [String(d.id), d])),
         userByEmail: new Map(users.map((u) => [u.email, u])),
       })
-    }).catch(() => {})
+    })
   }, [])
 
   const tabs: { id: Tab; label: string }[] = [
@@ -655,11 +649,10 @@ export function AnalyticsPage() {
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
-                className={`-mb-px border-b-2 px-4 py-3 text-sm font-medium transition-colors cursor-pointer ${
-                  activeTab === tab.id
+                className={`-mb-px border-b-2 px-4 py-3 text-sm font-medium transition-colors cursor-pointer ${activeTab === tab.id
                     ? 'border-primary text-primary'
                     : 'border-transparent text-ink-muted hover:text-ink'
-                }`}
+                  }`}
               >
                 {tab.label}
               </button>

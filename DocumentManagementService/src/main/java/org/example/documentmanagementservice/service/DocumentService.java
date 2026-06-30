@@ -297,25 +297,22 @@ public class DocumentService {
         String projectId = dokument.getProjektId() != null ? dokument.getProjektId().toString() : "";
         long fileSizeBytes = dokument.getSadrzaj() != null ? dokument.getSadrzaj().getBytes(StandardCharsets.UTF_8).length : 0L;
 
-        // Build headers in the request thread before handing off — RequestContextHolder is not available in new threads
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
 
-        new Thread(() -> {
-            try {
-                Map<String, Object> payload = new java.util.HashMap<>();
-                payload.put("user_id", userId);
-                payload.put("document_id", documentId);
-                payload.put("project_id", projectId);
-                payload.put("action_type", "VIEW");
-                payload.put("session_duration_sec", 0L);
-                payload.put("file_size_bytes", fileSizeBytes);
-                payload.put("created", Instant.now().toString());
-                restTemplate.postForObject(analyticsServiceUrl, new HttpEntity<>(payload, headers), Object.class);
-            } catch (Exception ex) {
-                log.error("Failed to record document access analytics - continuing", ex);
-            }
-        }).start();
+        try {
+            Map<String, Object> payload = new java.util.HashMap<>();
+            payload.put("user_id", userId);
+            payload.put("document_id", documentId);
+            payload.put("project_id", projectId);
+            payload.put("action_type", "VIEW");
+            payload.put("session_duration_sec", 0L);
+            payload.put("file_size_bytes", fileSizeBytes);
+            payload.put("created", Instant.now().toString());
+            restTemplate.postForObject(analyticsServiceUrl, new HttpEntity<>(payload, headers), Object.class);
+        } catch (Exception ex) {
+            log.error("Failed to record document access analytics - continuing", ex);
+        }
     }
 
     private String extractCurrentUserId() {
@@ -400,9 +397,7 @@ public class DocumentService {
 
     public java.util.List<Dokument> listForKorisnik(String rawKorisnikId) {
         UUID korisnikUuid = resolveKorisnikId(rawKorisnikId);
-        return dokumentRepository.findAll().stream()
-                .filter(doc -> pravaPristupaService.checkAccess(korisnikUuid, doc.getId()) != null)
-                .toList();
+        return dokumentRepository.findDokumentiZaKorisnika(korisnikUuid);
     }
 
     private UUID resolveKorisnikId(String rawId) {

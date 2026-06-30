@@ -143,7 +143,7 @@ export function downloadDocumentReportPdf(
     documentName,
     userNames: encodeNameMap(userNames),
   })
-  return downloadPdf(`/document-access.json/report/by-document/pdf?${params}`, `izvestaj-${documentName}.pdf`)
+  return downloadPdf(`/document-access.json/report/by-document/pdf?${params}`, `izvestaj-${slugify(documentName)}.pdf`)
 }
 
 export function downloadUserReportPdf(
@@ -158,5 +158,9 @@ export function downloadUserReportPdf(
     userName,
     docNames: encodeNameMap(docNames),
   })
-  return downloadPdf(`/document-access.json/report/by-user/pdf?${params}`, `izvestaj-${userName}.pdf`)
+  return downloadPdf(`/document-access.json/report/by-user/pdf?${params}`, `izvestaj-${slugify(userName)}.pdf`)
+}
+
+function slugify(s: string): string {
+  return s.replace(/[()@]/g, '').replace(/\s+/g, '-').replace(/[^a-zA-Z0-9\-_.]/g, '').slice(0, 60)
 }
