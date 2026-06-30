@@ -105,20 +105,20 @@ services:
     ports:
       - "8082:8082"
 
-  grafana:
-    build:
-      context: ./grafana
-      dockerfile: Dockerfile
-    image: document-management-grafana:latest
-    container_name: grafana
-    depends_on:
-      influxdb:
-        condition: service_healthy
-    ports:
-      - "3000:3000"
-    environment:
-      GF_SECURITY_ADMIN_PASSWORD: admin
-      GF_PATHS_PROVISIONING: /etc/grafana/provisioning
+  #grafana:
+    #build:
+      #context: ./grafana
+      #dockerfile: Dockerfile
+    #image: document-management-grafana:latest
+    #container_name: grafana
+    #depends_on:
+      #influxdb:
+       # condition: service_healthy
+    #ports:
+      #- "3000:3000"
+    #environment:
+      #GF_SECURITY_ADMIN_PASSWORD: admin
+      #GF_PATHS_PROVISIONING: /etc/grafana/provisioning
 
   project-realization-postgres:
     image: postgres:16

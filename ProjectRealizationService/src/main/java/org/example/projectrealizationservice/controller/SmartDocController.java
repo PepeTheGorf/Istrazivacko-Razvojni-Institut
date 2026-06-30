@@ -189,4 +189,18 @@ public ResponseEntity<SmartTemplateDTO> getTemplateById(@PathVariable Long id) {
         return ResponseEntity.status(404).body(null);
     }
 }
+
+@PutMapping("/sections/{sectionId}/refined")
+@PreAuthorize("hasRole('TEAM_MEMBER')")
+public ResponseEntity<?> updateRefinedResult(
+        @PathVariable Long sectionId, 
+        @RequestBody Map<String, String> payload) {
+    try {
+        String text = payload.get("refinedResult");
+        smartDocService.updateRefinedResult(sectionId, text);
+        return ResponseEntity.ok().build();
+    } catch (Exception e) {
+        return ResponseEntity.badRequest().body(e.getMessage());
+    }
+}
 }
