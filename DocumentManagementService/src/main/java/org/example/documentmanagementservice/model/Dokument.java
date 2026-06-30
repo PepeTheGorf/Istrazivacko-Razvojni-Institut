@@ -42,5 +42,7 @@ public class Dokument {
 
     private Instant createdAt;
 
+    private Instant updatedAt;
+
     private String vectorDocumentId;
 }
