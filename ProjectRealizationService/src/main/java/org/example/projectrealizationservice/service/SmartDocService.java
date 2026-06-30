@@ -332,4 +332,19 @@ public class SmartDocService {
 
         return mapToTemplateDTO(t, getAverageRatingForTemplate(id));
     }
+
+    @Transactional(value = "transactionManager", readOnly = true)
+public List<AiAnalyticsReportDTO> getAiAnalyticsReport(OffsetDateTime start, OffsetDateTime end) {
+    List<Object[]> results = feedbackRepository.getAiAnalyticsRaw(start, end);
+    
+    return results.stream().map(row -> {
+        return AiAnalyticsReportDTO.builder()
+                .templateId(row[0] != null ? ((Number) row[0]).longValue() : 0L)
+                .templateName(row[1] != null ? row[1].toString() : "Nepoznato")
+                .totalGeneratedSections(row[2] != null ? ((Number) row[2]).longValue() : 0L)
+                .averageRating(row[3] != null ? ((Number) row[3]).doubleValue() : 0.0)
+                .avgHumanEditRatio(row[4] != null ? ((Number) row[4]).doubleValue() : 0.0)
+                .build();
+    }).collect(Collectors.toList());
+}
 }

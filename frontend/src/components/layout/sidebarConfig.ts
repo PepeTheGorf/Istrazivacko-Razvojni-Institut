@@ -23,6 +23,7 @@ export const MANAGER_SIDEBAR_SECTIONS: SidebarSection[] = [
     items: [
       { to: '/smart-templates', label: 'Lista Šablona', end: true },
       { to: '/smart-templates/new', label: 'Novi Šablon' },
+      { to: '/ai-analytics', label: 'AI Analitika (Izveštaj)' },
     ],
   },
   {
