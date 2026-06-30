@@ -61,16 +61,23 @@ export function DocumentEditorPage() {
   }
 
   const handleGenerate = async (sectionId: number) => {
-    setGeneratingId(sectionId)
+    const section = document?.sections.find(s => s.id === sectionId);
+    if (!section) return;
+
+    // Ključno: Čuvamo trenutno stanje editora pre nego što ga AI pregazi
+    const textCurrentlyInEditor = section.refinedResult || "";
+
+    setGeneratingId(sectionId);
     try {
-      const response = await generateSectionContent(sectionId)
+      const response = await generateSectionContent(sectionId);
       if (document) {
         setDocument({
           ...document,
           sections: document.sections.map(s => 
             s.id === sectionId ? { 
               ...s, 
-              llmResult: s.llmResult || response.result, 
+              // llmResult sada služi kao historija (prethodna verzija)
+              llmResult: textCurrentlyInEditor || s.llmResult, 
               refinedResult: response.result 
             } : s
           )
@@ -83,9 +90,9 @@ export function DocumentEditorPage() {
     }
   }
 
-  const handleUndo = async (sectionId: number, original: string) => {
-    if (window.confirm("Poništiti vaše izmjene i vratiti na originalni AI prijedlog?")) {
-      await handleRefinedChange(sectionId, original)
+  const handleUndo = async (sectionId: number, previousVersion: string) => {
+    if (window.confirm("Poništiti vaše izmjene i vratiti na prethodnu verziju?")) {
+      await handleRefinedChange(sectionId, previousVersion)
     }
   }
 
@@ -116,23 +123,24 @@ export function DocumentEditorPage() {
   }
 
   if (!document) {
-    return <AppShell><div className="p-8 text-center text-ink-subtle">Učitavanje editora...</div></AppShell>
+    return <AppShell hideSidebar><div className="p-8 text-center text-ink-subtle">Učitavanje editora...</div></AppShell>
   }
 
+  // Validacija sada gleda refinedResult (ono što je zapravo u dokumentu)
   const allFeedbackProvided = document.sections.every(section => {
-    if (!section.llmResult) return true; 
+    if (!section.refinedResult) return true; 
     const hasRating = section.rating && section.rating > 0;
     const hasComment = section.feedbackComment && section.feedbackComment.trim().length > 0;
     return hasRating && hasComment;
   });
 
   const totalSections = document.sections.length
-  const generatedSections = document.sections.filter(s => !!s.llmResult).length
+  const generatedSections = document.sections.filter(s => !!s.refinedResult).length
   const progress = Math.round((generatedSections / totalSections) * 100)
 
   return (
-    <AppShell>
-      <div className="mx-auto max-w-6xl">
+    <AppShell hideSidebar>
+      <div className="mx-auto max-w-[95%]">
         <Breadcrumbs items={[
           { label: 'Moja dokumentacija', to: '/my-smart-docs' },
           { label: 'Interaktivni editor' }
@@ -165,12 +173,15 @@ export function DocumentEditorPage() {
 
         <div className="grid gap-12">
           {document.sections.map((section, index) => {
-            const hasAiResult = !!section.llmResult;
-            const isModified = section.llmResult !== section.refinedResult && hasAiResult;
+            // Izvor istine za prikaz editora je refinedResult
+            const hasAiResult = !!section.refinedResult;
+            
+            // Undo je moguć samo ako u historiji (llmResult) imamo nešto različito od trenutnog
+            const canUndo = !!section.llmResult && section.llmResult !== section.refinedResult;
             
             let buttonLabel = "Generiši tekst";
             if (generatingId === section.id) buttonLabel = "AI razmišlja...";
-            else if (hasAiResult && isModified) buttonLabel = "AI dorada (refine)";
+            else if (hasAiResult && canUndo) buttonLabel = "AI dorada (refine)";
             else if (hasAiResult) buttonLabel = "Regeneriši";
 
             return (
@@ -209,12 +220,15 @@ export function DocumentEditorPage() {
                           <span className="text-[10px] font-bold uppercase tracking-widest text-ink-subtle">
                             AI Predlog (Uredi tekst ispod)
                           </span>
-                          <button 
-                            onClick={() => handleUndo(section.id, section.llmResult!)}
-                            className="text-[10px] font-bold text-primary hover:underline uppercase transition-all"
-                          >
-                            ⟲ Originalna AI verzija
-                          </button>
+                          {/* Dugme se vidi samo ako canUndo (postoji prethodna verzija) */}
+                          {canUndo && (
+                            <button 
+                              onClick={() => handleUndo(section.id, section.llmResult!)}
+                              className="text-[10px] font-bold text-primary hover:underline uppercase transition-all"
+                            >
+                              ⟲ Vrati na prethodnu verziju
+                            </button>
+                          )}
                         </div>
                         <TextArea
                           name={`refined-${section.id}`}

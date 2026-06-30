@@ -222,8 +222,8 @@ public class SmartDocService {
             currentSection.getUserInput(),
             currentSection.getRefinedResult() 
         );
-
-        if (currentSection.getLlmResult() == null) {
+//ovo je radilo
+        /*if (currentSection.getLlmResult() == null) {
         currentSection.setLlmResult(generatedResult);
         }
 
@@ -231,7 +231,17 @@ public class SmartDocService {
         currentSection.setUsedPromptVersion(activeVersion);
 
         documentSectionRepository.save(currentSection);
-        return generatedResult;
+        return generatedResult;*/
+
+if (currentSection.getRefinedResult() != null && !currentSection.getRefinedResult().isBlank()) {
+        currentSection.setLlmResult(currentSection.getRefinedResult());
+    }
+
+    currentSection.setRefinedResult(generatedResult);
+    currentSection.setUsedPromptVersion(activeVersion);
+    
+documentSectionRepository.save(currentSection);
+return generatedResult;
     }
 
     @Transactional("transactionManager")

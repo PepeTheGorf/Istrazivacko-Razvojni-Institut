@@ -193,6 +193,20 @@ public ResponseEntity<SmartTemplateDTO> getTemplateById(@PathVariable Long id) {
     }
 }
 
+@PutMapping("/sections/{sectionId}/refined")
+@PreAuthorize("hasRole('TEAM_MEMBER')")
+public ResponseEntity<?> updateRefinedResult(
+        @PathVariable Long sectionId, 
+        @RequestBody Map<String, String> payload) {
+    try {
+        String text = payload.get("refinedResult");
+        smartDocService.updateRefinedResult(sectionId, text);
+        return ResponseEntity.ok().build();
+    } catch (Exception e) {
+        return ResponseEntity.badRequest().body(e.getMessage());
+    }
+}
+
 @GetMapping("/reports/ai-analytics")
 @PreAuthorize("hasRole('MANAGER')")
 public ResponseEntity<List<AiAnalyticsReportDTO>> getAiReport(
@@ -201,5 +215,6 @@ public ResponseEntity<List<AiAnalyticsReportDTO>> getAiReport(
     return ResponseEntity.ok(smartDocService.getAiAnalyticsReport(
             OffsetDateTime.parse(startDate), 
             OffsetDateTime.parse(endDate)));
+
 }
 }
