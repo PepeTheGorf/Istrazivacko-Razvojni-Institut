@@ -1,8 +1,29 @@
 import type { TaskSummary } from '../../../types/task'
 import type { AnalyticsFilters } from '../../../types/analytics'
+import { toIsoDateTimeOrUndefined } from '../../../lib/datetimeInput'
 
 export function flattenTasks(tasks: TaskSummary[]): TaskSummary[] {
   return tasks.flatMap((task) => [task, ...flattenTasks(task.subTasks ?? [])])
+}
+
+function parseTime(value?: string) {
+  if (!value) return null
+  const time = new Date(value).getTime()
+  return Number.isNaN(time) ? null : time
+}
+
+function matchesDateFilters(task: TaskSummary, filters?: Partial<AnalyticsFilters>) {
+  const from = parseTime(toIsoDateTimeOrUndefined(filters?.from ?? ''))
+  const to = parseTime(toIsoDateTimeOrUndefined(filters?.to ?? ''))
+  if (from == null && to == null) return true
+
+  const end = parseTime(task.endDate)
+  const start = parseTime(task.startDate)
+
+  if (from != null && end != null && end < from) return false
+  if (to != null && start != null && start > to) return false
+
+  return true
 }
 
 function matchesTaskFilters(task: TaskSummary, filters?: Partial<AnalyticsFilters>) {
@@ -17,6 +38,10 @@ function matchesTaskFilters(task: TaskSummary, filters?: Partial<AnalyticsFilter
     return false
   }
 
+  if (!matchesDateFilters(task, filters)) {
+    return false
+  }
+
   return true
 }
 
@@ -26,11 +51,18 @@ function matchesPhase(
   phaseName: string,
   phaseOrder: number,
 ) {
-  if (task.phaseId != null) {
-    return task.phaseId === phaseId
+  const normalizedTaskPhaseId =
+    task.phaseId != null && task.phaseId !== undefined ? Number(task.phaseId) : null
+  const normalizedPhaseId = Number(phaseId)
+
+  if (normalizedTaskPhaseId != null && !Number.isNaN(normalizedTaskPhaseId)) {
+    return normalizedTaskPhaseId === normalizedPhaseId
   }
 
-  return task.phaseName === phaseName && task.phaseOrder === phaseOrder
+  return (
+    task.phaseName === phaseName &&
+    (task.phaseOrder == null || task.phaseOrder === phaseOrder)
+  )
 }
 
 export function getTasksForPhase(
@@ -45,6 +77,13 @@ export function getTasksForPhase(
       matchesPhase(task, phaseId, phaseName, phaseOrder) &&
       matchesTaskFilters(task, filters),
   )
+}
+
+export function getFilteredProjectTasks(
+  projectTasks: TaskSummary[],
+  filters?: Partial<AnalyticsFilters>,
+): TaskSummary[] {
+  return flattenTasks(projectTasks).filter((task) => matchesTaskFilters(task, filters))
 }
 
 export function getTasksForMemberId(

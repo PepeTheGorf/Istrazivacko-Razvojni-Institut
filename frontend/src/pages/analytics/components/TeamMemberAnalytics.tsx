@@ -1,14 +1,17 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { Button } from '../../../components/ui/Button'
 import { formatDate } from '../../../lib/formatDate'
 import type { AnalyticsFilters, TaskTeamMemberStats } from '../../../types/analytics'
 import type { TaskSummary } from '../../../types/task'
+import { exportTeamMemberAnalyticsPdf } from '../lib/exportAnalyticsPdf'
 import {
   filterMemberTasksByStatus,
   getTasksForMemberId,
   type MemberTaskStatusFilter,
 } from '../lib/workflowTaskUtils'
 import { ChevronIcon } from './ChevronIcon'
+import { TeamMemberStatsChart } from './TeamMemberStatsChart'
 
 function SummaryCard({ label, value }: { label: string; value: number }) {
   return (
@@ -96,6 +99,7 @@ interface TeamMemberAnalyticsProps {
   teamStats: TaskTeamMemberStats[]
   projectTasks: TaskSummary[]
   projectId: string
+  projectName: string
   filters?: Partial<AnalyticsFilters>
 }
 
@@ -103,6 +107,7 @@ export function TeamMemberAnalytics({
   teamStats,
   projectTasks,
   projectId,
+  projectName,
   filters,
 }: TeamMemberAnalyticsProps) {
   const memberIds = useMemo(
@@ -113,6 +118,8 @@ export function TeamMemberAnalytics({
   const [memberStatusFilters, setMemberStatusFilters] = useState<
     Record<string, MemberTaskStatusFilter | null>
   >({})
+  const [exportingPdf, setExportingPdf] = useState(false)
+  const chartRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     setCollapsedMembers(new Set(memberIds))
@@ -155,14 +162,50 @@ export function TeamMemberAnalytics({
     [teamStats],
   )
 
+  async function handleExportPdf() {
+    setExportingPdf(true)
+    try {
+      await exportTeamMemberAnalyticsPdf({
+        projectName,
+        teamStats,
+        filters,
+        chartElement: chartRef.current,
+      })
+    } finally {
+      setExportingPdf(false)
+    }
+  }
+
   return (
     <div className="grid gap-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="m-0 text-base font-semibold text-ink">Pregled statistike</h2>
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={exportingPdf}
+          onClick={() => void handleExportPdf()}
+        >
+          {exportingPdf ? 'Generisanje PDF-a...' : 'Preuzmi PDF'}
+        </Button>
+      </div>
+
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <SummaryCard label="Dodeljeno" value={totals.assigned} />
         <SummaryCard label="Završeno" value={totals.completed} />
         <SummaryCard label="Aktivno" value={totals.active} />
         <SummaryCard label="Prekoračeno" value={totals.overdue} />
       </div>
+
+      <section className="grid gap-3">
+        <h2 className="m-0 text-base font-semibold text-ink">Grafikoni po članovima</h2>
+        <div
+          ref={chartRef}
+          className="rounded-lg border border-hairline bg-surface-1 p-4"
+        >
+          <TeamMemberStatsChart teamStats={teamStats} />
+        </div>
+      </section>
 
       <section className="grid gap-3">
         <h2 className="m-0 text-base font-semibold text-ink">Članovi tima</h2>

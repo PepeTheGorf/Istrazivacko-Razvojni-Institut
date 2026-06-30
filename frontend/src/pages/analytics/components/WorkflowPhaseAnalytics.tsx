@@ -1,11 +1,14 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { Button } from '../../../components/ui/Button'
 import { formatDate } from '../../../lib/formatDate'
 import { formatDurationHours } from '../../../lib/formatDuration'
 import type { AnalyticsFilters, ProjectWorkflowAnalysis } from '../../../types/analytics'
 import type { TaskSummary } from '../../../types/task'
-import { getTasksForPhase, phaseSectionKey } from '../lib/workflowTaskUtils'
+import { exportWorkflowAnalyticsPdf } from '../lib/exportAnalyticsPdf'
+import { getFilteredProjectTasks, getTasksForPhase, phaseSectionKey } from '../lib/workflowTaskUtils'
 import { ChevronIcon } from './ChevronIcon'
+import { PhaseDurationChart } from './PhaseDurationChart'
 
 function DurationSummaryCard({ label, seconds }: { label: string; seconds: number }) {
   return (
@@ -81,15 +84,52 @@ export function WorkflowPhaseAnalytics({
     )
   }, [phases])
   const totalTasks = Math.max(workflow.totalTasks, 1)
+  const tasksByPhase = useMemo(() => {
+    const map = new Map<number, TaskSummary[]>()
+    for (const phase of phases) {
+      map.set(
+        phase.phaseId,
+        getTasksForPhase(
+          projectTasks,
+          phase.phaseId,
+          phase.phaseName,
+          phase.phaseOrder,
+          filters,
+        ),
+      )
+    }
+    return map
+  }, [phases, projectTasks, filters])
+  const visibleTaskCount = useMemo(
+    () => getFilteredProjectTasks(projectTasks, filters).length,
+    [projectTasks, filters],
+  )
   const sectionKeys = useMemo(
     () => phases.map((phase) => phaseSectionKey(phase.phaseId)),
     [phases],
   )
   const [collapsedPhases, setCollapsedPhases] = useState<Set<string>>(() => new Set(sectionKeys))
+  const [exportingPdf, setExportingPdf] = useState(false)
+  const chartRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     setCollapsedPhases(new Set(sectionKeys))
   }, [sectionKeys])
+
+  async function handleExportPdf() {
+    setExportingPdf(true)
+    try {
+      await exportWorkflowAnalyticsPdf({
+        workflow,
+        phases,
+        duplicatePhaseNames,
+        filters,
+        chartElement: chartRef.current,
+      })
+    } finally {
+      setExportingPdf(false)
+    }
+  }
 
   function togglePhase(sectionKey: string) {
     setCollapsedPhases((prev) => {
@@ -102,6 +142,18 @@ export function WorkflowPhaseAnalytics({
 
   return (
     <div className="grid gap-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="m-0 text-base font-semibold text-ink">Pregled statistike</h2>
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={exportingPdf}
+          onClick={() => void handleExportPdf()}
+        >
+          {exportingPdf ? 'Generisanje PDF-a...' : 'Preuzmi PDF'}
+        </Button>
+      </div>
+
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <SummaryCard label="Ukupno zadataka" value={workflow.totalTasks} />
         <SummaryCard label="Završeni" value={workflow.completedTasks} />
@@ -156,13 +208,7 @@ export function WorkflowPhaseAnalytics({
             {phases.map((phase) => {
               const sectionKey = phaseSectionKey(phase.phaseId)
               const expanded = !collapsedPhases.has(sectionKey)
-              const phaseTasks = getTasksForPhase(
-                projectTasks,
-                phase.phaseId,
-                phase.phaseName,
-                phase.phaseOrder,
-                filters,
-              )
+              const phaseTasks = tasksByPhase.get(phase.phaseId) ?? []
               const phaseLabel = duplicatePhaseNames.has(phase.phaseName)
                 ? `${phase.phaseName} (#${phase.phaseOrder})`
                 : phase.phaseName
@@ -183,7 +229,7 @@ export function WorkflowPhaseAnalytics({
                       <span className="truncate font-medium text-ink">{phaseLabel}</span>
                     </div>
                     <span className="shrink-0 text-sm text-ink-muted">
-                      {phase.currentTaskCount}/{totalTasks}
+                      {phaseTasks.length}/{visibleTaskCount || totalTasks}
                     </span>
                   </button>
 
@@ -211,32 +257,15 @@ export function WorkflowPhaseAnalytics({
             })}
           </section>
 
-          <div className="overflow-x-auto rounded-lg border border-hairline">
-            <table className="min-w-full border-collapse text-sm">
-              <thead className="bg-surface-2 text-left text-ink-muted">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Redosled</th>
-                  <th className="px-4 py-3 font-medium">Faza</th>
-                  <th className="px-4 py-3 font-medium">Broj zadataka</th>
-                  <th className="px-4 py-3 font-medium">Prosečno vreme u fazi</th>
-                </tr>
-              </thead>
-              <tbody>
-                {phases.map((phase) => (
-                  <tr key={phase.phaseId} className="border-t border-hairline">
-                    <td className="px-4 py-3">{phase.phaseOrder}</td>
-                    <td className="px-4 py-3 text-ink">
-                      {duplicatePhaseNames.has(phase.phaseName)
-                        ? `${phase.phaseName} (#${phase.phaseOrder})`
-                        : phase.phaseName}
-                    </td>
-                    <td className="px-4 py-3">{phase.currentTaskCount}</td>
-                    <td className="px-4 py-3">{formatDurationHours(phase.averageSecondsInPhase)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <section className="grid gap-3">
+            <h2 className="m-0 text-base font-semibold text-ink">Grafikoni po fazama</h2>
+            <div
+              ref={chartRef}
+              className="rounded-lg border border-hairline bg-surface-1 p-4"
+            >
+              <PhaseDurationChart phases={phases} duplicatePhaseNames={duplicatePhaseNames} />
+            </div>
+          </section>
         </>
       )}
     </div>

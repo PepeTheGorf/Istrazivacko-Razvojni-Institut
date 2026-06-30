@@ -27,7 +27,6 @@ export function ManagerAnalyticsPage() {
     loadingOptions,
     loadingAnalytics,
     error,
-    grafanaDashboardUrl,
     reloadAnalytics,
   } = useManagerAnalyticsPage()
 
@@ -125,19 +124,6 @@ export function ManagerAnalyticsPage() {
           )}
         </div>
 
-        {grafanaDashboardUrl && (
-          <p className="m-0">
-            <a
-              href={grafanaDashboardUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="text-sm text-primary hover:underline"
-            >
-              Otvori grafikon u Grafani
-            </a>
-          </p>
-        )}
-
         {error && (
           <p className="m-0 rounded-md border border-error/35 bg-error/10 px-3 py-3 text-sm text-[#ffb4b4]">
             {error}
@@ -162,6 +148,7 @@ export function ManagerAnalyticsPage() {
             teamStats={teamStats}
             projectTasks={projectTasks}
             projectId={selectedProjectId}
+            projectName={selectedProject?.name ?? workflow?.projectName ?? ''}
             filters={filters}
           />
         )}

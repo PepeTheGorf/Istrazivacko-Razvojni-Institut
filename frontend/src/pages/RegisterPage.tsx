@@ -32,10 +32,10 @@ export function RegisterPage() {
     setSubmitting(true)
 
     try {
-      await register({ name, surname, email, password, teamMemberRole })
+      await register({ name, surname, email, password, role: teamMemberRole })
       const stored = getStoredAuth()
-      if (stored?.user.teamMemberRole) {
-        navigate(getHomePathForRole(stored.user.teamMemberRole), { replace: true })
+      if (stored?.user.role) {
+        navigate(getHomePathForRole(stored.user.role), { replace: true })
       } else {
         navigate('/login', { replace: true })
       }

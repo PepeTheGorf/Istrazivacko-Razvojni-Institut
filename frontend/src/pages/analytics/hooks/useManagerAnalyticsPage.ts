@@ -3,7 +3,6 @@ import { fetchProjectTeamMemberStats, fetchProjectWorkflowAnalytics } from '../.
 import { fetchProjects } from '../../../api/projects'
 import { fetchTasksByProject } from '../../../api/tasks'
 import { toIsoDateTimeOrUndefined } from '../../../lib/datetimeInput'
-import { buildGrafanaDashboardUrl } from '../../../lib/grafana'
 import type {
   AnalyticsFilters,
   AnalyticsStatisticType,
@@ -111,13 +110,23 @@ export function useManagerAnalyticsPage() {
     setLoadingAnalytics(true)
     setError(null)
     try {
+      const tasksPromise = fetchTasksByProject(selectedProjectId)
+
       if (statistic === 'workflow') {
-        const data = await fetchProjectWorkflowAnalytics(selectedProjectId, apiFilters)
+        const [data, tasks] = await Promise.all([
+          fetchProjectWorkflowAnalytics(selectedProjectId, apiFilters),
+          tasksPromise,
+        ])
         setWorkflow(data)
+        setProjectTasks(tasks)
         setTeamStats([])
       } else {
-        const data = await fetchProjectTeamMemberStats(selectedProjectId, apiFilters)
+        const [data, tasks] = await Promise.all([
+          fetchProjectTeamMemberStats(selectedProjectId, apiFilters),
+          tasksPromise,
+        ])
         setTeamStats(data)
+        setProjectTasks(tasks)
         setWorkflow(null)
       }
     } catch (err) {
@@ -132,11 +141,6 @@ export function useManagerAnalyticsPage() {
   }, [loadAnalytics])
 
   const taskOptions = useMemo(() => flattenTasks(projectTasks), [projectTasks])
-
-  const grafanaDashboardUrl = useMemo(() => {
-    if (!selectedProjectId) return null
-    return buildGrafanaDashboardUrl(selectedProjectId, statistic)
-  }, [selectedProjectId, statistic])
 
   const selectedProject = projects.find((project) => String(project.id) === selectedProjectId) ?? null
 
@@ -174,7 +178,6 @@ export function useManagerAnalyticsPage() {
     loadingOptions,
     loadingAnalytics,
     error,
-    grafanaDashboardUrl,
     reloadAnalytics: loadAnalytics,
   }
 }

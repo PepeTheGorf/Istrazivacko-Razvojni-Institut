@@ -55,6 +55,7 @@ export interface TaskSummary {
   phaseName?: string
   phaseOrder?: number
   phaseId?: number
+  startDate?: string
   endDate?: string
   assigneeIds?: number[]
   assigneeNames?: string[]
