@@ -7,12 +7,13 @@ import org.example.projectrealizationservice.repository.ProjectRepository;
 import org.example.projectrealizationservice.security.SecurityUtils;
 import org.example.projectrealizationservice.service.ProjectService;
 import org.example.projectrealizationservice.service.TaskService;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
+//import org.springframework.cache.annotation.CacheEvict;
+//import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -23,7 +24,7 @@ public class ProjectServiceImpl implements ProjectService {
     private final TaskService taskService;
 
     @Override
-    @CacheEvict(value = "projects", key = "#creatorId")
+    //@CacheEvict(value = "projects", key = "#creatorId")
     public void createProject(ProjectDTO project, Long creatorId) {
         if (projectRepository.findByName(project.getName()).isPresent()) {
             throw new RuntimeException("Project with the same name already exists");
@@ -40,7 +41,7 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Override
-    @CacheEvict(value = "projects", key = "#creatorId")
+    //@CacheEvict(value = "projects", key = "#creatorId")
     public void deleteProject(Long projectId, Long creatorId) {
         Project project = findAccessibleProjectOrThrow(projectId, creatorId);
         taskService.deleteTasksForProject(projectId);
@@ -48,7 +49,7 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Override
-    @CacheEvict(value = "projects", key = "#creatorId")
+    //@CacheEvict(value = "projects", key = "#creatorId")
     public void updateProject(Long projectId, ProjectDTO project, Long creatorId) {
         Project existingProject = findAccessibleProjectOrThrow(projectId, creatorId);
 
@@ -60,11 +61,11 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Override
-    @Cacheable(value = "projects", key = "#creatorId", condition = "#creatorId != null")
+    //@Cacheable(value = "projects", key = "#creatorId", condition = "#creatorId != null")
     public List<ProjectDTO> findAll(Long creatorId) {
         return projectRepository.findAll().stream()
-				// .filter(project -> Objects.equals(project.getCreatorId(), creatorId))
-				.map(ProjectDTO::toDTO)
+                .filter(project -> Objects.equals(project.getCreatorId(), creatorId))
+                .map(ProjectDTO::toDTO)
                 .toList();
     }
 
@@ -79,7 +80,7 @@ public class ProjectServiceImpl implements ProjectService {
     public ProjectDTO getProjectByName(String name, Long creatorId) {
         Project project = projectRepository.findByName(name)
                 .orElseThrow(() -> new RuntimeException("Project with that name does not exist!"));
-        // assertAccessibleProject(project, creatorId);
+        assertAccessibleProject(project, creatorId);
         return ProjectDTO.toDTO(project);
     }
 
@@ -91,13 +92,13 @@ public class ProjectServiceImpl implements ProjectService {
     private Project findAccessibleProjectOrThrow(Long projectId, Long creatorId) {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new RuntimeException("Project with that id does not exist!"));
-		// assertAccessibleProject(project, creatorId);
-		return project;
+        assertAccessibleProject(project, creatorId);
+        return project;
     }
 
     private void assertAccessibleProject(Project project, Long creatorId) {
-        // if (!Objects.equals(project.getCreatorId(), creatorId)) {
-        //     throw new RuntimeException("You do not have access to this project.");
-        // }
+        if (!Objects.equals(project.getCreatorId(), creatorId)) {
+            throw new RuntimeException("You do not have access to this project.");
+        }
     }
 }

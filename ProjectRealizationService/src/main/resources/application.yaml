@@ -12,8 +12,12 @@ spring:
       chat:
         model: llama3
         
-  cache:
-    type: redis
+  # cache:
+  #   type: redis
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5433/project_realization}
     username: ${SPRING_DATASOURCE_USERNAME:project_realization}
@@ -28,9 +32,9 @@ spring:
   application:
     name: project-realization-service
 
-redis:
-  host: ${REDIS_HOST:localhost}
-  port: ${REDIS_PORT:6379}
+#redis:
+#  host: ${REDIS_HOST:localhost}
+#  port: ${REDIS_PORT:6379}
 
 eureka:
   client:
@@ -43,6 +47,3 @@ eureka:
     
 jwt:
   secret: ${JWT_SECRET:c3Rha2Vob2xkZXJzZXJ2aWNland0c2VjcmV0a2V5Zm9ydGgyNTZiaXRzMTIzNDU2Nzg5MA==}
-
-
-

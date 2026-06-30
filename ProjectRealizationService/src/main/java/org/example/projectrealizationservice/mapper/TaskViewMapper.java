@@ -79,6 +79,7 @@ public class TaskViewMapper {
                 .phaseName(task.getPhase() != null ? task.getPhase().getName() : null)
                 .phaseOrder(task.getPhase() != null ? task.getPhase().getOrder() : null)
                 .phaseId(task.getPhase() != null ? task.getPhase().getId() : null)
+                .startDate(task.getStartDate())
                 .endDate(task.getEndDate())
                 .assigneeIds(assigneeIds)
                 .assigneeNames(List.of())

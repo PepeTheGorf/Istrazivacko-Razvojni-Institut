@@ -105,21 +105,6 @@ services:
     ports:
       - "8082:8082"
 
-  grafana:
-    build:
-      context: ./grafana
-      dockerfile: Dockerfile
-    image: document-management-grafana:latest
-    container_name: grafana
-    depends_on:
-      influxdb:
-        condition: service_healthy
-    ports:
-      - "3000:3000"
-    environment:
-      GF_SECURITY_ADMIN_PASSWORD: admin
-      GF_PATHS_PROVISIONING: /etc/grafana/provisioning
-
   project-realization-postgres:
     image: postgres:16
     environment:
@@ -159,24 +144,14 @@ services:
         condition: service_healthy
       project-realization-postgres:
         condition: service_healthy
-      neo4j:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      ollama:
-        condition: service_healthy
     environment:
       EUREKA_URL: http://eureka-server:8761/eureka/
       SPRING_DATASOURCE_URL: jdbc:postgresql://project-realization-postgres:5432/project_realization
       SPRING_DATASOURCE_USERNAME: project_realization
       SPRING_DATASOURCE_PASSWORD: project_realization
-      SPRING_NEO4J_URI: bolt://neo4j:7687
-      SPRING_NEO4J_AUTHENTICATION_USERNAME: neo4j
-      SPRING_NEO4J_AUTHENTICATION_PASSWORD: password
       JWT_SECRET: c3Rha2Vob2xkZXJzZXJ2aWNland0c2VjcmV0a2V5Zm9ydGgyNTZiaXRzMTIzNDU2Nzg5MA==
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      SPRING_AI_OLLAMA_BASE_URL: http://ollama:11434
+      AI_SERVICE_MODE: mock
+      SPRING_AUTOCONFIGURE_EXCLUDE: org.springframework.ai.autoconfigure.ollama.OllamaAutoConfiguration
     ports:
       - "9060:8080"
 
@@ -184,6 +159,8 @@ services:
     image: grafana/grafana:11.0.0
     container_name: grafana
     depends_on:
+      influxdb:
+        condition: service_healthy
       project-realization-postgres:
         condition: service_healthy
     ports:
@@ -196,6 +173,7 @@ services:
       GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
       GF_SECURITY_CSRF_TRUSTED_ORIGINS: http://localhost:5173
       GF_USERS_DEFAULT_THEME: dark
+      GF_PATHS_PROVISIONING: /etc/grafana/provisioning
     volumes:
       - grafana_data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning

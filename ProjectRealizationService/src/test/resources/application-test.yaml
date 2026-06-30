@@ -1,6 +1,6 @@
 spring:
-  cache:
-    type: simple
+  # cache:
+  #   type: simple
   datasource:
     url: jdbc:h2:mem:project_realization_test;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE
     driver-class-name: org.h2.Driver
