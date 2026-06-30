@@ -7,8 +7,11 @@ import org.example.projectrealizationservice.service.SmartDocService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.OffsetDateTime;
 import java.util.List; 
 import org.example.projectrealizationservice.dto.smartdocs.SmartTemplateDTO;
+import org.example.projectrealizationservice.dto.smartdocs.AiAnalyticsReportDTO;
 import org.example.projectrealizationservice.dto.smartdocs.PromptVersionDTO;
 import java.util.Map;
 
@@ -202,5 +205,16 @@ public ResponseEntity<?> updateRefinedResult(
     } catch (Exception e) {
         return ResponseEntity.badRequest().body(e.getMessage());
     }
+}
+
+@GetMapping("/reports/ai-analytics")
+@PreAuthorize("hasRole('MANAGER')")
+public ResponseEntity<List<AiAnalyticsReportDTO>> getAiReport(
+        @RequestParam String startDate, 
+        @RequestParam String endDate) {
+    return ResponseEntity.ok(smartDocService.getAiAnalyticsReport(
+            OffsetDateTime.parse(startDate), 
+            OffsetDateTime.parse(endDate)));
+
 }
 }

@@ -27,6 +27,7 @@ import { MySmartDocumentsPage } from './pages/smartDocs/MySmartDocumentsPage'
 import { DocumentViewPage } from './pages/smartDocs/DocumentViewPage'
 import { TemplateDetailsPage } from './pages/smartTemplates/TemplateDetailsPage'
 import { PromptManagementPage } from './pages/smartTemplates/PromptManagementPage'
+import { AnalyticsPage } from './pages/smartDocs/AnalyticsPage'
 
 function App() {
   return (
@@ -50,6 +51,7 @@ function App() {
           <Route path="/smart-templates/new" element={<TemplateCreateWizardPage />} />
           <Route path="/smart-templates/:templateId" element={<TemplateDetailsPage />} />
           <Route path="/smart-templates/:templateId/sections/:sectionId/prompt" element={<PromptManagementPage />} />
+          <Route path="/ai-analytics" element={<AnalyticsPage />} />
         </Route>
 
         {/* GRUPA ZA ČLANA TIMA */}

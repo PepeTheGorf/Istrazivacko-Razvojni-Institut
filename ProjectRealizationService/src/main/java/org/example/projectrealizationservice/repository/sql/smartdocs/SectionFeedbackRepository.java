@@ -27,4 +27,8 @@ public interface SectionFeedbackRepository extends JpaRepository<SectionFeedback
     @Query("SELECT COUNT(f) FROM SectionFeedback f WHERE f.section.usedPromptVersion.id = :versionId")
     Integer countFeedbackByVersionId(@Param("versionId") Long versionId);
 
+    @Query(value = "SELECT * FROM get_ai_template_analytics(:startDate, :endDate)", nativeQuery = true)
+    List<Object[]> getAiAnalyticsRaw(@Param("startDate") java.time.OffsetDateTime startDate, 
+                                @Param("endDate") java.time.OffsetDateTime endDate);
+
 }

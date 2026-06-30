@@ -114,3 +114,15 @@ export function updateRefinedResult(sectionId: number, refinedResult: string): P
 export function fetchTemplateById(id: number): Promise<SmartTemplate> {
   return apiFetch<SmartTemplate>(`/smart-docs/templates/${id}`)
 }
+
+export interface AiAnalyticsReport {
+  templateId: number
+  templateName: string
+  totalGeneratedSections: number
+  averageRating: number
+  avgHumanEditRatio: number
+}
+
+export function fetchAiAnalytics(start: string, end: string): Promise<AiAnalyticsReport[]> {
+  return apiFetch<AiAnalyticsReport[]>(`/smart-docs/reports/ai-analytics?startDate=${start}&endDate=${end}`)
+}

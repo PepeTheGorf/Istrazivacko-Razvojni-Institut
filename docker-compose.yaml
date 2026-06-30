@@ -113,7 +113,11 @@ services:
     #container_name: grafana
     #depends_on:
       #influxdb:
+<<<<<<< HEAD
        # condition: service_healthy
+=======
+        #condition: service_healthy
+>>>>>>> main
     #ports:
       #- "3000:3000"
     #environment:
