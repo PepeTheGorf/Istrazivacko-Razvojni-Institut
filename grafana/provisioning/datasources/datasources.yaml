@@ -1,0 +1,17 @@
+apiVersion: 1
+
+datasources:
+  - name: ProjectRealization
+    uid: project-realization-postgres
+    type: postgres
+    access: proxy
+    url: project-realization-postgres:5432
+    user: project_realization
+    database: project_realization
+    isDefault: true
+    editable: false
+    secureJsonData:
+      password: project_realization
+    jsonData:
+      sslmode: disable
+      postgresVersion: 1600

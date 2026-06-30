@@ -7,19 +7,22 @@ import lombok.NoArgsConstructor;
 
 import java.time.OffsetDateTime;
 import java.util.List;
-import java.util.Set;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class TaskSummaryDTO {
-    private String id;
+    private Long id;
     private String name;
     private String description;
     private String phaseName;
+    private Integer phaseOrder;
+    private Long phaseId;
     private OffsetDateTime endDate;
+    private List<Long> assigneeIds;
     private List<String> assigneeNames;
-    
+    private boolean completed;
+    private boolean overdue;
     private List<TaskSummaryDTO> subTasks;
 }

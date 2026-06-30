@@ -2,23 +2,17 @@ package org.example.projectrealizationservice.mapper;
 
 import lombok.RequiredArgsConstructor;
 import org.example.projectrealizationservice.dto.*;
-import org.example.projectrealizationservice.model.neo4j.Task;
-import org.example.projectrealizationservice.model.sql.ProjectTask;
-import org.example.projectrealizationservice.model.sql.TaskAssignment;
-import org.example.projectrealizationservice.model.sql.TaskResourceAssignment;
-import org.example.projectrealizationservice.model.sql.TechnicalResource;
-import org.example.projectrealizationservice.repository.neo4j.TaskRepository;
-import org.example.projectrealizationservice.repository.sql.AcceptanceCriteriaRepository;
-import org.example.projectrealizationservice.repository.sql.ProjectTaskRepository;
-import org.example.projectrealizationservice.repository.sql.TaskAssignmentRepository;
-import org.example.projectrealizationservice.repository.sql.TaskResourceAssignmentRepository;
-import org.example.projectrealizationservice.repository.sql.TechnicalResourceRepository;
+import org.example.projectrealizationservice.model.Task;
+import org.example.projectrealizationservice.model.TaskAssignment;
+import org.example.projectrealizationservice.model.TaskResourceAssignment;
+import org.example.projectrealizationservice.repository.AcceptanceCriteriaRepository;
+import org.example.projectrealizationservice.repository.TaskAssignmentRepository;
+import org.example.projectrealizationservice.repository.TaskRepository;
+import org.example.projectrealizationservice.repository.TaskResourceAssignmentRepository;
 import org.springframework.stereotype.Component;
 
+import java.time.OffsetDateTime;
 import java.util.List;
-import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
@@ -27,54 +21,40 @@ public class TaskViewMapper {
     private final AcceptanceCriteriaRepository acceptanceCriteriaRepository;
     private final TaskAssignmentRepository taskAssignmentRepository;
     private final TaskResourceAssignmentRepository taskResourceAssignmentRepository;
-    private final TechnicalResourceRepository technicalResourceRepository;
     private final TaskRepository taskRepository;
-    private final ProjectTaskRepository projectTaskRepository;
 
     public ProjectTaskDTO toProjectTaskDto(Task task) {
-        List<TaskAssignment> assignments = taskAssignmentRepository.findByTaskId(task.getId());
-        List<TaskResourceAssignment> resourceAssignments =
-                taskResourceAssignmentRepository.findByTaskId(task.getId());
+        Long taskId = task.getId();
+        List<TaskAssignment> assignments = taskAssignmentRepository.findByTask_Id(taskId);
+        List<TaskResourceAssignment> resourceAssignments = taskResourceAssignmentRepository.findByTask_Id(taskId);
 
-        Map<Long, TechnicalResource> resourcesById = technicalResourceRepository.findAllById(
-                        resourceAssignments.stream()
-                                .map(TaskResourceAssignment::getTechnicalResourceId)
-                                .distinct()
-                                .toList())
-                .stream()
-                .collect(Collectors.toMap(TechnicalResource::getId, Function.identity()));
-
-        List<TechnicalResourceDTO> technicalResources = resourceAssignments.stream()
-                .map(assignment -> {
-                    TechnicalResource resource = resourcesById.get(assignment.getTechnicalResourceId());
-                    return resource != null ? TechnicalResourceDTO.toDto(resource) : null;
-                })
-                .filter(dto -> dto != null)
+        List<TaskResourceAssignmentDTO> technicalResources = resourceAssignments.stream()
+                .map(assignment -> TaskResourceAssignmentDTO.fromAssignment(
+                        assignment, assignment.getTechnicalResource()))
                 .toList();
 
-        Long assigneeId = assignments.stream()
+        List<Long> assigneeIds = assignments.stream()
                 .map(TaskAssignment::getAssigneeId)
-                .findFirst()
-                .orElse(null);
+                .toList();
+        Long assigneeId = assigneeIds.isEmpty() ? null : assigneeIds.getFirst();
 
-        List<ProjectTaskDTO> subTasks = taskRepository.findSubtasksByParentTaskId(task.getId()).stream()
+        List<ProjectTaskDTO> subTasks = taskRepository.findSubtasksByParentTaskId(taskId).stream()
                 .map(this::toProjectTaskDto)
                 .toList();
 
-        ProjectTask projectTask = projectTaskRepository.findByTaskId(task.getId()).orElse(null);
-
         return ProjectTaskDTO.builder()
-                .id(task.getId())
+                .id(taskId)
                 .name(task.getName())
                 .description(task.getDescription())
                 .phaseName(task.getPhase() != null ? task.getPhase().getName() : null)
-                .startDate(projectTask != null ? projectTask.getStartDate() : null)
-                .endDate(projectTask != null ? projectTask.getEndDate() : null)
+                .startDate(task.getStartDate())
+                .endDate(task.getEndDate())
                 .creatorId(task.getCreatorId())
                 .assigneeId(assigneeId)
+                .assigneeIds(assigneeIds)
                 .workflow(WorkflowDTO.toDTO(task.getWorkflow()))
                 .technicalResources(technicalResources)
-                .acceptanceCriteria(acceptanceCriteriaRepository.findByTaskId(task.getId()).stream()
+                .acceptanceCriteria(acceptanceCriteriaRepository.findByTask_Id(taskId).stream()
                         .map(AcceptanceCriteriaDTO::toDto)
                         .toList())
                 .subTasks(subTasks)
@@ -82,28 +62,45 @@ public class TaskViewMapper {
     }
 
     public TaskSummaryDTO toTaskSummaryDto(Task task) {
-        List<TaskAssignment> assignments = taskAssignmentRepository.findByTaskId(task.getId());
-        
-        //todo: fix this later maybe by calling stakeholders api?
-        List<Long> assigneeId = assignments.stream()
-                .map(TaskAssignment::getAssigneeId).toList();
+        Long taskId = task.getId();
+        List<TaskAssignment> assignments = taskAssignmentRepository.findByTask_Id(taskId);
+        List<Long> assigneeIds = assignments.stream()
+                .map(TaskAssignment::getAssigneeId)
+                .toList();
 
-        List<TaskSummaryDTO> subTasks = taskRepository.findSubtasksByParentTaskId(task.getId()).stream()
+        List<TaskSummaryDTO> subTasks = taskRepository.findSubtasksByParentTaskId(taskId).stream()
                 .map(this::toTaskSummaryDto)
                 .toList();
 
-        
-        //Move this data into task I think
-        ProjectTask projectTask = projectTaskRepository.findByTaskId(task.getId()).orElse(null);
-
         return TaskSummaryDTO.builder()
-                .id(task.getId())
+                .id(taskId)
                 .name(task.getName())
                 .description(task.getDescription())
                 .phaseName(task.getPhase() != null ? task.getPhase().getName() : null)
-                .endDate(projectTask != null ? projectTask.getEndDate() : null)
+                .phaseOrder(task.getPhase() != null ? task.getPhase().getOrder() : null)
+                .phaseId(task.getPhase() != null ? task.getPhase().getId() : null)
+                .endDate(task.getEndDate())
+                .assigneeIds(assigneeIds)
                 .assigneeNames(List.of())
+                .completed(isTaskCompleted(task))
+                .overdue(isTaskOverdue(task))
                 .subTasks(subTasks)
                 .build();
+    }
+
+    private boolean isTaskCompleted(Task task) {
+        if (task.getPhase() == null || task.getWorkflow() == null) {
+            return false;
+        }
+        int currentOrder = task.getPhase().getOrder();
+        return task.getWorkflow().getPhases().stream()
+                .noneMatch(phase -> phase.getOrder() > currentOrder);
+    }
+
+    private boolean isTaskOverdue(Task task) {
+        if (task.getEndDate() == null || isTaskCompleted(task)) {
+            return false;
+        }
+        return task.getEndDate().isBefore(OffsetDateTime.now());
     }
 }

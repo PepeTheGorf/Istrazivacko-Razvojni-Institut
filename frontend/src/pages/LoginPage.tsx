@@ -73,7 +73,7 @@ export function LoginPage() {
 
           <div className="grid gap-3 pt-1">
             <Button type="submit" fullWidth disabled={submitting}>
-              {submitting ? 'Prijavljivanje…' : 'Prijavi se'}
+              {submitting ? 'Prijavljivanje...' : 'Prijavi se'}
             </Button>
             <p className="m-0 text-center text-sm text-ink-subtle">
               Nemate nalog?{' '}

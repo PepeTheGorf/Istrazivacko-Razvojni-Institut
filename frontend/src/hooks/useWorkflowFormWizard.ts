@@ -1,15 +1,20 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   WIZARD_TABS,
   type WizardTabKey,
 } from '../components/workflow/workflowWizardConfig'
 import type { WizardTabStatus } from '../components/workflow/WizardStepTabs'
-import type { PhaseCreation, WorkflowCreation } from '../types/workflow'
+import type {
+  PhaseCreation,
+  TransitionConditionCreation,
+  WorkflowCreation,
+} from '../types/workflow'
 
 export interface WorkflowFormInitial {
   name?: string
   description?: string
   phases?: PhaseCreation[]
+  transitionConditions?: TransitionConditionCreation[]
 }
 
 interface UseWorkflowFormWizardOptions {
@@ -40,9 +45,21 @@ export function useWorkflowFormWizard({
   const [name, setName] = useState(initial?.name ?? '')
   const [description, setDescription] = useState(initial?.description ?? '')
   const [phases, setPhases] = useState<PhaseCreation[]>(initial?.phases ?? [])
+  const [transitionConditions, setTransitionConditions] = useState<
+    TransitionConditionCreation[]
+  >(initial?.transitionConditions ?? [])
   const [newPhaseName, setNewPhaseName] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    const phaseNames = new Set(
+      phases.map((p) => p.name.trim()).filter((name) => name.length > 0),
+    )
+    setTransitionConditions((prev) =>
+      prev.filter((t) => phaseNames.has(t.from) && phaseNames.has(t.to)),
+    )
+  }, [phases])
 
   const normalizedPhases = useMemo(() => {
     return phases
@@ -90,6 +107,8 @@ export function useWorkflowFormWizard({
       name: name.trim(),
       description: description.trim() || undefined,
       phases: normalizedPhases,
+      transitionConditions:
+        transitionConditions.length > 0 ? transitionConditions : undefined,
     }
 
     setSaving(true)
@@ -101,7 +120,7 @@ export function useWorkflowFormWizard({
     } finally {
       setSaving(false)
     }
-  }, [description, name, normalizedPhases, onSubmit])
+  }, [description, name, normalizedPhases, onSubmit, transitionConditions])
 
   const goNext = useCallback(() => {
     const message = validateTab(activeTab)
@@ -160,10 +179,59 @@ export function useWorkflowFormWizard({
     setPhases((prev) => prev.filter((_, i) => i !== index))
   }, [])
 
+  const createTransitionCondition = useCallback((condition: TransitionConditionCreation) => {
+    setTransitionConditions((prev) => {
+      if (prev.some((c) => c.from === condition.from && c.to === condition.to)) {
+        return prev
+      }
+      return [...prev, condition]
+    })
+  }, [])
+
+  const addTypeToRoute = useCallback((from: string, to: string, typeId: number) => {
+    setTransitionConditions((prev) =>
+      prev.map((c) => {
+        if (c.from !== from || c.to !== to) return c
+        if (c.transitionTypeId.includes(typeId)) return c
+        return { ...c, transitionTypeId: [...c.transitionTypeId, typeId] }
+      }),
+    )
+  }, [])
+
+  const removeTypeFromRoute = useCallback((from: string, to: string, typeId: number) => {
+    setTransitionConditions((prev) =>
+      prev
+        .map((c) => {
+          if (c.from !== from || c.to !== to) return c
+          const nextIds = c.transitionTypeId.filter((id) => id !== typeId)
+          return { ...c, transitionTypeId: nextIds }
+        })
+        .filter((c) => c.transitionTypeId.length > 0),
+    )
+  }, [])
+
+  const removeTransitionRoute = useCallback((from: string, to: string) => {
+    setTransitionConditions((prev) =>
+      prev.filter((c) => !(c.from === from && c.to === to)),
+    )
+  }, [])
+
+  const replaceTransitionCondition = useCallback(
+    (originalFrom: string, originalTo: string, updated: TransitionConditionCreation) => {
+      setTransitionConditions((prev) => {
+        const without = prev.filter(
+          (c) => !(c.from === originalFrom && c.to === originalTo),
+        )
+        return [...without, updated]
+      })
+    },
+    [],
+  )
+
   const nextLabel =
     activeTab === 'review'
       ? saving
-        ? 'Čuvanje…'
+        ? 'Čuvanje...'
         : nextTabLabel('review')
       : nextTabLabel(activeTab)
 
@@ -177,6 +245,12 @@ export function useWorkflowFormWizard({
     saving,
     tabIndex,
     normalizedPhases,
+    transitionConditions,
+    createTransitionCondition,
+    addTypeToRoute,
+    removeTypeFromRoute,
+    removeTransitionRoute,
+    replaceTransitionCondition,
     getTabStatus,
     setName,
     setDescription,

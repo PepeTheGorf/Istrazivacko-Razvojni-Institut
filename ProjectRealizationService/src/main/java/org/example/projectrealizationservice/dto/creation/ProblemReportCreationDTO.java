@@ -12,8 +12,7 @@ import org.example.projectrealizationservice.model.ProblemType;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ProblemReportCreationDTO {
-    private String taskId;
-    private Long creatorId;
+    private Long taskId;
     private Long reviewedById;
     private String description;
     private ProblemType problemType;

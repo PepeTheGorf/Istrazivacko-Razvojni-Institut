@@ -32,7 +32,7 @@ export function DeleteProjectDialog({
             onClick={onConfirm}
             disabled={deleting}
           >
-            {deleting ? 'Brisanje…' : 'Obriši'}
+            {deleting ? 'Brisanje...' : 'Obriši'}
           </Button>
         </div>
       </div>

@@ -12,5 +12,6 @@ import lombok.NoArgsConstructor;
 public class TechnicalResourceCreationDTO {
     private String name;
     private String description;
+    private Integer quantity;
     private Long creatorId;
 }

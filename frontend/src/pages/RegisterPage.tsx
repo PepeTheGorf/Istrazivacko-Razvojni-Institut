@@ -16,7 +16,7 @@ export function RegisterPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [role, setRole] = useState<RegisterableRole>('MANAGER')
+  const [teamMemberRole, setRole] = useState<RegisterableRole>('MANAGER')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
@@ -32,10 +32,10 @@ export function RegisterPage() {
     setSubmitting(true)
 
     try {
-      await register({ name, surname, email, password, role })
+      await register({ name, surname, email, password, teamMemberRole })
       const stored = getStoredAuth()
-      if (stored?.user.role) {
-        navigate(getHomePathForRole(stored.user.role), { replace: true })
+      if (stored?.user.teamMemberRole) {
+        navigate(getHomePathForRole(stored.user.teamMemberRole), { replace: true })
       } else {
         navigate('/login', { replace: true })
       }
@@ -113,8 +113,8 @@ export function RegisterPage() {
 
           <SelectField
             label="Uloga"
-            name="role"
-            value={role}
+            name="teamMemberRole"
+            value={teamMemberRole}
             onChange={(e) => setRole(e.target.value as RegisterableRole)}
           >
             <option value="MANAGER">Menadžer</option>
@@ -129,7 +129,7 @@ export function RegisterPage() {
 
           <div className="grid gap-3 pt-1">
             <Button type="submit" fullWidth disabled={submitting}>
-              {submitting ? 'Registracija…' : 'Registruj se'}
+              {submitting ? 'Registracija...' : 'Registruj se'}
             </Button>
             <p className="m-0 text-center text-sm text-ink-subtle">
               Već imate nalog?{' '}

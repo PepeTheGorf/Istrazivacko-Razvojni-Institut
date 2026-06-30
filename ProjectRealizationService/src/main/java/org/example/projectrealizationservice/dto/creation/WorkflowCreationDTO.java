@@ -16,4 +16,5 @@ public class WorkflowCreationDTO {
     private String description;
     private Long creatorId;
     private List<PhaseCreationDTO> phases;
+    private List<TransitionConditionDTO> transitionConditions;
 }

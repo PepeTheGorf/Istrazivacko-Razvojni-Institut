@@ -74,12 +74,23 @@ export function WorkflowFormWizard({
             onMovePhase={wizard.movePhase}
           />
         )}
-        {wizard.activeTab === 'conditions' && <ConditionsStep />}
+        {wizard.activeTab === 'conditions' && (
+          <ConditionsStep
+            phases={wizard.normalizedPhases}
+            transitionConditions={wizard.transitionConditions}
+            onCreateTransition={wizard.createTransitionCondition}
+            onAddTypeToRoute={wizard.addTypeToRoute}
+            onRemoveTypeFromRoute={wizard.removeTypeFromRoute}
+            onRemoveTransitionRoute={wizard.removeTransitionRoute}
+            onReplaceTransition={wizard.replaceTransitionCondition}
+          />
+        )}
         {wizard.activeTab === 'review' && (
           <ReviewStep
             name={wizard.name}
             description={wizard.description}
             phases={wizard.normalizedPhases}
+            transitionConditions={wizard.transitionConditions}
           />
         )}
       </section>
@@ -91,7 +102,7 @@ export function WorkflowFormWizard({
         nextLabel={
           wizard.activeTab === 'review'
             ? wizard.saving
-              ? 'Čuvanje…'
+              ? 'Čuvanje...'
               : submitLabel
             : wizard.nextLabel
         }

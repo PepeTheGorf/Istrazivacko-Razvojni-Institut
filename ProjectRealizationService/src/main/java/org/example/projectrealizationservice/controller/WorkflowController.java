@@ -32,10 +32,19 @@ public class WorkflowController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
-    
+
+    @GetMapping("/{workflowId}")
+    public ResponseEntity<?> getWorkflowById(@PathVariable Long workflowId) {
+        try {
+            return ResponseEntity.ok(workflowService.getWorkflowById(workflowId));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
     @PutMapping("/{workflowId}")
     @PreAuthorize("hasRole('ADMINISTRATOR')")
-    public ResponseEntity<?> updateWorkflow(@PathVariable String workflowId, @RequestBody WorkflowCreationDTO workflow) {
+    public ResponseEntity<?> updateWorkflow(@PathVariable Long workflowId, @RequestBody WorkflowCreationDTO workflow) {
         try {
             workflowService.updateWorkflow(workflowId, workflow);
             return ResponseEntity.ok().build();
@@ -46,10 +55,19 @@ public class WorkflowController {
 
     @DeleteMapping("/{workflowId}")
     @PreAuthorize("hasRole('ADMINISTRATOR')")
-    public ResponseEntity<?> deleteWorkflow(@PathVariable String workflowId) {
+    public ResponseEntity<?> deleteWorkflow(@PathVariable Long workflowId) {
         try {
             workflowService.deleteWorkflow(workflowId);
             return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @GetMapping("/transition-condition-types")
+    public ResponseEntity<?> getAllTransitionConditionTypes() {
+        try {
+            return ResponseEntity.ok(workflowService.getAllTransitionConditionTypes());
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }

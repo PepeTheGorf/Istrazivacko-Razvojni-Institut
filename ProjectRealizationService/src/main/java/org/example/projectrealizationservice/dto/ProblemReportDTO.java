@@ -4,9 +4,9 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.example.projectrealizationservice.model.ProblemReport;
 import org.example.projectrealizationservice.model.ProblemStatus;
 import org.example.projectrealizationservice.model.ProblemType;
-import org.example.projectrealizationservice.model.sql.ProblemReport;
 
 import java.time.OffsetDateTime;
 
@@ -15,8 +15,9 @@ import java.time.OffsetDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ProblemReportDTO {
-    private String id;
-    private String taskId;
+    private Long id;
+    private Long taskId;
+    private String taskName;
     private Long creatorId;
     private Long reviewedById;
     private String description;
@@ -29,8 +30,9 @@ public class ProblemReportDTO {
             return null;
         }
         return ProblemReportDTO.builder()
-                .id(String.valueOf(problemReport.getId()))
-                .taskId(problemReport.getTaskId())
+                .id(problemReport.getId())
+                .taskId(problemReport.getTask() != null ? problemReport.getTask().getId() : null)
+                .taskName(problemReport.getTask() != null ? problemReport.getTask().getName() : null)
                 .creatorId(problemReport.getCreatorId())
                 .reviewedById(problemReport.getReviewedById())
                 .description(problemReport.getDescription())

@@ -14,11 +14,6 @@ spring:
         
   cache:
     type: redis
-  neo4j:
-    uri: ${SPRING_NEO4J_URI:bolt://localhost:7687}
-    authentication:
-      username: ${SPRING_NEO4J_AUTHENTICATION_USERNAME:neo4j}
-      password: ${SPRING_NEO4J_AUTHENTICATION_PASSWORD:password}
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5433/project_realization}
     username: ${SPRING_DATASOURCE_USERNAME:project_realization}
@@ -32,10 +27,6 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
   application:
     name: project-realization-service
-  autoconfigure:
-    exclude:
-      - org.springframework.boot.autoconfigure.data.neo4j.Neo4jReactiveDataAutoConfiguration
-      - org.springframework.boot.autoconfigure.data.neo4j.Neo4jReactiveRepositoriesAutoConfiguration
 
 redis:
   host: ${REDIS_HOST:localhost}
@@ -52,7 +43,6 @@ eureka:
     
 jwt:
   secret: ${JWT_SECRET:c3Rha2Vob2xkZXJzZXJ2aWNland0c2VjcmV0a2V5Zm9ydGgyNTZiaXRzMTIzNDU2Nzg5MA==}
-
 
 
 

@@ -6,11 +6,15 @@ import org.example.projectrealizationservice.dto.creation.ProblemReportCreationD
 import java.util.List;
 
 public interface ProblemReportService {
-    void createProblemReport(String taskId, ProblemReportCreationDTO problemReport);
-    void updateProblemReport(String problemReportId, ProblemReportCreationDTO problemReport);
-    void deleteProblemReport(String problemReportId);
+    void createProblemReport(Long taskId, ProblemReportCreationDTO problemReport);
 
-    ProblemReportDTO getProblemReportById(String problemReportId);
-    List<ProblemReportDTO> getAllProblemsByTask(String taskId);
+    void updateProblemReport(Long problemReportId, ProblemReportCreationDTO problemReport);
+
+    void deleteProblemReport(Long problemReportId);
+
+    ProblemReportDTO getProblemReportById(Long problemReportId);
+
+    List<ProblemReportDTO> getAllProblemsByTask(Long taskId);
+
+    List<ProblemReportDTO> getMyProblemReports();
 }
-
